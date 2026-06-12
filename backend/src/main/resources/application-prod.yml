@@ -1,0 +1,66 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: property-saas-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration-prod
+    baseline-on-migrate: false
+    validate-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:12MB}
+
+knife4j:
+  enable: false
+
+property-saas:
+  jwt:
+    secret: ${PROPERTY_SAAS_JWT_SECRET}
+    ttl-seconds: ${PROPERTY_SAAS_JWT_TTL_SECONDS:7200}
+  tenant:
+    redis-key-prefix: "tenant:{tenantId}:"
+    ignore-tables:
+      - sys_tenant
+      - sys_tenant_package
+      - sys_menu
+      - sys_dict_type
+      - sys_dict_data
+      - sys_login_log
+      - operation_log
+      - interface_call_log
+      - file_object
+      - message_record
+  file:
+    object-key-pattern: "/tenant/{tenantId}/project/{projectId}/module/{module}/yyyy/mm/{fileId}.{ext}"
+    local-root-dir: ${PROPERTY_SAAS_FILE_LOCAL_ROOT_DIR:/data/property-saas/uploads}
+    max-file-size-bytes: ${PROPERTY_SAAS_FILE_MAX_SIZE_BYTES:10485760}
+  job:
+    enabled: ${PROPERTY_SAAS_JOB_ENABLED:false}
+    default-limit: ${PROPERTY_SAAS_JOB_DEFAULT_LIMIT:200}
+    lease-expire-days: ${PROPERTY_SAAS_JOB_LEASE_EXPIRE_DAYS:30}
+    work-order-sla-cron: ${PROPERTY_SAAS_JOB_WORK_ORDER_SLA_CRON:0 */10 * * * *}
+    patrol-missed-cron: ${PROPERTY_SAAS_JOB_PATROL_MISSED_CRON:0 */15 * * * *}
+    lease-expire-cron: ${PROPERTY_SAAS_JOB_LEASE_EXPIRE_CRON:0 0 9 * * *}
+    message-dispatch-cron: ${PROPERTY_SAAS_JOB_MESSAGE_DISPATCH_CRON:0 */2 * * * *}
+  payment:
+    wechat:
+      mode: ${WECHAT_PAY_MODE:REAL_WECHAT_V3}
+      callback-tolerance-seconds: ${WECHAT_PAY_CALLBACK_TOLERANCE_SECONDS:300}
+      merchant-private-key-path: ${WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH:}
+      merchant-certificate-path: ${WECHAT_PAY_MERCHANT_CERTIFICATE_PATH:}
+      platform-certificate-path: ${WECHAT_PAY_PLATFORM_CERTIFICATE_PATH:}
+      api-v3-key-ref: ${WECHAT_PAY_API_V3_KEY_REF:}

@@ -1,0 +1,2 @@
+projectId,itemId,standardId,objectType,objectId,memberId,houseId,billPeriod,receivableAmount,discountAmount,dueDate
+1,70001,71001,HOUSE,12001,,12001,2026-06,300.00,0.00,2026-06-30

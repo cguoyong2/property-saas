@@ -1,0 +1,15 @@
+{
+  "name": "智慧物业",
+  "appid": "__UNI__PROPERTYSAAS",
+  "description": "智慧物业 SaaS 微信小程序端",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": true
+    },
+    "usingComponents": true
+  }
+}

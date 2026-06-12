@@ -1,0 +1,17 @@
+target/
+node_modules/
+dist/
+unpackage/
+data/uploads/
+.idea/
+.vscode/
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.log
+*.iml
+*.class
+*.jar
+*.war
+*.zip

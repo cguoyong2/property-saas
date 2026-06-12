@@ -1,0 +1,143 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationBarTitleText": "首页"
+      }
+    },
+    {
+      "path": "pages/house/list",
+      "style": {
+        "navigationBarTitleText": "我的房屋"
+      }
+    },
+    {
+      "path": "pages/house/bind",
+      "style": {
+        "navigationBarTitleText": "房屋绑定"
+      }
+    },
+    {
+      "path": "pages/house/switch",
+      "style": {
+        "navigationBarTitleText": "选择房屋"
+      }
+    },
+    {
+      "path": "pages/bill/list",
+      "style": {
+        "navigationBarTitleText": "物业缴费"
+      }
+    },
+    {
+      "path": "pages/bill/detail",
+      "style": {
+        "navigationBarTitleText": "账单详情"
+      }
+    },
+    {
+      "path": "pages/workorder/create",
+      "style": {
+        "navigationBarTitleText": "报事报修"
+      }
+    },
+    {
+      "path": "pages/workorder/list",
+      "style": {
+        "navigationBarTitleText": "我的工单"
+      }
+    },
+    {
+      "path": "pages/workorder/detail",
+      "style": {
+        "navigationBarTitleText": "工单详情"
+      }
+    },
+    {
+      "path": "pages/workorder/complaint",
+      "style": {
+        "navigationBarTitleText": "投诉建议"
+      }
+    },
+    {
+      "path": "pages/notice/list",
+      "style": {
+        "navigationBarTitleText": "通知公告"
+      }
+    },
+    {
+      "path": "pages/visitor/create",
+      "style": {
+        "navigationBarTitleText": "访客邀请"
+      }
+    },
+    {
+      "path": "pages/vehicle/list",
+      "style": {
+        "navigationBarTitleText": "我的车辆"
+      }
+    },
+    {
+      "path": "pages/lease/contracts",
+      "style": {
+        "navigationBarTitleText": "我的租赁"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pages-sub/payment",
+      "pages": [
+        {
+          "path": "cashier",
+          "style": {
+            "navigationBarTitleText": "支付收银台"
+          }
+        }
+      ]
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "智慧物业",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f7fb"
+  },
+  "tabBar": {
+    "color": "#64748b",
+    "selectedColor": "#0f766e",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/bill/list",
+        "text": "缴费"
+      },
+      {
+        "pagePath": "pages/workorder/list",
+        "text": "工单"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  }
+}

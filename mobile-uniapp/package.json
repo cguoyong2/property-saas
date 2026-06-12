@@ -1,0 +1,34 @@
+{
+  "name": "property-saas-mobile-uniapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "build:h5": "uni build -p h5"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-5000720260410001",
+    "@dcloudio/uni-ui": "1.5.7",
+    "pinia": "2.0.36",
+    "vue": "3.4.21"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "3.4.31",
+    "@dcloudio/uni-automator": "3.0.0-5000720260410001",
+    "@dcloudio/uni-cli-shared": "3.0.0-5000720260410001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-5000720260410001",
+    "@vitejs/plugin-vue": "5.0.4",
+    "typescript": "^5.6.3",
+    "vite": "6.4.3",
+    "vue-tsc": "^2.1.10"
+  },
+  "overrides": {
+    "@intlify/core-base": "9.14.5",
+    "@intlify/message-compiler": "9.14.5",
+    "@intlify/message-resolver": "9.14.5",
+    "@intlify/runtime": "9.14.5",
+    "@intlify/vue-devtools": "9.14.5",
+    "esbuild": "0.25.0"
+  }
+}

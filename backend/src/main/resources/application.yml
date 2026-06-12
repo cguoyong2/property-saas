@@ -1,0 +1,75 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: property-saas-backend
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:${MYSQL_PORT:3307}/property_saas?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: property
+    password: property
+  data:
+    redis:
+      host: localhost
+      port: ${REDIS_PORT:6380}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 2
+    validate-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+knife4j:
+  enable: true
+
+property-saas:
+  jwt:
+    # 本地开发默认密钥；生产环境必须通过环境变量 PROPERTY_SAAS_JWT_SECRET 覆盖。
+    secret: ${PROPERTY_SAAS_JWT_SECRET:property-saas-local-dev-secret-change-me-32bytes}
+    ttl-seconds: 7200
+  tenant:
+    redis-key-prefix: "tenant:{tenantId}:"
+    ignore-tables:
+      - sys_tenant
+      - sys_tenant_package
+      - sys_menu
+      - sys_dict_type
+      - sys_dict_data
+      - sys_login_log
+      - operation_log
+      - interface_call_log
+      - file_object
+      - message_record
+  file:
+    object-key-pattern: "/tenant/{tenantId}/project/{projectId}/module/{module}/yyyy/mm/{fileId}.{ext}"
+    local-root-dir: ${PROPERTY_SAAS_FILE_LOCAL_ROOT_DIR:data/uploads}
+    max-file-size-bytes: ${PROPERTY_SAAS_FILE_MAX_SIZE_BYTES:10485760}
+  job:
+    enabled: ${PROPERTY_SAAS_JOB_ENABLED:false}
+    default-limit: ${PROPERTY_SAAS_JOB_DEFAULT_LIMIT:200}
+    lease-expire-days: ${PROPERTY_SAAS_JOB_LEASE_EXPIRE_DAYS:30}
+    work-order-sla-cron: ${PROPERTY_SAAS_JOB_WORK_ORDER_SLA_CRON:0 */10 * * * *}
+    patrol-missed-cron: ${PROPERTY_SAAS_JOB_PATROL_MISSED_CRON:0 */15 * * * *}
+    lease-expire-cron: ${PROPERTY_SAAS_JOB_LEASE_EXPIRE_CRON:0 0 9 * * *}
+    message-dispatch-cron: ${PROPERTY_SAAS_JOB_MESSAGE_DISPATCH_CRON:0 */2 * * * *}
+  payment:
+    wechat:
+      # 本地开发保留模拟 HMAC 回调；生产 profile 默认 REAL_WECHAT_V3。
+      mode: ${WECHAT_PAY_MODE:DEV_SIMULATED}
+      callback-tolerance-seconds: ${WECHAT_PAY_CALLBACK_TOLERANCE_SECONDS:300}

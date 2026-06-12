@@ -1,0 +1,3376 @@
+openapi: 3.0.3
+info:
+  title: 智慧物业管理系统 SaaS 多租户版 API
+  version: 1.1.1
+  description: |
+    本接口契约用于约束 Codex 开发。实际开发不得擅自更改路径、核心字段、状态枚举和权限标识。
+    所有业务接口默认返回 ApiResponse；列表接口 data 使用 PageResult。
+servers:
+  - url: https://api.example.com
+    description: 生产环境示例
+  - url: http://localhost:8080
+    description: 本地开发环境
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: PlatformTenant
+  - name: System
+  - name: Base
+  - name: Fee
+  - name: Payment
+  - name: Service
+  - name: File
+  - name: Lease
+  - name: Patrol
+  - name: Device
+  - name: Report
+  - name: App
+  - name: Import
+  - name: Job
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 后台账号登录
+      security: []
+      x-permission: public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/LoginResponse' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: 当前后台用户信息
+      x-permission: auth:me
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+  /api/auth/menus:
+    get:
+      tags: [Auth]
+      summary: 获取当前用户菜单和按钮权限
+      x-permission: auth:menus
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/dashboard:
+    get:
+      tags: [PlatformTenant]
+      summary: 平台工作台
+      x-permission: platform:dashboard:view
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/tenants:
+    get:
+      tags: [PlatformTenant]
+      summary: 租户列表
+      x-permission: platform:tenant:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/TenantStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    post:
+      tags: [PlatformTenant]
+      summary: 创建租户
+      x-permission: platform:tenant:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/tenants/{tenantId}:
+    get:
+      tags: [PlatformTenant]
+      summary: 租户详情
+      x-permission: platform:tenant:view
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [PlatformTenant]
+      summary: 修改租户
+      x-permission: platform:tenant:update
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/tenants/{tenantId}/status:
+    put:
+      tags: [PlatformTenant]
+      summary: 启用/停用/归档租户
+      x-permission: platform:tenant:status
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusChangeRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/tenants/{tenantId}/config:
+    get:
+      tags: [PlatformTenant]
+      summary: 租户配置详情
+      x-permission: platform:tenant:config:view
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [PlatformTenant]
+      summary: 修改租户配置
+      x-permission: platform:tenant:config:update
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantConfigRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/packages:
+    get:
+      tags: [PlatformTenant]
+      summary: 套餐列表
+      x-permission: platform:package:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [PlatformTenant]
+      summary: 创建套餐
+      x-permission: platform:package:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PackageRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/usage:
+    get:
+      tags: [PlatformTenant]
+      summary: 租户用量统计
+      x-permission: platform:usage:view
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/platform/notices:
+    get:
+      tags: [PlatformTenant]
+      summary: 平台公告列表
+      x-permission: platform:notice:list
+      parameters:
+        - name: tenantId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [DRAFT, PUBLISHED, WITHDRAWN] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [PlatformTenant]
+      summary: 发布平台公告
+      x-permission: platform:notice:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlatformNoticeCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/platform/monitor:
+    get:
+      tags: [PlatformTenant]
+      summary: 运维监控
+      x-permission: platform:monitor:view
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/users:
+    get:
+      tags: [System]
+      summary: 后台用户列表
+      x-permission: system:user:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [System]
+      summary: 新增后台用户
+      x-permission: system:user:create
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/users/{userId}:
+    put:
+      tags: [System]
+      summary: 修改后台用户
+      x-permission: system:user:update
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SystemUserRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/users/{userId}/status:
+    put:
+      tags: [System]
+      summary: 启停后台用户
+      x-permission: system:user:status
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusOnlyRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/users/{userId}/projects:
+    put:
+      tags: [System]
+      summary: 设置用户授权项目
+      x-permission: system:user:project
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserProjectRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/roles:
+    get:
+      tags: [System]
+      summary: 角色列表
+      x-permission: system:role:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [System]
+      summary: 新增角色
+      x-permission: system:role:create
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/roles/{roleId}:
+    put:
+      tags: [System]
+      summary: 修改角色
+      x-permission: system:role:update
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SystemRoleRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/roles/{roleId}/menus:
+    get:
+      tags: [System]
+      summary: 角色已授权菜单权限
+      x-permission: system:role:menu:view
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [System]
+      summary: 设置角色菜单权限
+      x-permission: system:role:menu:update
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleMenuRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/depts:
+    get:
+      tags: [System]
+      summary: 部门列表
+      x-permission: system:dept:list
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    post:
+      tags: [System]
+      summary: 新增部门
+      x-permission: system:dept:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeptRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/depts/{deptId}:
+    put:
+      tags: [System]
+      summary: 修改部门
+      x-permission: system:dept:update
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeptRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/menus:
+    get:
+      tags: [System]
+      summary: 菜单权限列表
+      x-permission: system:menu:list
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/system/operation-logs:
+    get:
+      tags: [System]
+      summary: 操作审计日志
+      x-permission: system:operationLog:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/base/projects:
+    get:
+      tags: [Base]
+      summary: 项目/小区列表
+      x-permission: base:project:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增项目/小区
+      x-permission: base:project:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/projects/{projectId}:
+    get:
+      tags: [Base]
+      summary: 项目/小区详情
+      x-permission: base:project:view
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改项目/小区
+      x-permission: base:project:update
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/buildings:
+    get:
+      tags: [Base]
+      summary: 楼栋列表
+      x-permission: base:building:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增楼栋
+      x-permission: base:building:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuildingRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/buildings/{buildingId}:
+    get:
+      tags: [Base]
+      summary: 楼栋详情
+      x-permission: base:building:view
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改楼栋
+      x-permission: base:building:update
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuildingRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/units:
+    get:
+      tags: [Base]
+      summary: 单元列表
+      x-permission: base:unit:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增单元
+      x-permission: base:unit:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnitRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/units/{unitId}:
+    get:
+      tags: [Base]
+      summary: 单元详情
+      x-permission: base:unit:view
+      parameters:
+        - name: unitId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改单元
+      x-permission: base:unit:update
+      parameters:
+        - name: unitId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnitRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/houses/import:
+    post:
+      tags: [Base]
+      summary: 批量导入房屋
+      x-permission: base:house:import
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HouseImportRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/houses:
+    get:
+      tags: [Base]
+      summary: 房屋列表
+      x-permission: base:house:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增房屋
+      x-permission: base:house:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HouseRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/houses/{houseId}:
+    get:
+      tags: [Base]
+      summary: 房屋详情
+      x-permission: base:house:view
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改房屋
+      x-permission: base:house:update
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HouseRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/members:
+    get:
+      tags: [Base]
+      summary: 业主/住户列表
+      x-permission: base:member:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/base/member-bindings:
+    get:
+      tags: [Base]
+      summary: 房屋绑定审核列表
+      x-permission: base:memberBinding:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: memberId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BindStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/base/member-bindings/{bindId}/audit:
+    put:
+      tags: [Base]
+      summary: 审核房屋绑定
+      x-permission: base:memberBinding:audit
+      parameters:
+        - $ref: '#/components/parameters/BindId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuditRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/member-bindings/{bindId}/unbind:
+    put:
+      tags: [Base]
+      summary: 后台解绑房屋绑定
+      x-permission: base:memberBinding:unbind
+      parameters:
+        - $ref: '#/components/parameters/BindId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/vehicles:
+    get:
+      tags: [Base]
+      summary: 车辆列表
+      x-permission: base:vehicle:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增车辆
+      x-permission: base:vehicle:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/vehicles/{vehicleId}:
+    get:
+      tags: [Base]
+      summary: 车辆详情
+      x-permission: base:vehicle:view
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改车辆
+      x-permission: base:vehicle:update
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/vehicles/{vehicleId}/monthly-rent:
+    put:
+      tags: [Base]
+      summary: 更新车辆月租状态
+      x-permission: base:vehicle:monthlyRent
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MonthlyRentRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/parking-spaces:
+    get:
+      tags: [Base]
+      summary: 车位列表
+      x-permission: base:parkingSpace:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Base]
+      summary: 新增车位
+      x-permission: base:parkingSpace:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParkingSpaceRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/base/parking-spaces/{spaceId}:
+    get:
+      tags: [Base]
+      summary: 车位详情
+      x-permission: base:parkingSpace:view
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Base]
+      summary: 修改车位
+      x-permission: base:parkingSpace:update
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParkingSpaceRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/items:
+    get:
+      tags: [Fee]
+      summary: 收费项目列表
+      x-permission: fee:item:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Fee]
+      summary: 新增收费项目
+      x-permission: fee:item:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeeItemRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/items/{itemId}:
+    get:
+      tags: [Fee]
+      summary: 收费项目详情
+      x-permission: fee:item:view
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Fee]
+      summary: 修改收费项目
+      x-permission: fee:item:update
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeeItemRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/standards:
+    get:
+      tags: [Fee]
+      summary: 收费标准列表
+      x-permission: fee:standard:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: itemId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Fee]
+      summary: 新增收费标准
+      x-permission: fee:standard:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeeStandardRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/standards/{standardId}:
+    get:
+      tags: [Fee]
+      summary: 收费标准详情
+      x-permission: fee:standard:view
+      parameters:
+        - name: standardId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Fee]
+      summary: 修改收费标准
+      x-permission: fee:standard:update
+      parameters:
+        - name: standardId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeeStandardRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/standard-binds:
+    get:
+      tags: [Fee]
+      summary: 收费标准绑定列表
+      x-permission: fee:standardBind:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: standardId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: objectType
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Fee]
+      summary: 新增收费标准绑定
+      x-permission: fee:standardBind:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeeStandardBindRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills/generate:
+    post:
+      tags: [Fee]
+      summary: 批量生成账单
+      x-permission: fee:bill:generate
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BillGenerateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills:
+    get:
+      tags: [Fee]
+      summary: 账单列表
+      x-permission: fee:bill:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BillStatus' }
+        - name: billPeriod
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Fee]
+      summary: 手工创建账单
+      x-permission: fee:bill:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BillManualRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills/import:
+    post:
+      tags: [Fee]
+      summary: 导入历史账单
+      x-permission: fee:bill:import
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BillImportRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills/remind:
+    post:
+      tags: [Fee]
+      summary: 账单催缴
+      x-permission: fee:bill:remind
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BillRemindRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills/{billId}:
+    get:
+      tags: [Fee]
+      summary: 账单详情
+      x-permission: fee:bill:view
+      parameters:
+        - $ref: '#/components/parameters/BillId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/fee/bills/{billId}/void:
+    put:
+      tags: [Fee]
+      summary: 作废账单
+      x-permission: fee:bill:void
+      parameters:
+        - $ref: '#/components/parameters/BillId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/payment/orders:
+    post:
+      tags: [Payment]
+      summary: 后台创建支付订单
+      x-permission: payment:order:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayOrderCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    get:
+      tags: [Payment]
+      summary: 订单列表
+      x-permission: payment:order:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PayOrderStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/payment/transactions:
+    get:
+      tags: [Payment]
+      summary: 支付流水列表
+      x-permission: payment:transaction:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/payment/wechat/notify:
+    post:
+      tags: [Payment]
+      summary: 微信支付回调
+      security: []
+      x-permission: public_callback
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WechatPayNotifyRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/payment/refunds:
+    get:
+      tags: [Payment]
+      summary: 退款列表
+      x-permission: payment:refund:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RefundStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Payment]
+      summary: 发起退款
+      x-permission: payment:refund:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/payment/refunds/{refundId}/audit:
+    post:
+      tags: [Payment]
+      summary: 退款审批
+      x-permission: payment:refund:audit
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundAuditRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/payment/wechat/refund-notify:
+    post:
+      tags: [Payment]
+      summary: 微信退款回调
+      security: []
+      x-permission: public_callback
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WechatRefundNotifyRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/payment/reconcile:
+    get:
+      tags: [Payment]
+      summary: 支付退款对账汇总
+      x-permission: payment:reconcile:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/notices:
+    get:
+      tags: [Service]
+      summary: 公告列表
+      x-permission: service:notice:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [DRAFT, PUBLISHED, WITHDRAWN] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Service]
+      summary: 发布公告
+      x-permission: service:notice:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoticeCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/notices/{noticeId}:
+    get:
+      tags: [Service]
+      summary: 公告详情
+      x-permission: service:notice:view
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/notices/{noticeId}/publish:
+    put:
+      tags: [Service]
+      summary: 发布草稿公告
+      x-permission: service:notice:publish
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/notices/{noticeId}/withdraw:
+    put:
+      tags: [Service]
+      summary: 撤回已发布公告
+      x-permission: service:notice:withdraw
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/messages:
+    get:
+      tags: [Service]
+      summary: 消息发送记录列表
+      x-permission: service:message:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: channel
+          in: query
+          schema: { type: string, enum: [SITE, SMS, WECHAT] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, SENT, FAILED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/message-templates:
+    get:
+      tags: [Service]
+      summary: 消息模板列表
+      x-permission: service:messageTemplate:list
+      parameters:
+        - name: channel
+          in: query
+          schema: { type: string, enum: [SITE, SMS, WECHAT] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, DISABLED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Service]
+      summary: 新增消息模板
+      x-permission: service:messageTemplate:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageTemplateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/message-templates/{templateId}:
+    put:
+      tags: [Service]
+      summary: 修改消息模板
+      x-permission: service:messageTemplate:update
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageTemplateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/messages/dispatch-pending:
+    post:
+      tags: [Service]
+      summary: 派发待发送消息
+      x-permission: service:message:dispatch
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/messages/retry-failed:
+    post:
+      tags: [Service]
+      summary: 批量重试失败消息
+      x-permission: service:message:retry
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/messages/{messageId}/retry:
+    post:
+      tags: [Service]
+      summary: 重试单条失败消息
+      x-permission: service:message:retry
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders:
+    get:
+      tags: [Service]
+      summary: 工单列表
+      x-permission: service:workorder:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/WorkOrderStatus' }
+        - name: orderType
+          in: query
+          schema: { type: string, enum: [REPAIR, COMPLAINT, SUGGESTION, HOUSEKEEPING, RENOVATION] }
+        - name: handlerUserId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: memberId
+          in: query
+          schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Service]
+      summary: 后台创建工单
+      x-permission: service:workorder:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}:
+    get:
+      tags: [Service]
+      summary: 工单详情
+      x-permission: service:workorder:view
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/dispatch:
+    put:
+      tags: [Service]
+      summary: 工单派单
+      x-permission: service:workorder:dispatch
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderDispatchRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/accept:
+    put:
+      tags: [Service]
+      summary: 工单受理
+      x-permission: service:workorder:accept
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/reject:
+    put:
+      tags: [Service]
+      summary: 工单驳回
+      x-permission: service:workorder:reject
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/start:
+    put:
+      tags: [Service]
+      summary: 开始处理工单
+      x-permission: service:workorder:process
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/submit-result:
+    put:
+      tags: [Service]
+      summary: 提交处理结果
+      x-permission: service:workorder:process
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/hang-up:
+    put:
+      tags: [Service]
+      summary: 挂起工单
+      x-permission: service:workorder:process
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/resume:
+    put:
+      tags: [Service]
+      summary: 恢复工单
+      x-permission: service:workorder:process
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/revisit:
+    put:
+      tags: [Service]
+      summary: 工单回访完成
+      x-permission: service:workorder:revisit
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/rework:
+    put:
+      tags: [Service]
+      summary: 工单返工
+      x-permission: service:workorder:revisit
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/{workOrderId}/cancel:
+    put:
+      tags: [Service]
+      summary: 取消工单
+      x-permission: service:workorder:cancel
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderActionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/workorders/sla/mark-overdue:
+    post:
+      tags: [Service]
+      summary: 标记 SLA 超时工单
+      x-permission: service:workorder:sla
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/service/complaints:
+    get:
+      tags: [Service]
+      summary: 投诉建议列表
+      x-permission: service:complaint:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/files:
+    get:
+      tags: [File]
+      summary: 后台文件列表
+      x-permission: file:object:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: moduleCode
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [File]
+      summary: 后台文件上传
+      x-permission: file:object:upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/FileUploadRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/files/{fileId}:
+    get:
+      tags: [File]
+      summary: 后台文件元数据
+      x-permission: file:object:view
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    delete:
+      tags: [File]
+      summary: 后台文件删除
+      x-permission: file:object:delete
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/files/{fileId}/content:
+    get:
+      tags: [File]
+      summary: 后台文件下载
+      x-permission: file:object:download
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: 文件二进制内容
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /api/app/files:
+    post:
+      tags: [File, App]
+      summary: 小程序文件上传
+      x-permission: app:file:upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/FileUploadRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/files/{fileId}/content:
+    get:
+      tags: [File, App]
+      summary: 小程序文件下载本人上传文件
+      x-permission: app:file:download
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: 文件二进制内容
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /api/import/batches:
+    get:
+      tags: [Import]
+      summary: 导入批次列表
+      x-permission: import:batch:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: importType
+          in: query
+          schema: { type: string }
+        - name: importStatus
+          in: query
+          schema: { $ref: '#/components/schemas/ImportStatus' }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/import/batches/{batchId}:
+    get:
+      tags: [Import]
+      summary: 导入批次详情
+      x-permission: import:batch:view
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/import/batches/{batchId}/errors:
+    get:
+      tags: [Import]
+      summary: 导入错误明细
+      x-permission: import:batch:errors
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/import/batches/{batchId}/errors.csv:
+    get:
+      tags: [Import]
+      summary: 下载导入错误 CSV
+      x-permission: import:batch:errors
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: 导入错误 CSV 文件
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+  /api/import/house-csv:
+    post:
+      tags: [Import, Base]
+      summary: 从已上传 CSV 导入房屋
+      x-permission: base:house:import
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CsvImportRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/import/history-bill-csv:
+    post:
+      tags: [Import, Fee]
+      summary: 从已上传 CSV 导入历史账单
+      x-permission: fee:bill:import
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CsvImportRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/jobs/run-all:
+    post:
+      tags: [Job]
+      summary: 手动执行当前租户或全部租户任务
+      x-permission: job:run
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+        - name: leaseExpireDays
+          in: query
+          schema: { type: integer, default: 30 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/jobs/workorder-sla:
+    post:
+      tags: [Job]
+      summary: 手动执行工单 SLA 超时标记任务
+      x-permission: job:workorder:sla
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/jobs/patrol-missed:
+    post:
+      tags: [Job]
+      summary: 手动执行巡检漏检标记任务
+      x-permission: job:patrol:missed
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/jobs/lease-expire-remind:
+    post:
+      tags: [Job]
+      summary: 手动执行租赁合同到期提醒任务
+      x-permission: job:lease:remind
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, default: 30 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/jobs/message-dispatch:
+    post:
+      tags: [Job]
+      summary: 手动执行站内信派发任务
+      x-permission: job:message:dispatch
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/resources:
+    get:
+      tags: [Lease]
+      summary: 可租资源列表
+      x-permission: lease:resource:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [VACANT, RESERVED, LEASED, DISABLED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Lease]
+      summary: 创建可租资源
+      x-permission: lease:resource:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseResourceRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/customers:
+    get:
+      tags: [Lease]
+      summary: 意向客户列表
+      x-permission: lease:customer:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [POTENTIAL, FOLLOWING, INTENTIONAL, SIGNED, LOST] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Lease]
+      summary: 创建意向客户
+      x-permission: lease:customer:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseCustomerRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/customers/{customerId}/follows:
+    get:
+      tags: [Lease]
+      summary: 客户跟进记录
+      x-permission: lease:customer:follow
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    post:
+      tags: [Lease]
+      summary: 新增客户跟进
+      x-permission: lease:customer:follow
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseFollowRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/contracts:
+    get:
+      tags: [Lease]
+      summary: 租赁合同列表
+      x-permission: lease:contract:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/LeaseContractStatus' }
+        - name: customerId
+          in: query
+          schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Lease]
+      summary: 创建租赁合同
+      x-permission: lease:contract:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseContractRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/contracts/{contractId}:
+    get:
+      tags: [Lease]
+      summary: 租赁合同详情
+      x-permission: lease:contract:view
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/contracts/{contractId}/activate:
+    put:
+      tags: [Lease]
+      summary: 合同生效并生成租金账单
+      x-permission: lease:contract:activate
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/contracts/{contractId}/terminate:
+    put:
+      tags: [Lease]
+      summary: 终止租赁合同
+      x-permission: lease:contract:terminate
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseContractStatusRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/lease/contracts/expire-remind:
+    post:
+      tags: [Lease]
+      summary: 合同到期提醒
+      x-permission: lease:contract:remind
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, default: 30 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/assets:
+    get:
+      tags: [Patrol]
+      summary: 巡检资产列表
+      x-permission: patrol:asset:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [NORMAL, DISABLED, REPAIRING, SCRAPPED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Patrol]
+      summary: 创建巡检资产
+      x-permission: patrol:asset:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetEquipmentRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/points:
+    get:
+      tags: [Patrol]
+      summary: 巡检点位列表
+      x-permission: patrol:point:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, DISABLED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Patrol]
+      summary: 创建巡检点位
+      x-permission: patrol:point:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatrolPointRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/plans:
+    get:
+      tags: [Patrol]
+      summary: 巡检计划列表
+      x-permission: patrol:plan:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, DISABLED] }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Patrol]
+      summary: 创建巡检计划
+      x-permission: patrol:plan:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatrolPlanRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks:
+    get:
+      tags: [Patrol]
+      summary: 巡检任务列表
+      x-permission: patrol:task:list
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PatrolTaskStatus' }
+        - name: executorUserId
+          in: query
+          schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Patrol]
+      summary: 创建巡检任务
+      x-permission: patrol:task:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatrolTaskCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks/{taskId}:
+    get:
+      tags: [Patrol]
+      summary: 巡检任务详情
+      x-permission: patrol:task:view
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks/{taskId}/submit:
+    post:
+      tags: [Patrol]
+      summary: 提交巡检结果
+      x-permission: patrol:task:submit
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatrolTaskSubmitRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks/{taskId}/items/{itemId}/rectify:
+    put:
+      tags: [Patrol]
+      summary: 开始异常整改
+      x-permission: patrol:task:rectify
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RectificationRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks/{taskId}/items/{itemId}/rectify-complete:
+    put:
+      tags: [Patrol]
+      summary: 完成异常整改
+      x-permission: patrol:task:rectify
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RectificationRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/patrol/tasks/mark-missed:
+    post:
+      tags: [Patrol]
+      summary: 标记漏检任务
+      x-permission: patrol:task:missed
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/configs:
+    get:
+      tags: [Device]
+      summary: 设备配置列表
+      x-permission: device:config:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: deviceType
+          in: query
+          schema: { type: string }
+        - name: vendorCode
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Device]
+      summary: 创建设备配置
+      x-permission: device:config:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceConfigRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/configs/{deviceId}:
+    get:
+      tags: [Device]
+      summary: 设备配置详情
+      x-permission: device:config:view
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    put:
+      tags: [Device]
+      summary: 修改设备配置
+      x-permission: device:config:update
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceConfigRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/access:
+    get:
+      tags: [Device]
+      summary: 门禁权限列表
+      x-permission: device:access:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: syncStatus
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Device]
+      summary: 创建门禁权限
+      x-permission: device:access:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessPermissionRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/device/visitors:
+    get:
+      tags: [Device]
+      summary: 访客列表
+      x-permission: device:visitor:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Device]
+      summary: 创建访客邀请
+      x-permission: device:visitor:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VisitorInviteRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/access/sync:
+    post:
+      tags: [Device]
+      summary: 同步门禁权限
+      x-permission: device:access:sync
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessSyncRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/access/records:
+    get:
+      tags: [Device]
+      summary: 门禁通行记录列表
+      x-permission: device:access:record:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+    post:
+      tags: [Device]
+      summary: 写入门禁通行记录
+      x-permission: device:access:record:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccessRecordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/device/parking:
+    get:
+      tags: [Device]
+      summary: 停车对接记录
+      x-permission: device:parking:list
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/report/fee/summary:
+    get:
+      tags: [Report]
+      summary: 收费汇总报表
+      x-permission: report:fee:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/report/workorders/summary:
+    get:
+      tags: [Report]
+      summary: 工单汇总报表
+      x-permission: report:workorder:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/report/patrol/summary:
+    get:
+      tags: [Report]
+      summary: 巡检汇总报表
+      x-permission: report:patrol:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/report/lease/summary:
+    get:
+      tags: [Report]
+      summary: 租赁汇总报表
+      x-permission: report:lease:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/report/platform/summary:
+    get:
+      tags: [Report]
+      summary: 平台运营报表
+      x-permission: report:platform:view
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/reports:
+    get:
+      tags: [Report]
+      summary: 报表中心入口
+      x-permission: report:center:view
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/auth/wx-login:
+    post:
+      tags: [App]
+      summary: 微信小程序登录
+      security: []
+      x-permission: public
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WxLoginRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/home:
+    get:
+      tags: [App]
+      summary: 小程序首页
+      x-permission: app:home:view
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/houses:
+    get:
+      tags: [App]
+      summary: 我的房屋列表
+      x-permission: app:house:list
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/house-bindings:
+    post:
+      tags: [App]
+      summary: 提交房屋绑定申请
+      x-permission: app:house:bind
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HouseBindingApplyRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/house-bindings/{bindId}/unbind:
+    put:
+      tags: [App]
+      summary: 小程序房屋解绑
+      x-permission: app:house:unbind
+      parameters:
+        - name: bindId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnbindRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/bills:
+    get:
+      tags: [App]
+      summary: 小程序待缴账单
+      x-permission: app:bill:list
+      parameters:
+        - name: houseId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/app/bills/{billId}:
+    get:
+      tags: [App]
+      summary: 小程序账单详情
+      x-permission: app:bill:view
+      parameters:
+        - $ref: '#/components/parameters/BillId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/pay/orders:
+    post:
+      tags: [App]
+      summary: 小程序创建支付订单
+      x-permission: app:pay:create
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/workorders:
+    post:
+      tags: [App]
+      summary: 小程序提交报修/投诉
+      x-permission: app:workorder:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+    get:
+      tags: [App]
+      summary: 我的工单列表
+      x-permission: app:workorder:list
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: memberId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/app/workorders/{workOrderId}:
+    get:
+      tags: [App]
+      summary: 小程序工单详情
+      x-permission: app:workorder:view
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/workorders/{workOrderId}/evaluate:
+    post:
+      tags: [App]
+      summary: 小程序评价工单
+      x-permission: app:workorder:evaluate
+      parameters:
+        - $ref: '#/components/parameters/WorkOrderId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderEvaluateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/complaints:
+    post:
+      tags: [App]
+      summary: 小程序提交投诉建议
+      x-permission: app:complaint:create
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrderCreateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/notices:
+    get:
+      tags: [App]
+      summary: 小程序公告列表
+      x-permission: app:notice:list
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: memberId
+          in: query
+          schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/app/visitors:
+    post:
+      tags: [App]
+      summary: 小程序创建访客邀请
+      x-permission: app:visitor:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VisitorInviteRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+  /api/app/vehicles:
+    get:
+      tags: [App]
+      summary: 我的车辆
+      x-permission: app:vehicle:list
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/app/lease/contracts:
+    get:
+      tags: [App]
+      summary: 我的租赁合同
+      x-permission: app:lease:contract:list
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: mobile
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PageResponse' }
+  /api/app/mine:
+    get:
+      tags: [App]
+      summary: 我的页面
+      x-permission: app:mine:view
+      responses:
+        '200': { $ref: '#/components/responses/ApiResponse' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PageNo:
+      name: pageNo
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 200 }
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BindId:
+      name: bindId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BillId:
+      name: billId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    WorkOrderId:
+      name: workOrderId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    FileId:
+      name: fileId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+  responses:
+    ApiResponse:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiResponse' }
+    PageResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PageResult' }
+    LoginResponse:
+      description: 登录成功
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/LoginResponse' }
+    ErrorResponse:
+      description: 业务错误或权限错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message, traceId]
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { type: object, nullable: true }
+        traceId: { type: string }
+    ErrorResponse:
+      type: object
+      required: [code, message, traceId]
+      properties:
+        code: { type: integer, example: 403001 }
+        message: { type: string, example: 无权限访问该资源 }
+        traceId: { type: string }
+        details: { type: object, nullable: true }
+    PageResult:
+      type: object
+      properties:
+        records:
+          type: array
+          items: { type: object }
+        pageNo: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer, format: int64 }
+    FileUploadRequest:
+      type: object
+      required: [projectId, moduleCode, file]
+      properties:
+        projectId: { type: integer, format: int64 }
+        moduleCode: { type: string, example: workorder }
+        sensitive: { type: boolean, default: false }
+        file: { type: string, format: binary }
+    FileUploadResult:
+      type: object
+      properties:
+        fileId: { type: integer, format: int64 }
+        originalName: { type: string }
+        moduleCode: { type: string }
+        projectId: { type: integer, format: int64 }
+        contentType: { type: string }
+        fileSize: { type: integer, format: int64 }
+        downloadUrl: { type: string }
+    FileObjectView:
+      type: object
+      properties:
+        fileId: { type: integer, format: int64 }
+        tenantId: { type: integer, format: int64 }
+        projectId: { type: integer, format: int64 }
+        moduleCode: { type: string }
+        originalName: { type: string }
+        objectKey: { type: string }
+        fileExt: { type: string }
+        contentType: { type: string }
+        fileSize: { type: integer, format: int64 }
+        sensitive: { type: boolean }
+        uploaderType: { type: string, enum: [USER, MEMBER] }
+        uploaderId: { type: integer, format: int64, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CsvImportRequest:
+      type: object
+      required: [projectId, sourceFileId]
+      properties:
+        projectId: { type: integer, format: int64 }
+        sourceFileId: { type: integer, format: int64 }
+    ImportStatus:
+      type: string
+      enum: [VALIDATING, VALID_FAILED, IMPORTING, SUCCESS, PARTIAL_SUCCESS, FAILED, VOIDED]
+    ImportBatchView:
+      type: object
+      properties:
+        batchId: { type: integer, format: int64 }
+        tenantId: { type: integer, format: int64 }
+        projectId: { type: integer, format: int64, nullable: true }
+        importType: { type: string }
+        batchNo: { type: string }
+        sourceFileId: { type: integer, format: int64, nullable: true }
+        totalCount: { type: integer }
+        successCount: { type: integer }
+        failCount: { type: integer }
+        importStatus: { $ref: '#/components/schemas/ImportStatus' }
+        errorReportFileId: { type: integer, format: int64, nullable: true }
+        canRollback: { type: boolean }
+        rollbackStatus: { type: string, nullable: true }
+        createdBy: { type: integer, format: int64, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    ImportErrorDetailView:
+      type: object
+      properties:
+        errorId: { type: integer, format: int64 }
+        batchId: { type: integer, format: int64 }
+        rowNo: { type: integer }
+        fieldName: { type: string, nullable: true }
+        rawValue: { type: string, nullable: true }
+        errorCode: { type: string, nullable: true }
+        errorMessage: { type: string }
+        createdAt: { type: string, format: date-time }
+    TenantStatus:
+      type: string
+      enum: [PENDING, TRIAL, ACTIVE, ARREARS_LIMITED, SUSPENDED, ARCHIVED]
+    BindStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, UNBOUND, EXPIRED]
+    BillStatus:
+      type: string
+      enum: [UNPAID, PAYING, PARTIAL_PAID, PAID, OVERDUE, VOID, REFUNDING, REFUNDED, PARTIAL_REFUNDED]
+    PayOrderStatus:
+      type: string
+      enum: [PENDING, PAYING, PAID, CLOSED, FAILED, REFUNDING, REFUNDED, PARTIAL_REFUNDED]
+    RefundStatus:
+      type: string
+      enum: [APPLYING, AUDIT_PASSED, AUDIT_REJECTED, REFUNDING, REFUNDED, FAILED, CLOSED]
+    WorkOrderStatus:
+      type: string
+      enum: [SUBMITTED, ACCEPTED, DISPATCHED, PROCESSING, HANG_UP, WAIT_CONFIRM, COMPLETED, EVALUATED, CANCELLED, REJECTED, TRANSFERRED, REWORK]
+    PatrolTaskStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, COMPLETED, MISSED, EXCEPTION, RECTIFYING, RECTIFIED]
+    LeaseContractStatus:
+      type: string
+      enum: [DRAFT, WAIT_EFFECTIVE, ACTIVE, WILL_EXPIRE, EXPIRED, TERMINATED, VOID]
+    VisitorStatus:
+      type: string
+      enum: [PENDING, APPROVED, USED, REJECTED, EXPIRED, CANCELLED]
+    FeeReportView:
+      type: object
+      properties:
+        receivableAmount: { type: number, format: decimal }
+        paidAmount: { type: number, format: decimal }
+        refundAmount: { type: number, format: decimal }
+        netPaidAmount: { type: number, format: decimal }
+        arrearsAmount: { type: number, format: decimal }
+        collectionRate: { type: number, format: decimal }
+        billCount: { type: integer, format: int64 }
+        unpaidBillCount: { type: integer, format: int64 }
+        paidBillCount: { type: integer, format: int64 }
+    WorkOrderReportView:
+      type: object
+      properties:
+        totalCount: { type: integer, format: int64 }
+        pendingCount: { type: integer, format: int64 }
+        processingCount: { type: integer, format: int64 }
+        overdueCount: { type: integer, format: int64 }
+        completedCount: { type: integer, format: int64 }
+        completionRate: { type: number, format: decimal }
+        averageScore: { type: number, format: decimal }
+    PatrolReportView:
+      type: object
+      properties:
+        taskCount: { type: integer, format: int64 }
+        completedCount: { type: integer, format: int64 }
+        missedCount: { type: integer, format: int64 }
+        exceptionCount: { type: integer, format: int64 }
+        rectifiedCount: { type: integer, format: int64 }
+        completionRate: { type: number, format: decimal }
+        missedRate: { type: number, format: decimal }
+    LeaseReportView:
+      type: object
+      properties:
+        rentableArea: { type: number, format: decimal }
+        leasedArea: { type: number, format: decimal }
+        occupancyRate: { type: number, format: decimal }
+        vacantResourceCount: { type: integer, format: int64 }
+        activeContractCount: { type: integer, format: int64 }
+        expiringContractCount: { type: integer, format: int64 }
+        rentReceivableAmount: { type: number, format: decimal }
+        rentPaidAmount: { type: number, format: decimal }
+        customerCount: { type: integer, format: int64 }
+        signedCustomerCount: { type: integer, format: int64 }
+        customerConversionRate: { type: number, format: decimal }
+    PlatformReportView:
+      type: object
+      properties:
+        tenantCount: { type: integer, format: int64 }
+        activeTenantCount: { type: integer, format: int64 }
+        expiringTenantCount: { type: integer, format: int64 }
+        projectCount: { type: integer, format: int64 }
+        houseCount: { type: integer, format: int64 }
+        userCount: { type: integer, format: int64 }
+        memberCount: { type: integer, format: int64 }
+        interfaceFailureCount: { type: integer, format: int64 }
+    ReportCenterView:
+      type: object
+      properties:
+        fee: { $ref: '#/components/schemas/FeeReportView' }
+        workOrder: { $ref: '#/components/schemas/WorkOrderReportView' }
+        patrol: { $ref: '#/components/schemas/PatrolReportView' }
+        lease: { $ref: '#/components/schemas/LeaseReportView' }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+        captchaCode: { type: string }
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token: { type: string }
+                userId: { type: integer, format: int64 }
+                tenantId: { type: integer, format: int64, nullable: true }
+                userType: { type: string, enum: [PLATFORM, TENANT] }
+                permissions:
+                  type: array
+                  items: { type: string }
+    TenantCreateRequest:
+      type: object
+      required: [tenantName, tenantCode, contactName, contactMobile, packageId]
+      properties:
+        tenantName: { type: string }
+        tenantCode: { type: string }
+        unifiedSocialCreditCode: { type: string }
+        contactName: { type: string }
+        contactMobile: { type: string }
+        packageId: { type: integer, format: int64 }
+        serviceStartDate: { type: string, format: date }
+        serviceEndDate: { type: string, format: date }
+    TenantUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TenantCreateRequest'
+    TenantConfigRequest:
+      type: object
+      properties:
+        logoUrl: { type: string }
+        servicePhone: { type: string }
+        domain: { type: string }
+        wechatAppid: { type: string }
+        smsChannelCode: { type: string }
+        storagePolicy: { type: string }
+    PackageRequest:
+      type: object
+      required: [packageName, packageCode, price, billingCycle]
+      properties:
+        packageName: { type: string }
+        packageCode: { type: string }
+        price: { type: number, format: decimal }
+        billingCycle: { type: string, enum: [MONTH, YEAR, ONCE] }
+        enabledModules:
+          type: array
+          items: { type: string }
+    DeptRequest:
+      type: object
+      required: [deptName]
+      properties:
+        parentId: { type: integer, format: int64, nullable: true }
+        deptName: { type: string }
+        deptType: { type: string, enum: [TENANT, PROJECT] }
+        projectId: { type: integer, format: int64, nullable: true }
+        sortNo: { type: integer }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    SystemUserRequest:
+      type: object
+      required: [username, realName, roleIds]
+      properties:
+        deptId: { type: integer, format: int64, nullable: true }
+        username: { type: string }
+        realName: { type: string }
+        mobile: { type: string }
+        password: { type: string, minLength: 8 }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+        roleIds:
+          type: array
+          items: { type: integer, format: int64 }
+        projectIds:
+          type: array
+          items: { type: integer, format: int64 }
+    SystemRoleRequest:
+      type: object
+      required: [roleName, roleCode]
+      properties:
+        roleName: { type: string }
+        roleCode: { type: string }
+        roleLevel: { type: string, enum: [TENANT, PROJECT] }
+        dataScope: { type: string, enum: [ALL_TENANT, PROJECT, DEPT, SELF, CUSTOM] }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    RoleMenuRequest:
+      type: object
+      required: [menuIds]
+      properties:
+        menuIds:
+          type: array
+          items: { type: integer, format: int64 }
+    UserProjectRequest:
+      type: object
+      required: [projectIds]
+      properties:
+        projectIds:
+          type: array
+          items: { type: integer, format: int64 }
+    StatusOnlyRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    StatusChangeRequest:
+      type: object
+      required: [status, reason]
+      properties:
+        status: { $ref: '#/components/schemas/TenantStatus' }
+        reason: { type: string }
+    ProjectRequest:
+      type: object
+      required: [projectCode, projectName]
+      properties:
+        projectCode: { type: string }
+        projectName: { type: string }
+        projectType: { type: string }
+        province: { type: string }
+        city: { type: string }
+        district: { type: string }
+        address: { type: string }
+        managerUserId: { type: integer, format: int64 }
+        servicePhone: { type: string }
+        collectionSubject: { type: string }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    BuildingRequest:
+      type: object
+      required: [projectId, buildingName]
+      properties:
+        projectId: { type: integer, format: int64 }
+        buildingName: { type: string }
+        buildingCode: { type: string }
+        buildingType: { type: string }
+        floorCount: { type: integer }
+        sortNo: { type: integer }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    UnitRequest:
+      type: object
+      required: [projectId, buildingId, unitName]
+      properties:
+        projectId: { type: integer, format: int64 }
+        buildingId: { type: integer, format: int64 }
+        unitName: { type: string }
+        sortNo: { type: integer }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    HouseRequest:
+      type: object
+      required: [projectId, buildingId, houseNo]
+      properties:
+        projectId: { type: integer, format: int64 }
+        buildingId: { type: integer, format: int64 }
+        unitId: { type: integer, format: int64, nullable: true }
+        houseNo: { type: string }
+        floorNo: { type: integer }
+        buildingArea: { type: number, format: decimal }
+        innerArea: { type: number, format: decimal }
+        houseUsage: { type: string }
+        houseStatus: { type: string }
+        chargeObject: { type: string }
+    HouseImportRequest:
+      type: object
+      required: [projectId, rows]
+      properties:
+        projectId: { type: integer, format: int64 }
+        sourceFileId: { type: integer, format: int64, nullable: true }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/HouseRequest' }
+    WxLoginRequest:
+      type: object
+      required: [tenantId, openid]
+      properties:
+        tenantId: { type: integer, format: int64 }
+        openid: { type: string }
+        unionid: { type: string }
+        mobile: { type: string }
+        realName: { type: string }
+        avatarUrl: { type: string }
+    HouseBindingApplyRequest:
+      type: object
+      required: [tenantId, projectId, memberId, houseId, bindRole, realName, mobile]
+      properties:
+        tenantId: { type: integer, format: int64 }
+        projectId: { type: integer, format: int64 }
+        memberId: { type: integer, format: int64 }
+        houseId: { type: integer, format: int64 }
+        bindRole: { type: string, enum: [OWNER, FAMILY, TENANT, RESIDENT] }
+        realName: { type: string }
+        mobile: { type: string }
+        idCardNoEncrypted: { type: string }
+        proofFileIds: { type: string }
+        effectiveDate: { type: string, format: date }
+        expireDate: { type: string, format: date }
+    UnbindRequest:
+      type: object
+      properties:
+        reason: { type: string }
+    ParkingSpaceRequest:
+      type: object
+      required: [projectId, spaceNo]
+      properties:
+        projectId: { type: integer, format: int64 }
+        spaceNo: { type: string }
+        spaceType: { type: string }
+        status: { type: string, enum: [AVAILABLE, OCCUPIED, LOCKED, DISABLED] }
+        houseId: { type: integer, format: int64, nullable: true }
+    VehicleRequest:
+      type: object
+      required: [projectId, plateNo]
+      properties:
+        projectId: { type: integer, format: int64 }
+        plateNo: { type: string }
+        vehicleType: { type: string }
+        memberId: { type: integer, format: int64, nullable: true }
+        houseId: { type: integer, format: int64, nullable: true }
+        spaceId: { type: integer, format: int64, nullable: true }
+        monthlyRentStatus: { type: string, enum: [NONE, ACTIVE, EXPIRED, SUSPENDED] }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    MonthlyRentRequest:
+      type: object
+      required: [monthlyRentStatus]
+      properties:
+        monthlyRentStatus: { type: string, enum: [NONE, ACTIVE, EXPIRED, SUSPENDED] }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+    DeviceConfigRequest:
+      type: object
+      required: [projectId, deviceType, vendorCode, deviceCode, deviceName]
+      properties:
+        projectId: { type: integer, format: int64 }
+        deviceType: { type: string, enum: [ACCESS, ELEVATOR, PARKING, CAMERA] }
+        vendorCode: { type: string }
+        deviceCode: { type: string }
+        deviceName: { type: string }
+        location: { type: string }
+        configJson:
+          type: string
+          description: 适配器配置JSON，GenericHttp适配器可配置endpointUrl
+        status: { type: string, enum: [ACTIVE, DISABLED, OFFLINE] }
+    VisitorInviteRequest:
+      type: object
+      required: [projectId, visitorName, validStartAt, validEndAt]
+      properties:
+        projectId: { type: integer, format: int64 }
+        inviterMemberId: { type: integer, format: int64, nullable: true }
+        visitorName: { type: string }
+        visitorMobile: { type: string }
+        visitReason: { type: string }
+        validStartAt: { type: string, format: date-time }
+        validEndAt: { type: string, format: date-time }
+        deviceIds:
+          type: array
+          items: { type: integer, format: int64 }
+    AccessPermissionRequest:
+      type: object
+      required: [projectId, deviceId, permissionType, startAt]
+      properties:
+        projectId: { type: integer, format: int64 }
+        memberId: { type: integer, format: int64, nullable: true }
+        userId: { type: integer, format: int64, nullable: true }
+        visitorId: { type: integer, format: int64, nullable: true }
+        deviceId: { type: integer, format: int64 }
+        permissionType: { type: string, enum: [FACE, CARD, QRCODE, REMOTE] }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { type: string, enum: [ACTIVE, DISABLED, EXPIRED, CANCELLED] }
+    AccessSyncRequest:
+      type: object
+      properties:
+        projectId: { type: integer, format: int64, nullable: true }
+        deviceId: { type: integer, format: int64, nullable: true }
+        limit: { type: integer, default: 50 }
+    AccessRecordRequest:
+      type: object
+      required: [projectId, openType, openResult, occurredAt]
+      properties:
+        projectId: { type: integer, format: int64 }
+        deviceId: { type: integer, format: int64, nullable: true }
+        memberId: { type: integer, format: int64, nullable: true }
+        visitorId: { type: integer, format: int64, nullable: true }
+        openType: { type: string }
+        openResult: { type: string }
+        occurredAt: { type: string, format: date-time }
+        rawData: { type: string }
+    FeeItemRequest:
+      type: object
+      required: [itemCode, itemName, itemType]
+      properties:
+        itemCode: { type: string }
+        itemName: { type: string }
+        itemType: { type: string, enum: [PERIODIC, ONCE, DEPOSIT, PREPAID, AGENCY] }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    FeeStandardRequest:
+      type: object
+      required: [itemId, standardName, chargeMethod, effectiveDate]
+      properties:
+        projectId: { type: integer, format: int64, nullable: true }
+        itemId: { type: integer, format: int64 }
+        standardName: { type: string }
+        chargeMethod: { type: string, enum: [AREA, HOUSE, VEHICLE, SPACE, CONTRACT, FIXED, FORMULA] }
+        unitPrice: { type: number, format: decimal }
+        cycle: { type: string, enum: [MONTH, QUARTER, YEAR, ONCE] }
+        formula: { type: string }
+        effectiveDate: { type: string, format: date }
+        expireDate: { type: string, format: date }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    FeeStandardBindRequest:
+      type: object
+      required: [projectId, standardId, objectType, objectId, effectiveDate]
+      properties:
+        projectId: { type: integer, format: int64 }
+        standardId: { type: integer, format: int64 }
+        objectType: { type: string, enum: [HOUSE, VEHICLE, SPACE] }
+        objectId: { type: integer, format: int64 }
+        effectiveDate: { type: string, format: date }
+        expireDate: { type: string, format: date }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    AuditRequest:
+      type: object
+      required: [auditResult]
+      properties:
+        auditResult: { type: string, enum: [APPROVED, REJECTED] }
+        auditRemark: { type: string }
+    BillGenerateRequest:
+      type: object
+      required: [projectId, itemId, billPeriod]
+      properties:
+        projectId: { type: integer, format: int64 }
+        itemId: { type: integer, format: int64 }
+        billPeriod: { type: string, example: '2026-06' }
+        objectType: { type: string, enum: [HOUSE, VEHICLE, SPACE] }
+        objectIds:
+          type: array
+          items: { type: integer, format: int64 }
+        dueDate: { type: string, format: date }
+    BillManualRequest:
+      type: object
+      required: [projectId, itemId, objectType, objectId, billPeriod, receivableAmount]
+      properties:
+        projectId: { type: integer, format: int64 }
+        itemId: { type: integer, format: int64 }
+        standardId: { type: integer, format: int64, nullable: true }
+        objectType: { type: string, enum: [HOUSE, VEHICLE, SPACE] }
+        objectId: { type: integer, format: int64 }
+        memberId: { type: integer, format: int64, nullable: true }
+        houseId: { type: integer, format: int64, nullable: true }
+        billPeriod: { type: string, example: '2026-06' }
+        receivableAmount: { type: number, format: decimal }
+        discountAmount: { type: number, format: decimal }
+        dueDate: { type: string, format: date }
+    BillImportRequest:
+      type: object
+      required: [projectId, rows]
+      properties:
+        projectId: { type: integer, format: int64 }
+        sourceFileId: { type: integer, format: int64, nullable: true }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/BillManualRequest' }
+    BillRemindRequest:
+      type: object
+      required: [billIds]
+      properties:
+        billIds:
+          type: array
+          items: { type: integer, format: int64 }
+        channel: { type: string, enum: [SMS, WECHAT, SITE] }
+        templateCode: { type: string }
+        content: { type: string }
+    PayOrderCreateRequest:
+      type: object
+      required: [projectId, billIds, payChannel]
+      properties:
+        projectId: { type: integer, format: int64 }
+        billIds:
+          type: array
+          items: { type: integer, format: int64 }
+        payChannel: { type: string, enum: [WECHAT, ALI, OFFLINE, POS, CASH] }
+    WechatPayNotifyRequest:
+      type: object
+      required: [orderNo, thirdTradeNo, amount, paidAt, signature]
+      properties:
+        orderNo: { type: string }
+        thirdTradeNo: { type: string }
+        amount: { type: number, format: decimal }
+        paidAt: { type: string, format: date-time }
+        signature:
+          type: string
+          description: HMAC-SHA256(orderNo|thirdTradeNo|amount|paidAt)
+        raw:
+          type: object
+          additionalProperties: true
+    RefundCreateRequest:
+      type: object
+      required: [projectId, orderId, refundAmount, reason]
+      properties:
+        projectId: { type: integer, format: int64 }
+        orderId: { type: integer, format: int64 }
+        refundAmount: { type: number, format: decimal }
+        reason: { type: string }
+    RefundAuditRequest:
+      type: object
+      required: [auditResult]
+      properties:
+        auditResult: { type: string, enum: [APPROVED, REJECTED] }
+        auditRemark: { type: string }
+    WechatRefundNotifyRequest:
+      type: object
+      required: [refundNo, thirdRefundNo, refundAmount, refundedAt, signature]
+      properties:
+        refundNo: { type: string }
+        thirdRefundNo: { type: string }
+        refundAmount: { type: number, format: decimal }
+        refundedAt: { type: string, format: date-time }
+        signature:
+          type: string
+          description: HMAC-SHA256(refundNo|thirdRefundNo|refundAmount|refundedAt)
+        raw:
+          type: object
+          additionalProperties: true
+    NoticeCreateRequest:
+      type: object
+      required: [title, content]
+      properties:
+        projectId: { type: integer, format: int64, nullable: true }
+        title: { type: string, maxLength: 200 }
+        content: { type: string }
+        noticeType: { type: string, enum: [PROPERTY, SYSTEM, PAYMENT, WORKORDER, EMERGENCY] }
+        targetScope: { type: string, enum: [ALL_TENANT, PROJECT, HOUSE, MEMBER] }
+        targetMemberIds:
+          type: array
+          items: { type: integer, format: int64 }
+        targetHouseIds:
+          type: array
+          items: { type: integer, format: int64 }
+        channels:
+          type: array
+          items: { type: string, enum: [SITE, SMS, WECHAT] }
+        templateCode: { type: string }
+        publishNow: { type: boolean, default: true }
+    PlatformNoticeCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/NoticeCreateRequest'
+        - type: object
+          required: [tenantId]
+          properties:
+            tenantId: { type: integer, format: int64 }
+    MessageTemplateRequest:
+      type: object
+      required: [templateCode, templateName, channel, contentTemplate]
+      properties:
+        templateCode: { type: string, maxLength: 80 }
+        templateName: { type: string, maxLength: 100 }
+        channel: { type: string, enum: [SITE, SMS, WECHAT] }
+        titleTemplate: { type: string, maxLength: 200, nullable: true }
+        contentTemplate: { type: string }
+        status: { type: string, enum: [ACTIVE, DISABLED], default: ACTIVE }
+    ReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    WorkOrderCreateRequest:
+      type: object
+      required: [projectId, orderType, title]
+      properties:
+        projectId: { type: integer, format: int64 }
+        memberId: { type: integer, format: int64, nullable: true }
+        houseId: { type: integer, format: int64 }
+        orderType: { type: string, enum: [REPAIR, COMPLAINT, SUGGESTION, HOUSEKEEPING, RENOVATION] }
+        title: { type: string }
+        description: { type: string }
+        location: { type: string }
+        imageFileIds: { type: string }
+        priority: { type: string, enum: [LOW, NORMAL, HIGH, URGENT] }
+    WorkOrderActionRequest:
+      type: object
+      properties:
+        content: { type: string }
+        imageFileIds: { type: string }
+    WorkOrderDispatchRequest:
+      type: object
+      required: [handlerUserId]
+      properties:
+        handlerUserId: { type: integer, format: int64 }
+        content: { type: string }
+    WorkOrderEvaluateRequest:
+      type: object
+      required: [memberId, score]
+      properties:
+        memberId: { type: integer, format: int64 }
+        score: { type: integer, minimum: 1, maximum: 5 }
+        content: { type: string }
+    AssetEquipmentRequest:
+      type: object
+      required: [projectId, equipmentCode, equipmentName, equipmentType]
+      properties:
+        projectId: { type: integer, format: int64 }
+        equipmentCode: { type: string }
+        equipmentName: { type: string }
+        equipmentType: { type: string }
+        location: { type: string }
+        responsibleUserId: { type: integer, format: int64 }
+        status: { type: string, enum: [NORMAL, DISABLED, REPAIRING, SCRAPPED] }
+    PatrolPointRequest:
+      type: object
+      required: [projectId, pointCode, pointName, pointType]
+      properties:
+        projectId: { type: integer, format: int64 }
+        pointCode: { type: string }
+        pointName: { type: string }
+        pointType: { type: string }
+        equipmentId: { type: integer, format: int64, nullable: true }
+        location: { type: string }
+        qrCode: { type: string }
+        nfcCode: { type: string }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    PatrolPlanRequest:
+      type: object
+      required: [projectId, planName, cycleType, startDate]
+      properties:
+        projectId: { type: integer, format: int64 }
+        planName: { type: string }
+        cycleType: { type: string, enum: [DAY, WEEK, MONTH, CUSTOM] }
+        executorUserId: { type: integer, format: int64, nullable: true }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    PatrolTaskCreateRequest:
+      type: object
+      required: [projectId, taskName, plannedStartAt, plannedEndAt, pointIds]
+      properties:
+        projectId: { type: integer, format: int64 }
+        planId: { type: integer, format: int64, nullable: true }
+        taskName: { type: string }
+        executorUserId: { type: integer, format: int64, nullable: true }
+        plannedStartAt: { type: string, format: date-time }
+        plannedEndAt: { type: string, format: date-time }
+        pointIds:
+          type: array
+          items: { type: integer, format: int64 }
+    PatrolTaskSubmitRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PatrolTaskSubmitItem' }
+    PatrolTaskSubmitItem:
+      type: object
+      required: [itemId, result]
+      properties:
+        itemId: { type: integer, format: int64 }
+        result: { type: string, enum: [NORMAL, EXCEPTION, MISSED] }
+        content: { type: string }
+        imageFileIds: { type: string }
+    RectificationRequest:
+      type: object
+      properties:
+        content: { type: string }
+        imageFileIds: { type: string }
+    LeaseResourceRequest:
+      type: object
+      required: [projectId, resourceType, resourceName]
+      properties:
+        projectId: { type: integer, format: int64 }
+        resourceType: { type: string, enum: [HOUSE, SHOP, SPACE, AD, WAREHOUSE] }
+        resourceName: { type: string }
+        refObjectId: { type: integer, format: int64, nullable: true }
+        area: { type: number, format: decimal }
+        status: { type: string, enum: [VACANT, RESERVED, LEASED, DISABLED] }
+    LeaseCustomerRequest:
+      type: object
+      required: [projectId, customerName]
+      properties:
+        projectId: { type: integer, format: int64 }
+        customerName: { type: string }
+        contactMobile: { type: string }
+        sourceChannel: { type: string }
+        demandArea: { type: number, format: decimal }
+        budgetAmount: { type: number, format: decimal }
+        status: { type: string, enum: [POTENTIAL, FOLLOWING, INTENTIONAL, SIGNED, LOST] }
+        ownerUserId: { type: integer, format: int64, nullable: true }
+    LeaseFollowRequest:
+      type: object
+      required: [followType, content]
+      properties:
+        followType: { type: string }
+        content: { type: string }
+        nextFollowAt: { type: string, format: date-time }
+    LeaseContractRequest:
+      type: object
+      required: [projectId, resourceId, lesseeName, startDate, endDate, rentAmount]
+      properties:
+        projectId: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64, nullable: true }
+        resourceId: { type: integer, format: int64 }
+        lesseeName: { type: string }
+        lesseeMobile: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        rentAmount: { type: number, format: decimal }
+        depositAmount: { type: number, format: decimal }
+        paymentCycle: { type: string, enum: [MONTH, QUARTER, YEAR] }
+        freeRentDays: { type: integer }
+        attachmentFileIds: { type: string }
+        activeNow: { type: boolean }
+    LeaseContractStatusRequest:
+      type: object
+      properties:
+        reason: { type: string }

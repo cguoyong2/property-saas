@@ -1,0 +1,2 @@
+projectId,buildingId,unitId,houseNo,floorNo,buildingArea,innerArea,houseUsage,houseStatus,chargeObject
+1,10001,11001,1-101,1,89.50,76.20,RESIDENTIAL,VACANT,HOUSE
