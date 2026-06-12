@@ -9,8 +9,18 @@ onLaunch(() => {
 <style>
 page {
   min-height: 100%;
-  background: #f5f7fb;
+  background: #eef4f3;
   color: #1f2937;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+button {
+  margin: 0;
+  border-radius: 0;
+  line-height: normal;
+}
+
+button::after {
+  border: 0;
 }
 </style>

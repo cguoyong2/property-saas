@@ -25,3 +25,11 @@ export function updateRecord(path: string, id: string | number, idName: string, 
 export function postAction(path: string, data?: Record<string, unknown>) {
   return http.post(path, data ?? {})
 }
+
+export function putAction(path: string, data?: Record<string, unknown>) {
+  return http.put(path, data ?? {})
+}
+
+export function downloadFile(path: string) {
+  return http.get(path, { responseType: 'blob' })
+}

@@ -525,3 +525,24 @@ VALUES
 INSERT INTO pay_order_bill(id, tenant_id, project_id, order_id, bill_id, amount)
 VALUES
 (1500101, 1, 101, 15001, 14001, 150.00);
+
+INSERT IGNORE INTO sys_menu(menu_id, parent_id, menu_name, menu_type, permission_code, route_path, api_path, module_code, sort_no, visible, status)
+VALUES
+(88901, 0, '消息派发', 'API', 'service:message:dispatch', '/service/messages', '/api/service/messages/dispatch-pending', 'service', 807, 1, 'ACTIVE'),
+(88902, 0, '消息重试', 'API', 'service:message:retry', '/service/messages', '/api/service/messages/retry-failed', 'service', 808, 1, 'ACTIVE'),
+(88903, 0, '导入批次列表', 'API', 'import:batch:list', '/import/batches', '/api/import/batches', 'import', 891, 1, 'ACTIVE'),
+(88904, 0, '导入批次详情', 'API', 'import:batch:view', '/import/batches/:batchId', '/api/import/batches/{batchId}', 'import', 892, 1, 'ACTIVE'),
+(88905, 0, '导入错误明细', 'API', 'import:batch:errors', '/import/batches/:batchId/errors', '/api/import/batches/{batchId}/errors', 'import', 893, 1, 'ACTIVE');
+
+INSERT IGNORE INTO sys_role_menu(id, tenant_id, role_id, menu_id)
+VALUES
+(8890101, 1, 1001, 88901),
+(8890102, 1, 1001, 88902),
+(8890103, 1, 1001, 88903),
+(8890104, 1, 1001, 88904),
+(8890105, 1, 1001, 88905),
+(8890201, 2, 2001, 88901),
+(8890202, 2, 2001, 88902),
+(8890203, 2, 2001, 88903),
+(8890204, 2, 2001, 88904),
+(8890205, 2, 2001, 88905);

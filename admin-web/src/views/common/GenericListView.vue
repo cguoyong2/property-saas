@@ -5,14 +5,25 @@
         <h1>{{ config.title }}</h1>
         <p>{{ config.group }}</p>
       </div>
-      <el-button
-        v-if="config.createPath && canCreate"
-        type="primary"
-        :icon="Plus"
-        @click="openCreate"
-      >
-        新增
-      </el-button>
+      <div class="head-actions">
+        <el-button
+          v-for="action in pageActions"
+          :key="action.key"
+          :type="action.type ?? 'default'"
+          :icon="action.icon"
+          @click="runAction(action)"
+        >
+          {{ action.label }}
+        </el-button>
+        <el-button
+          v-if="config.createPath && canCreate"
+          type="primary"
+          :icon="Plus"
+          @click="openCreate"
+        >
+          新增
+        </el-button>
+      </div>
     </div>
 
     <el-form class="filter-bar" :inline="true" @submit.prevent>
@@ -46,11 +57,20 @@
         min-width="132"
         show-overflow-tooltip
       />
-      <el-table-column v-if="config.updatePath && canUpdate" label="操作" width="112" fixed="right">
+      <el-table-column v-if="hasOperationColumn" label="操作" :width="operationWidth" fixed="right">
         <template #default="{ row }">
           <el-tooltip content="编辑" placement="top">
-            <el-button text type="primary" :icon="Edit" @click="openEdit(row)" />
+            <el-button v-if="config.updatePath && canUpdate" text type="primary" :icon="Edit" @click="openEdit(row)" />
           </el-tooltip>
+          <el-button
+            v-for="action in rowActions"
+            :key="action.key"
+            text
+            :type="action.type ?? 'primary'"
+            @click="runAction(action, row)"
+          >
+            {{ action.label }}
+          </el-button>
         </template>
       </el-table-column>
       <template #empty>
@@ -100,17 +120,73 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="actionDialogVisible" :title="currentAction?.label ?? '业务操作'" width="560px">
+      <el-form label-position="top">
+        <el-form-item
+          v-for="field in currentAction?.fields ?? []"
+          :key="field.prop"
+          :label="field.label"
+          :required="field.required"
+        >
+          <el-select v-if="field.type === 'select'" v-model="actionForm[field.prop]" clearable class="form-control">
+            <el-option v-for="option in field.options ?? []" :key="option" :label="option" :value="option" />
+          </el-select>
+          <el-input-number v-else-if="field.type === 'number'" v-model="actionForm[field.prop]" class="form-control" />
+          <el-date-picker
+            v-else-if="field.type === 'date'"
+            v-model="actionForm[field.prop]"
+            type="date"
+            value-format="YYYY-MM-DD"
+            class="form-control"
+          />
+          <el-date-picker
+            v-else-if="field.type === 'datetime'"
+            v-model="actionForm[field.prop]"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            class="form-control"
+          />
+          <el-input v-else-if="field.type === 'textarea'" v-model="actionForm[field.prop]" type="textarea" :rows="4" />
+          <el-input v-else v-model="actionForm[field.prop]" />
+          <p v-if="field.help" class="field-help">{{ field.help }}</p>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="actionDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="actionSaving" @click="submitAction">确认执行</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Bell, Download, Edit, Finished, Plus, Refresh, Search, SwitchButton, Tools, Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
-import { createRecord, fetchPage, updateRecord } from '@/api/admin'
-import { allPages, type PageConfig } from '@/config/pages'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
+import { createRecord, downloadFile, fetchPage, postAction, putAction, updateRecord } from '@/api/admin'
+import { allPages, type FieldConfig, type PageConfig } from '@/config/pages'
 import { useAuthStore } from '@/store/auth'
+
+type ActionScope = 'page' | 'row'
+type ActionMethod = 'POST' | 'PUT' | 'DOWNLOAD'
+
+interface BusinessAction {
+  key: string
+  label: string
+  scope: ActionScope
+  method: ActionMethod
+  path: string | ((row?: Record<string, unknown>, form?: Record<string, unknown>) => string)
+  type?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'default'
+  icon?: unknown
+  permission?: string
+  confirm?: string
+  fields?: Array<FieldConfig & { help?: string }>
+  buildPayload?: (row?: Record<string, unknown>, form?: Record<string, unknown>) => Record<string, unknown>
+  filename?: (row?: Record<string, unknown>) => string
+}
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -123,8 +199,227 @@ const pageNo = ref(1)
 const pageSize = ref(20)
 const filters = reactive<Record<string, string>>({})
 const form = reactive<Record<string, string | number | undefined | null>>({})
+const actionForm = reactive<Record<string, string | number | undefined | null>>({})
 const dialogVisible = ref(false)
+const actionDialogVisible = ref(false)
 const editingId = ref<string | number | null>(null)
+const actionSaving = ref(false)
+const currentAction = ref<BusinessAction | null>(null)
+const currentActionRow = ref<Record<string, unknown> | undefined>()
+
+const businessActions: Record<string, BusinessAction[]> = {
+  bills: [
+    {
+      key: 'bill-generate',
+      label: '批量生成',
+      scope: 'page',
+      method: 'POST',
+      path: '/fee/bills/generate',
+      type: 'primary',
+      icon: Finished,
+      permission: 'fee:bill:generate',
+      fields: [
+        { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+        { prop: 'itemId', label: '收费项目ID', type: 'number', required: true },
+        { prop: 'billPeriod', label: '账期', required: true, help: '例如：2026-06' },
+        { prop: 'objectType', label: '对象类型', type: 'select', options: ['HOUSE', 'VEHICLE', 'SPACE', 'CONTRACT'] },
+        { prop: 'objectIds', label: '对象ID列表', help: '多个 ID 用英文逗号分隔；留空表示按收费绑定生成' },
+        { prop: 'dueDate', label: '到期日', type: 'date' },
+      ],
+      buildPayload: (_row, formData = {}) => ({
+        ...formData,
+        objectIds: parseIdList(formData.objectIds),
+      }),
+    },
+    {
+      key: 'bill-remind',
+      label: '催缴',
+      scope: 'row',
+      method: 'POST',
+      path: '/fee/bills/remind',
+      type: 'warning',
+      icon: Bell,
+      permission: 'fee:bill:remind',
+      fields: [
+        { prop: 'channel', label: '发送渠道', type: 'select', options: ['SITE', 'SMS', 'WECHAT'] },
+        { prop: 'templateCode', label: '模板编码' },
+        { prop: 'content', label: '催缴内容', type: 'textarea' },
+      ],
+      buildPayload: (row, formData = {}) => ({
+        billIds: [Number(row?.billId)],
+        channel: formData.channel,
+        templateCode: formData.templateCode,
+        content: formData.content,
+      }),
+    },
+    {
+      key: 'bill-void',
+      label: '作废',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/fee/bills/${row?.billId}/void`,
+      type: 'danger',
+      permission: 'fee:bill:void',
+      fields: [{ prop: 'reason', label: '作废原因', type: 'textarea', required: true }],
+    },
+  ],
+  refunds: [
+    {
+      key: 'refund-approve',
+      label: '通过',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/refunds/${row?.refundId}/audit`,
+      type: 'success',
+      permission: 'payment:refund:audit',
+      fields: [{ prop: 'auditRemark', label: '审批备注', type: 'textarea' }],
+      buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
+    },
+    {
+      key: 'refund-reject',
+      label: '拒绝',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/refunds/${row?.refundId}/audit`,
+      type: 'danger',
+      permission: 'payment:refund:audit',
+      fields: [{ prop: 'auditRemark', label: '拒绝原因', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ auditResult: 'REJECTED', auditRemark: formData.auditRemark }),
+    },
+  ],
+  workorders: [
+    workOrderAction('accept', '受理', 'accept', 'success', 'service:workorder:accept'),
+    workOrderAction('reject', '驳回', 'reject', 'danger', 'service:workorder:reject', true),
+    {
+      key: 'workorder-dispatch',
+      label: '派单',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/service/workorders/${row?.workOrderId}/dispatch`,
+      type: 'primary',
+      permission: 'service:workorder:dispatch',
+      fields: [
+        { prop: 'handlerUserId', label: '处理人用户ID', type: 'number', required: true },
+        { prop: 'content', label: '派单说明', type: 'textarea' },
+      ],
+    },
+    workOrderAction('start', '开始', 'start', 'primary', 'service:workorder:process'),
+    workOrderAction('hang-up', '挂起', 'hang-up', 'warning', 'service:workorder:process', true),
+    workOrderAction('resume', '恢复', 'resume', 'success', 'service:workorder:process'),
+    workOrderAction('submit-result', '完工', 'submit-result', 'success', 'service:workorder:process', true),
+    workOrderAction('rework', '返工', 'rework', 'warning', 'service:workorder:revisit', true),
+    workOrderAction('revisit', '回访', 'revisit', 'primary', 'service:workorder:revisit', true),
+    workOrderAction('cancel', '取消', 'cancel', 'danger', 'service:workorder:cancel', true),
+    {
+      key: 'workorder-mark-overdue',
+      label: '标记超时',
+      scope: 'page',
+      method: 'POST',
+      path: '/service/workorders/sla/mark-overdue',
+      type: 'warning',
+      icon: Tools,
+      permission: 'service:workorder:sla',
+      confirm: '确认扫描并标记超时工单？',
+    },
+  ],
+  'service-messages': [
+    {
+      key: 'message-dispatch',
+      label: '派发待发送',
+      scope: 'page',
+      method: 'POST',
+      path: (_row, formData = {}) => `/service/messages/dispatch-pending${toQuery(formData)}`,
+      type: 'primary',
+      icon: Upload,
+      permission: 'service:message:dispatch',
+      fields: [{ prop: 'limit', label: '处理上限', type: 'number' }],
+    },
+    {
+      key: 'message-retry-failed',
+      label: '重试失败',
+      scope: 'page',
+      method: 'POST',
+      path: (_row, formData = {}) => `/service/messages/retry-failed${toQuery(formData)}`,
+      type: 'warning',
+      icon: Refresh,
+      permission: 'service:message:retry',
+      fields: [{ prop: 'limit', label: '处理上限', type: 'number' }],
+    },
+    {
+      key: 'message-retry-one',
+      label: '重试',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/service/messages/${row?.messageId}/retry`,
+      type: 'primary',
+      permission: 'service:message:retry',
+      confirm: '确认重试发送这条消息？',
+    },
+  ],
+  'lease-contracts': [
+    {
+      key: 'contract-activate',
+      label: '生效',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/lease/contracts/${row?.contractId}/activate`,
+      type: 'success',
+      permission: 'lease:contract:activate',
+      confirm: '确认将该合同置为生效？',
+    },
+    {
+      key: 'contract-terminate',
+      label: '终止',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/lease/contracts/${row?.contractId}/terminate`,
+      type: 'danger',
+      permission: 'lease:contract:terminate',
+      fields: [{ prop: 'reason', label: '终止原因', type: 'textarea', required: true }],
+    },
+    {
+      key: 'contract-expire-remind',
+      label: '到期提醒',
+      scope: 'page',
+      method: 'POST',
+      path: (_row, formData = {}) => `/lease/contracts/expire-remind${toQuery(formData)}`,
+      type: 'warning',
+      icon: Bell,
+      permission: 'lease:contract:remind',
+      fields: [{ prop: 'days', label: '到期天数', type: 'number', help: '例如：30，表示提醒 30 天内到期的合同' }],
+    },
+  ],
+  'device-access': [
+    {
+      key: 'access-sync',
+      label: '同步权限',
+      scope: 'page',
+      method: 'POST',
+      path: '/device/access/sync',
+      type: 'primary',
+      icon: SwitchButton,
+      permission: 'device:access:sync',
+      fields: [
+        { prop: 'projectId', label: '项目ID', type: 'number' },
+        { prop: 'deviceId', label: '设备ID', type: 'number' },
+        { prop: 'limit', label: '处理上限', type: 'number' },
+      ],
+    },
+  ],
+  'import-batches': [
+    {
+      key: 'import-errors-csv',
+      label: '下载错误',
+      scope: 'row',
+      method: 'DOWNLOAD',
+      path: (row) => `/import/batches/${row?.batchId}/errors.csv`,
+      type: 'warning',
+      icon: Download,
+      permission: 'import:batch:errors',
+      filename: (row) => `import-errors-${row?.batchNo ?? row?.batchId}.csv`,
+    },
+  ],
+}
 
 const config = computed<PageConfig>(() => {
   const page = allPages.find((item) => item.key === route.meta.pageKey)
@@ -138,6 +433,11 @@ const filterFields = computed(() => config.value.columns.filter((field) => field
 const formFields = computed(() => config.value.fields ?? [])
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
+const availableActions = computed(() => (businessActions[config.value.key] ?? []).filter(canRunAction))
+const pageActions = computed(() => availableActions.value.filter((action) => action.scope === 'page'))
+const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
+const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || rowActions.value.length))
+const operationWidth = computed(() => (rowActions.value.length > 4 ? 360 : rowActions.value.length > 1 ? 260 : 140))
 
 async function load() {
   loading.value = true
@@ -218,6 +518,124 @@ async function save() {
   }
 }
 
+function canRunAction(action: BusinessAction) {
+  return !action.permission || auth.hasPermission(action.permission)
+}
+
+function workOrderAction(
+  key: string,
+  label: string,
+  endpoint: string,
+  type: BusinessAction['type'],
+  permission: string,
+  requiredContent = false,
+): BusinessAction {
+  return {
+    key: `workorder-${key}`,
+    label,
+    scope: 'row',
+    method: 'PUT',
+    path: (row) => `/service/workorders/${row?.workOrderId}/${endpoint}`,
+    type,
+    permission,
+    fields: [
+      { prop: 'content', label: '处理说明', type: 'textarea', required: requiredContent },
+      { prop: 'imageFileIds', label: '附件文件ID', help: '多个文件 ID 用英文逗号分隔' },
+    ],
+  }
+}
+
+function parseIdList(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  return value.split(',').map((item) => Number(item.trim())).filter((item) => Number.isFinite(item))
+}
+
+function compactPayload(payload: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined && value !== '' && value !== null))
+}
+
+function toQuery(data: Record<string, unknown>) {
+  const params = new URLSearchParams()
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== '' && value !== null) params.set(key, String(value))
+  })
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+function resolvePath(action: BusinessAction, row?: Record<string, unknown>, formData: Record<string, unknown> = {}) {
+  return typeof action.path === 'function' ? action.path(row, formData) : action.path
+}
+
+async function runAction(action: BusinessAction, row?: Record<string, unknown>) {
+  currentAction.value = action
+  currentActionRow.value = row
+  Object.keys(actionForm).forEach((key) => delete actionForm[key])
+  ;(action.fields ?? []).forEach((field) => {
+    actionForm[field.prop] = undefined
+  })
+
+  if (action.fields?.length) {
+    actionDialogVisible.value = true
+    return
+  }
+
+  if (action.confirm) {
+    await ElMessageBox.confirm(action.confirm, action.label, { type: action.type === 'danger' ? 'warning' : 'info' })
+  }
+  await executeAction(action, row)
+}
+
+async function submitAction() {
+  if (!currentAction.value) return
+  const missing = (currentAction.value.fields ?? []).find((field) => field.required && !actionForm[field.prop])
+  if (missing) {
+    ElMessage.warning(`请填写${missing.label}`)
+    return
+  }
+  await executeAction(currentAction.value, currentActionRow.value, compactPayload(actionForm))
+  actionDialogVisible.value = false
+}
+
+async function executeAction(action: BusinessAction, row?: Record<string, unknown>, formData: Record<string, unknown> = {}) {
+  actionSaving.value = true
+  try {
+    const path = resolvePath(action, row, formData)
+    if (action.method === 'DOWNLOAD') {
+      const response = await downloadFile(path)
+      saveBlob(response.data as Blob, action.filename?.(row) ?? 'download.csv')
+      ElMessage.success('下载已开始')
+      return
+    }
+
+    const payload = compactPayload(action.buildPayload ? action.buildPayload(row, formData) : formData)
+    if (action.method === 'PUT') {
+      await putAction(path, payload)
+    } else {
+      await postAction(path, payload)
+    }
+    ElMessage.success('操作成功')
+    await load()
+  } catch (err) {
+    if (err !== 'cancel') {
+      ElMessage.error(err instanceof Error ? err.message : '操作失败')
+    }
+  } finally {
+    actionSaving.value = false
+  }
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 watch(
   () => route.meta.pageKey,
   () => {
@@ -228,3 +646,19 @@ watch(
 
 onMounted(load)
 </script>
+
+<style scoped>
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.field-help {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+</style>
