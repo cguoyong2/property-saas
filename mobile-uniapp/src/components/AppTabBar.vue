@@ -50,6 +50,7 @@ function go(url: string) {
   align-items: center;
   justify-content: center;
   gap: 6rpx;
+  width: 100%;
   min-width: 0;
   min-height: 88rpx;
   padding: 0;
@@ -84,5 +85,6 @@ function go(url: string) {
 .tab-text {
   display: block;
   line-height: 1.1;
+  white-space: nowrap;
 }
 </style>

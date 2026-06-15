@@ -375,6 +375,8 @@ function openEntry(item: { url: string, public?: boolean }) {
 }
 
 .service {
+  display: block;
+  width: 100%;
   min-height: 150rpx;
   padding: 16rpx 8rpx;
   background: #fff;
@@ -412,6 +414,7 @@ function openEntry(item: { url: string, public?: boolean }) {
   color: #172033;
   font-size: 23rpx;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .service-sub {
@@ -419,6 +422,8 @@ function openEntry(item: { url: string, public?: boolean }) {
   margin-top: 6rpx;
   color: #65758a;
   font-size: 19rpx;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .notice-list {

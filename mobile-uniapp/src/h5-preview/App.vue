@@ -260,6 +260,33 @@ uni-button::after {
   box-shadow: none;
 }
 
+.preview-shell .service {
+  display: block !important;
+  width: 100% !important;
+  min-height: 78px !important;
+  padding: 10px 5px 8px !important;
+  line-height: normal !important;
+}
+
+.preview-shell .app-tabbar .tab {
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  line-height: normal !important;
+}
+
+.preview-shell .hero-button,
+.preview-shell .public-actions button,
+.preview-shell .total-actions button,
+.preview-shell .actions button,
+.preview-shell .bind-card button,
+.preview-shell .empty-card button,
+.preview-shell .switch {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  line-height: normal !important;
+}
+
 .preview-shell .actions,
 .preview-shell .toolbar {
   display: flex;

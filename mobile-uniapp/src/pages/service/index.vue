@@ -262,6 +262,8 @@ function openPrivate(url: string) {
 }
 
 .service {
+  display: block;
+  width: 100%;
   min-height: 142rpx;
   padding: 14rpx 8rpx;
   background: #fff;
@@ -299,6 +301,7 @@ function openPrivate(url: string) {
   color: #172033;
   font-size: 23rpx;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .service-sub {
@@ -306,5 +309,7 @@ function openPrivate(url: string) {
   margin-top: 6rpx;
   color: #65758a;
   font-size: 19rpx;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 </style>
