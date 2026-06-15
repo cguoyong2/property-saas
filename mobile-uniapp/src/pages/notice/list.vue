@@ -73,7 +73,7 @@ onShow(async () => {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 28rpx;
+  padding: 14px;
   box-sizing: border-box;
   background:
     radial-gradient(circle at 12% -2%, rgba(15, 118, 110, .18), transparent 35%),
@@ -84,147 +84,147 @@ onShow(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 28rpx;
+  margin-bottom: 14px;
 }
 
 .page-title {
   display: block;
   color: #172033;
-  font-size: 38rpx;
+  font-size: 19px;
   font-weight: 900;
 }
 
 .page-sub {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 4px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
 }
 
 .pill {
-  padding: 12rpx 20rpx;
+  padding: 6px 10px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 999rpx;
-  font-size: 23rpx;
+  border-radius: 499.5px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
 .hero {
-  padding: 36rpx;
+  padding: 18px;
   color: #fff;
   background:
     radial-gradient(circle at 82% 12%, rgba(255, 255, 255, .24), transparent 24%),
     linear-gradient(135deg, #0f766e 0%, #124e61 100%);
-  border-radius: 36rpx;
+  border-radius: 18px;
 }
 
 .hero-title {
   display: block;
-  font-size: 42rpx;
+  font-size: 21px;
   font-weight: 900;
 }
 
 .hero-copy {
   display: block;
-  margin-top: 14rpx;
+  margin-top: 7px;
   color: #cdfcf1;
-  font-size: 25rpx;
+  font-size: 12.5px;
   line-height: 1.55;
 }
 
 .section {
-  margin-top: 28rpx;
+  margin-top: 14px;
 }
 
 .section-head {
   display: flex;
   justify-content: space-between;
-  margin: 0 4rpx 18rpx;
+  margin: 0 2px 9px;
 }
 
 .section-head text:first-child {
   color: #172033;
-  font-size: 31rpx;
+  font-size: 15.5px;
   font-weight: 900;
 }
 
 .section-head text:last-child {
   color: #65758a;
-  font-size: 23rpx;
+  font-size: 11.5px;
   font-weight: 800;
 }
 
 .message-list {
   display: grid;
-  gap: 18rpx;
+  gap: 9px;
 }
 
 .message-card,
 .empty {
   background: rgba(255, 255, 255, .96);
-  border: 1rpx solid #dfe9e6;
-  border-radius: 28rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, .055);
+  border: 0.5px solid #dfe9e6;
+  border-radius: 14px;
+  box-shadow: 0 7px 17px rgba(15, 23, 42, .055);
 }
 
 .message-card {
-  padding: 28rpx;
+  padding: 14px;
 }
 
 .message-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18rpx;
-  margin-bottom: 16rpx;
+  gap: 9px;
+  margin-bottom: 8px;
 }
 
 .badge {
-  padding: 8rpx 16rpx;
+  padding: 4px 8px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 999rpx;
-  font-size: 21rpx;
+  border-radius: 499.5px;
+  font-size: 10.5px;
   font-weight: 900;
 }
 
 .date {
   color: #94a3b8;
-  font-size: 21rpx;
+  font-size: 10.5px;
 }
 
 .title {
   display: block;
   color: #172033;
-  font-size: 30rpx;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .content {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 6px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
   line-height: 1.58;
 }
 
 .empty {
-  padding: 78rpx 32rpx;
+  padding: 39px 16px;
   text-align: center;
 }
 
 .empty-title {
   display: block;
   color: #172033;
-  font-size: 32rpx;
+  font-size: 16px;
   font-weight: 900;
 }
 
 .empty-text {
   display: block;
-  margin-top: 14rpx;
+  margin-top: 7px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
 }
 </style>

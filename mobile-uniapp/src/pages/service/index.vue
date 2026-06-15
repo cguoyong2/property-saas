@@ -118,7 +118,7 @@ function openPrivate(url: string) {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 28rpx;
+  padding: 14px;
   box-sizing: border-box;
   background:
     radial-gradient(circle at 12% -2%, rgba(15, 118, 110, .18), transparent 35%),
@@ -129,85 +129,85 @@ function openPrivate(url: string) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 28rpx;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .title {
   display: block;
   color: #172033;
-  font-size: 38rpx;
+  font-size: 19px;
   font-weight: 900;
 }
 
 .subtitle {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 4px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
 }
 
 .pill {
   flex: none;
-  padding: 12rpx 20rpx;
+  padding: 6px 10px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 999rpx;
-  font-size: 23rpx;
+  border-radius: 499.5px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
 .intro-card,
 .row-list {
   background: rgba(255, 255, 255, .96);
-  border: 1rpx solid #dfe9e6;
-  border-radius: 28rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, .055);
+  border: 0.5px solid #dfe9e6;
+  border-radius: 14px;
+  box-shadow: 0 7px 17px rgba(15, 23, 42, .055);
 }
 
 .intro-card {
-  padding: 30rpx;
+  padding: 15px;
 }
 
 .intro-title {
   display: block;
   color: #172033;
-  font-size: 32rpx;
+  font-size: 16px;
   font-weight: 900;
 }
 
 .intro-copy {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 6px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .section {
-  margin-top: 28rpx;
+  margin-top: 14px;
 }
 
 .section-head {
   display: flex;
   justify-content: space-between;
-  margin: 0 4rpx 18rpx;
+  margin: 0 2px 9px;
 }
 
 .section-head text:first-child {
   color: #172033;
-  font-size: 31rpx;
+  font-size: 15.5px;
   font-weight: 900;
 }
 
 .section-head text:last-child {
   color: #65758a;
-  font-size: 23rpx;
+  font-size: 11.5px;
   font-weight: 800;
 }
 
 .row-list {
-  padding: 8rpx 28rpx;
+  padding: 4px 14px;
 }
 
 .row {
@@ -215,10 +215,10 @@ function openPrivate(url: string) {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 116rpx;
+  min-height: 58px;
   padding: 0;
   background: transparent;
-  border-bottom: 1rpx solid #eef2f3;
+  border-bottom: 0.5px solid #eef2f3;
   text-align: left;
 }
 
@@ -229,46 +229,46 @@ function openPrivate(url: string) {
 .row-title {
   display: block;
   color: #172033;
-  font-size: 28rpx;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .row-sub {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 4px;
   color: #65758a;
-  font-size: 22rpx;
+  font-size: 11px;
 }
 
 .arrow {
   color: #94a3b8;
-  font-size: 42rpx;
+  font-size: 21px;
   line-height: 1;
 }
 
 .badge {
-  padding: 8rpx 16rpx;
+  padding: 4px 8px;
   color: #9a5b00;
   background: #fff4dd;
-  border-radius: 999rpx;
-  font-size: 22rpx;
+  border-radius: 499.5px;
+  font-size: 11px;
   font-weight: 900;
 }
 
 .service-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
+  gap: 7px;
 }
 
 .service {
   display: block;
   width: 100%;
-  min-height: 142rpx;
-  padding: 14rpx 8rpx;
+  min-height: 71px;
+  padding: 7px 4px;
   background: #fff;
-  border: 1rpx solid #e2ece9;
-  border-radius: 24rpx;
+  border: 0.5px solid #e2ece9;
+  border-radius: 12px;
   text-align: center;
 }
 
@@ -276,13 +276,13 @@ function openPrivate(url: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 62rpx;
-  height: 62rpx;
-  margin: 0 auto 10rpx;
+  width: 31px;
+  height: 31px;
+  margin: 0 auto 5px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 22rpx;
-  font-size: 23rpx;
+  border-radius: 11px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
@@ -299,16 +299,16 @@ function openPrivate(url: string) {
 .service-title {
   display: block;
   color: #172033;
-  font-size: 23rpx;
+  font-size: 11.5px;
   font-weight: 900;
   white-space: nowrap;
 }
 
 .service-sub {
   display: block;
-  margin-top: 6rpx;
+  margin-top: 3px;
   color: #65758a;
-  font-size: 19rpx;
+  font-size: 9.5px;
   line-height: 1.25;
   white-space: nowrap;
 }

@@ -19,10 +19,10 @@ defineProps<{
 }>()
 
 const tabs = [
-  { key: 'home', label: '首页', icon: '首', url: '/pages/home/index' },
-  { key: 'service', label: '服务', icon: '服', url: '/pages/service/index' },
-  { key: 'message', label: '消息', icon: '信', url: '/pages/notice/list' },
-  { key: 'mine', label: '我的', icon: '我', url: '/pages/mine/index' },
+  { key: 'home', label: '首页', icon: '', url: '/pages/home/index' },
+  { key: 'service', label: '服务', icon: '', url: '/pages/service/index' },
+  { key: 'message', label: '消息', icon: '', url: '/pages/notice/list' },
+  { key: 'mine', label: '我的', icon: '', url: '/pages/mine/index' },
 ] as const
 
 function go(url: string) {
@@ -69,16 +69,15 @@ function go(url: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 6px;
-  background: transparent;
-  font-size: 10px;
+  background: #eef3f5;
+  font-size: 0;
   font-weight: 900;
 }
 
 .tab.active .tab-icon {
-  color: #0b5f59;
   background: #dff5ef;
 }
 

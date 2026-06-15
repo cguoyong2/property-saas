@@ -297,6 +297,19 @@ uni-button::after {
   display: none;
 }
 
+.preview-shell .page > .section,
+.preview-shell .page > .owner-section {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.preview-shell .page > .section::before,
+.preview-shell .page > .owner-section::before {
+  display: none;
+}
+
 .preview-shell .actions,
 .preview-shell .toolbar {
   display: flex;
