@@ -140,4 +140,12 @@ public class NoticeController {
                                                               @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(service.pageAppNotices(projectId, memberId, pageNo, pageSize));
     }
+
+    @GetMapping("/api/public/notices")
+    public ApiResponse<PageResult<NoticeView>> pagePublicNotices(@RequestParam Long tenantId,
+                                                                 @RequestParam(required = false) Long projectId,
+                                                                 @RequestParam(defaultValue = "1") long pageNo,
+                                                                 @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.pagePublicNotices(tenantId, projectId, pageNo, pageSize));
+    }
 }

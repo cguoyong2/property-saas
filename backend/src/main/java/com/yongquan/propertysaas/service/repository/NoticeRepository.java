@@ -122,6 +122,46 @@ public class NoticeRepository {
         return value(count);
     }
 
+    public List<NoticeView> findPublicNotices(Long tenantId, Long projectId, long offset, long pageSize) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT notice_id, tenant_id, project_id, title, content, notice_type, target_scope,
+                       publish_status, published_at, publisher_id, created_at
+                FROM notice
+                WHERE tenant_id = ? AND deleted = 0 AND publish_status = 'PUBLISHED'
+                  AND target_scope IN ('ALL_TENANT', 'PROJECT')
+                  AND (project_id IS NULL
+                """);
+        args.add(tenantId);
+        if (projectId != null) {
+            sql.append(" OR project_id = ?");
+            args.add(projectId);
+        }
+        sql.append(") ORDER BY published_at DESC, notice_id DESC LIMIT ? OFFSET ?");
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(sql.toString(), this::mapNotice, args.toArray());
+    }
+
+    public long countPublicNotices(Long tenantId, Long projectId) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM notice
+                WHERE tenant_id = ? AND deleted = 0 AND publish_status = 'PUBLISHED'
+                  AND target_scope IN ('ALL_TENANT', 'PROJECT')
+                  AND (project_id IS NULL
+                """);
+        args.add(tenantId);
+        if (projectId != null) {
+            sql.append(" OR project_id = ?");
+            args.add(projectId);
+        }
+        sql.append(")");
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return value(count);
+    }
+
     public NoticeView getNotice(Long tenantId, Long noticeId) {
         return jdbcTemplate.queryForObject("""
                 SELECT notice_id, tenant_id, project_id, title, content, notice_type, target_scope,

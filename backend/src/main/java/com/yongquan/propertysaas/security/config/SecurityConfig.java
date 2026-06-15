@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/doc.html",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
+                                "/api/public/**",
                                 "/api/auth/login",
                                 "/api/app/auth/wx-login",
                                 "/api/payment/wechat/notify",

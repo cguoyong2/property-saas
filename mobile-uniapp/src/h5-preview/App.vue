@@ -28,13 +28,13 @@ const pages = {
   '/pages-sub/payment/cashier': defineAsyncComponent(() => import('@/pages-sub/payment/cashier.vue')),
 }
 
-const defaultPath = localStorage.getItem('member_token') ? '/pages/home/index' : '/pages/login/index'
+const defaultPath = '/pages/home/index'
 const currentPath = ref(normalizePath(window.location.hash.slice(1) || defaultPath))
 const toast = ref('')
 let toastTimer: number | undefined
 
 const currentComponent = computed(() => {
-  return pages[currentPath.value as keyof typeof pages] ?? pages['/pages/login/index']
+  return pages[currentPath.value as keyof typeof pages] ?? pages['/pages/home/index']
 })
 
 function normalizePath(url: string) {

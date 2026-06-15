@@ -2,10 +2,15 @@
   <view class="page">
     <view class="profile">
       <view>
-        <text class="name">{{ mine.realName || member.realName || '业主用户' }}</text>
-        <text class="mobile">{{ mine.mobile || member.mobile }}</text>
+        <text class="name">{{ mine.realName || member.realName || '访客用户' }}</text>
+        <text class="mobile">{{ member.token ? mine.mobile || member.mobile || '已绑定微信身份' : '绑定房屋后接收专属通知和账单' }}</text>
       </view>
-      <text class="tag">{{ member.currentHouseNo || '未选房屋' }}</text>
+      <text class="tag">{{ member.currentHouseNo || (member.token ? '未选房屋' : '未绑定') }}</text>
+    </view>
+    <view v-if="!member.token" class="bind-card">
+      <text class="bind-title">绑定房屋后开启完整服务</text>
+      <text class="bind-copy">可查看本人房屋账单、缴费记录、工单进度、家属房屋关系和物业通知。</text>
+      <button @click="go('/pages/house/bind')">绑定房屋</button>
     </view>
     <view class="menu">
       <button v-for="item in menuItems" :key="item.url" @click="go(item.url)">
@@ -13,7 +18,7 @@
         <text class="menu-sub">{{ item.sub }}</text>
       </button>
     </view>
-    <button class="logout" @click="logout">退出登录</button>
+    <button v-if="member.token" class="logout" @click="logout">退出当前身份</button>
   </view>
 </template>
 
@@ -35,16 +40,29 @@ const menuItems = [
 ]
 
 onShow(async () => {
-  Object.assign(mine, await fetchMine())
+  if (!member.token) {
+    Object.keys(mine).forEach((key) => delete mine[key])
+    return
+  }
+  try {
+    Object.assign(mine, await fetchMine())
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '加载失败', icon: 'none' })
+  }
 })
 
 function go(url: string) {
+  if (!member.token && url !== '/pages/house/bind' && url !== '/pages/notice/list') {
+    uni.showToast({ title: '请先绑定房屋', icon: 'none' })
+    uni.navigateTo({ url: '/pages/house/bind' })
+    return
+  }
   uni.navigateTo({ url })
 }
 
 function logout() {
   member.clearSession()
-  uni.navigateTo({ url: '/pages/login/index' })
+  uni.switchTab({ url: '/pages/home/index' })
 }
 </script>
 
@@ -54,6 +72,10 @@ function logout() {
 .name { display: block; font-size: 38rpx; font-weight: 900; }
 .mobile { display: block; margin-top: 12rpx; color: #ccfbf1; font-size: 25rpx; }
 .tag { flex: none; max-width: 240rpx; padding: 10rpx 18rpx; overflow: hidden; border-radius: 999rpx; background: rgba(255, 255, 255, .16); color: #fff; font-size: 23rpx; text-overflow: ellipsis; white-space: nowrap; }
+.bind-card { margin-top: 22rpx; padding: 30rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, .04); }
+.bind-title { display: block; font-size: 31rpx; font-weight: 900; color: #102a43; }
+.bind-copy { display: block; margin: 12rpx 0 24rpx; color: #64748b; font-size: 25rpx; line-height: 1.65; }
+.bind-card button { width: 184rpx; height: 68rpx; border-radius: 34rpx; background: #0f766e; color: #fff; font-size: 26rpx; font-weight: 800; }
 .menu { margin-top: 24rpx; }
 .menu button { display: block; width: 100%; min-height: 92rpx; margin-bottom: 16rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #fff; color: #1f2937; text-align: left; box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, .04); }
 .menu-title { display: block; font-size: 29rpx; font-weight: 800; }

@@ -22,8 +22,7 @@ export function request<T>(options: UniApp.RequestOptions) {
         const body = response.data as ApiEnvelope<T>
         if (response.statusCode === 401) {
           uni.removeStorageSync('member_token')
-          uni.navigateTo({ url: '/pages/login/index' })
-          reject(new Error('登录已失效'))
+          reject(new Error('请先绑定房屋'))
           return
         }
         if (body && typeof body.code === 'number' && body.code !== 0) {

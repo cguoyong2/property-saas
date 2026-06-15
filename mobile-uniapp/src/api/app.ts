@@ -74,6 +74,14 @@ export function fetchNotices(params: Record<string, unknown>) {
   })
 }
 
+export function fetchPublicNotices(params: Record<string, unknown>) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/public/notices',
+    method: 'GET',
+    data: params,
+  })
+}
+
 export function fetchWorkOrders(params: Record<string, unknown>) {
   return request<PageResult<Record<string, unknown>>>({
     url: '/app/workorders',
@@ -127,8 +135,7 @@ export function uploadAppFile(filePath: string, data: { projectId: number | stri
       success: (response) => {
         if (response.statusCode === 401) {
           uni.removeStorageSync('member_token')
-          uni.navigateTo({ url: '/pages/login/index' })
-          reject(new Error('登录已失效'))
+          reject(new Error('请先绑定房屋'))
           return
         }
         try {

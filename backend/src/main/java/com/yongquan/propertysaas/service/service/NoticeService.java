@@ -209,6 +209,21 @@ public class NoticeService {
                 pageSize);
     }
 
+    public PageResult<NoticeView> pagePublicNotices(Long tenantId, Long projectId, long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        if (!repository.tenantExists(tenantId)) {
+            throw new IllegalArgumentException("租户不存在：" + tenantId);
+        }
+        if (projectId != null) {
+            ensureProjectExists(tenantId, projectId);
+        }
+        return new PageResult<>(
+                repository.findPublicNotices(tenantId, projectId, offset(pageNo, pageSize), pageSize),
+                repository.countPublicNotices(tenantId, projectId),
+                pageNo,
+                pageSize);
+    }
+
     private Long createNoticeForTenant(Long tenantId, NoticeCreateRequest request, boolean platformCreate) {
         String noticeType = normalize(request.noticeType(), "PROPERTY");
         String targetScope = normalize(request.targetScope(), request.projectId() == null ? "ALL_TENANT" : "PROJECT");
