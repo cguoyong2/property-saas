@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>智慧物业业主端小程序静态视觉设计稿</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #65758a;
+      --soft: #eef6f3;
+      --line: #dfe9e6;
+      --card: #ffffff;
+      --primary: #0f766e;
+      --primary-dark: #0b5f59;
+      --accent: #f59e0b;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --green-soft: #dff5ef;
+      --orange-soft: #fff4dd;
+      --blue-soft: #e8f0ff;
+      --shadow: 0 18px 42px rgba(15, 23, 42, .10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef2f7;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    svg {
+      display: block;
+    }
+
+    .cover {
+      padding: 36px 42px 22px;
+      background:
+        radial-gradient(circle at 86% 6%, rgba(15, 118, 110, .14), transparent 28%),
+        linear-gradient(135deg, #f7fbfa 0%, #edf5f2 100%);
+      border-bottom: 1px solid #dde7e5;
+    }
+
+    .cover h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .cover p {
+      max-width: 920px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .token {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      color: #334155;
+      background: rgba(255, 255, 255, .78);
+      border: 1px solid #d7e5e1;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .mock {
+      display: flex;
+      justify-content: center;
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      background: #f5f8fb;
+      border: 1px solid #d8e1df;
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+    }
+
+    .status {
+      height: 34px;
+      padding: 10px 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #172033;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status .bars {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #172033;
+    }
+
+    .screen {
+      height: 810px;
+      overflow: hidden;
+      padding: 16px 16px 22px;
+      background:
+        radial-gradient(circle at 12% -2%, rgba(15, 118, 110, .18), transparent 35%),
+        linear-gradient(180deg, #eef8f5 0%, #f8fafc 45%, #f3f6f8 100%);
+    }
+
+    .screen-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .screen-title h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .screen-title span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 11px;
+      color: var(--primary-dark);
+      background: var(--green-soft);
+      border: 1px solid rgba(15, 118, 110, .13);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 146px;
+      padding: 20px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(255, 255, 255, .24), transparent 24%),
+        linear-gradient(135deg, #0f766e 0%, #124e61 100%);
+      border-radius: 24px;
+    }
+
+    .hero h3 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 9px 0 0;
+      color: #cdfcf1;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .hero-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .hero-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 210px;
+      min-height: 34px;
+      padding: 0 11px;
+      overflow: hidden;
+      color: #ecfeff;
+      background: rgba(255, 255, 255, .14);
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 38px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .button.primary {
+      color: #fff;
+      background: var(--primary);
+      box-shadow: 0 10px 18px rgba(15, 118, 110, .20);
+    }
+
+    .button.light {
+      color: var(--primary-dark);
+      background: #fff;
+    }
+
+    .button.accent {
+      color: #1f2937;
+      background: var(--accent);
+    }
+
+    .button.soft {
+      color: #334155;
+      background: #e8f0f2;
+    }
+
+    .section {
+      margin-top: 14px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 2px 10px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .section-head span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, .055);
+    }
+
+    .notice-card {
+      padding: 15px;
+    }
+
+    .notice-card h4 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .notice-card p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .notice-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eef2f3;
+    }
+
+    .notice-line:last-child {
+      border-bottom: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .badge.green {
+      color: var(--primary-dark);
+      background: var(--green-soft);
+    }
+
+    .badge.orange {
+      color: #9a5b00;
+      background: var(--orange-soft);
+    }
+
+    .badge.blue {
+      color: #1d4ed8;
+      background: var(--blue-soft);
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .service {
+      min-height: 78px;
+      padding: 10px 5px 8px;
+      text-align: center;
+      background: #fff;
+      border: 1px solid #e2ece9;
+      border-radius: 16px;
+    }
+
+    .iconbox {
+      width: 34px;
+      height: 34px;
+      margin: 0 auto 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      background: var(--green-soft);
+      border-radius: 12px;
+    }
+
+    .service:nth-child(2n) .iconbox {
+      color: #1d4ed8;
+      background: var(--blue-soft);
+    }
+
+    .service:nth-child(3n) .iconbox {
+      color: #b45309;
+      background: var(--orange-soft);
+    }
+
+    .service strong {
+      display: block;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .service span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.25;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .metric {
+      padding: 13px 8px;
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid #e2ece9;
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .metric strong {
+      display: block;
+      color: var(--primary-dark);
+      font-size: 20px;
+      line-height: 1.15;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .tabbar {
+      height: 58px;
+      margin-top: 13px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid #e2ece9;
+      border-radius: 20px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      color: #8795a6;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .tab.active {
+      color: var(--primary);
+    }
+
+    .row-list {
+      padding: 4px 15px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 61px;
+      border-bottom: 1px solid #eef2f3;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .row strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .row span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .amount {
+      color: var(--red);
+      font-size: 18px;
+      font-weight: 950;
+    }
+
+    .steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      padding: 13px;
+      background: #fff;
+      border: 1px solid #e2ece9;
+      border-radius: 16px;
+    }
+
+    .step-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .step h4 {
+      margin: 1px 0 4px;
+      font-size: 14px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .field {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 13px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #dbe6e3;
+      border-radius: 13px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .form {
+      display: grid;
+      gap: 10px;
+      padding: 15px;
+    }
+
+    .bill-total {
+      padding: 18px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 88% 20%, rgba(255, 255, 255, .26), transparent 24%),
+        linear-gradient(135deg, #172554 0%, #0f766e 100%);
+      border-radius: 22px;
+    }
+
+    .bill-total span {
+      color: #d7f7ef;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bill-total strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 34px;
+      line-height: 1.1;
+    }
+
+    .profile-card {
+      padding: 19px;
+      color: #fff;
+      background: linear-gradient(135deg, #0f766e 0%, #164e63 100%);
+      border-radius: 24px;
+    }
+
+    .avatar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary-dark);
+      background: #ecfeff;
+      border-radius: 18px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .avatar-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .avatar-copy strong {
+      display: block;
+      font-size: 18px;
+    }
+
+    .avatar-copy span {
+      display: block;
+      margin-top: 5px;
+      overflow: hidden;
+      color: #cdfcf1;
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .family-strip {
+      display: flex;
+      gap: 10px;
+      margin-top: 13px;
+    }
+
+    .family {
+      flex: 1;
+      padding: 11px 8px;
+      color: #d7f7ef;
+      background: rgba(255, 255, 255, .13);
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 15px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .mini-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .wide-card {
+      padding: 15px;
+    }
+
+    .wide-card strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .wide-card span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .safe-bottom {
+      margin-bottom: 12px;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5 5L3 18v3h3l6.7-6.7a4 4 0 0 0 5-5l-2.4 2.4-3-3z"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7h18v13H3z"/><path d="M16 12h5v4h-5z"/><path d="M3 7l3-4h12l3 4"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 17h14l-1.5-6h-11z"/><path d="M7 17v2"/><path d="M17 17v2"/><path d="M7 11l2-4h6l2 4"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="14.5" r="4.5"/><path d="m11 11 9-9"/><path d="m16 6 2 2"/><path d="m14 8 2 2"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4"/><path d="M8 13h8"/><path d="M8 17h5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21a6 6 0 0 0-12 0"/><circle cx="10" cy="8" r="4"/><path d="M22 21a5 5 0 0 0-4-4.8"/><path d="M16 4.1a4 4 0 0 1 0 7.8"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  </svg>
+
+  <header class="cover">
+    <h1>智慧物业业主端小程序静态视觉设计稿</h1>
+    <p>设计目标：用户不需要先面对登录表单，先进入公共服务入口；绑定房屋后逐步解锁账单、缴费、报修、通知、家属和车辆等私有服务。以下为静态视觉稿，不接接口、不改变当前功能。</p>
+    <div class="tokens">
+      <span class="token"><i class="swatch" style="background:#0f766e"></i>主色 物业绿</span>
+      <span class="token"><i class="swatch" style="background:#f59e0b"></i>强调 缴费橙</span>
+      <span class="token"><i class="swatch" style="background:#2563eb"></i>信息 蓝</span>
+      <span class="token"><i class="swatch" style="background:#f3f8f6"></i>背景 浅灰绿</span>
+      <span class="token">卡片圆角 16-24px</span>
+      <span class="token">底部四栏：首页 / 服务 / 消息 / 我的</span>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>游客首页</h2>
+            <span>公共入口</span>
+          </div>
+          <div class="hero">
+            <h3>智慧物业</h3>
+            <p>先浏览公共公告与服务说明，绑定房屋后开启专属缴费、报修和通知。</p>
+            <div class="hero-row">
+              <span class="hero-meta"><svg class="icon"><use href="#i-home"/></svg> 公共服务入口</span>
+              <span class="button light"><svg class="icon"><use href="#i-key"/></svg> 绑定房屋</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="notice-card card">
+              <h4>绑定后可使用完整业主服务</h4>
+              <p>支持业主、家属、租户、住户提交绑定审核，审核通过后可接收对应房屋的通知、账单和工单消息。</p>
+              <div style="display:flex; gap:10px; margin-top:14px;">
+                <span class="button primary">立即绑定</span>
+                <span class="button soft">查看公告</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>常用服务</h3><span>绑定后解锁更多</span></div>
+            <div class="service-grid">
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-bell"/></svg></div><strong>通知公告</strong><span>公共消息</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-key"/></svg></div><strong>房屋绑定</strong><span>提交审核</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-wallet"/></svg></div><strong>物业缴费</strong><span>需绑定</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-wrench"/></svg></div><strong>报事报修</strong><span>需绑定</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-message"/></svg></div><strong>投诉建议</strong><span>服务反馈</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-shield"/></svg></div><strong>访客通行</strong><span>临时邀约</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-car"/></svg></div><strong>车辆管理</strong><span>车位月租</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-user"/></svg></div><strong>个人中心</strong><span>我的资料</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>社区动态</h3><span>更多</span></div>
+            <div class="notice-card card">
+              <div class="notice-line"><span class="badge green">公告</span><div><h4>端午节物业服务安排</h4><p>客服、保洁、秩序值班时间说明</p></div></div>
+              <div class="notice-line"><span class="badge orange">提醒</span><div><h4>地下车库清洗通知</h4><p>请车主提前移车，避免影响施工</p></div></div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab active"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab"><svg class="icon"><use href="#i-file"/></svg>服务</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>已绑定首页</h2>
+            <span>业主状态</span>
+          </div>
+          <div class="hero">
+            <h3>清江花园</h3>
+            <p>3栋 1单元 1201，欢迎回来。今日有 1 条缴费提醒和 2 条物业通知。</p>
+            <div class="hero-row">
+              <span class="hero-meta"><svg class="icon"><use href="#i-home"/></svg> 当前房屋</span>
+              <span class="button light">切换</span>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric"><strong>2</strong><span>绑定房屋</span></div>
+            <div class="metric"><strong>¥428</strong><span>待缴金额</span></div>
+            <div class="metric"><strong>1</strong><span>处理中工单</span></div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>重点待办</h3><span>本周</span></div>
+            <div class="notice-card card">
+              <div class="notice-line"><span class="badge orange">待缴</span><div><h4>6月物业费待支付</h4><p>应缴 ¥428.00，截止 06-30</p></div><span class="amount">支付</span></div>
+              <div class="notice-line"><span class="badge blue">工单</span><div><h4>卫生间漏水维修</h4><p>维修师傅已接单，预计今日上门</p></div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>快捷服务</h3><span>全部</span></div>
+            <div class="service-grid">
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-wallet"/></svg></div><strong>物业缴费</strong><span>账单支付</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-wrench"/></svg></div><strong>报事报修</strong><span>一键提交</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-shield"/></svg></div><strong>访客邀请</strong><span>门岗通行</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-car"/></svg></div><strong>车辆车位</strong><span>月租管理</span></div>
+            </div>
+          </div>
+
+          <div class="section safe-bottom">
+            <div class="section-head"><h3>最新消息</h3><span>更多</span></div>
+            <div class="notice-card card">
+              <div class="notice-line"><span class="badge green">物业</span><div><h4>电梯维保完成通知</h4><p>3栋 1 单元电梯已恢复正常使用</p></div></div>
+              <div class="notice-line"><span class="badge blue">活动</span><div><h4>周末便民理发服务</h4><p>本周六 9:00-11:30 小区广场</p></div></div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab active"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab"><svg class="icon"><use href="#i-file"/></svg>服务</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>服务中心</h2>
+            <span>按场景组织</span>
+          </div>
+          <div class="notice-card card">
+            <h4>清江花园服务大厅</h4>
+            <p>把高频事项按房屋、缴费、物业、通行、公共服务分组，减少用户寻找成本。</p>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>房屋服务</h3><span>关系与资料</span></div>
+            <div class="row-list card">
+              <div class="row"><div><strong>我的房屋</strong><span>绑定、切换、解绑房屋</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="row"><div><strong>家属管理</strong><span>添加家属、租户、同住人</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>物业服务</h3><span>工单与反馈</span></div>
+            <div class="service-grid">
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-wrench"/></svg></div><strong>报事报修</strong><span>维修提交</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-message"/></svg></div><strong>投诉建议</strong><span>意见反馈</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-file"/></svg></div><strong>工单进度</strong><span>处理评价</span></div>
+              <div class="service"><div class="iconbox"><svg class="icon"><use href="#i-bell"/></svg></div><strong>服务计划</strong><span>透明公示</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>缴费与通行</h3><span>常用</span></div>
+            <div class="row-list card">
+              <div class="row"><div><strong>物业缴费</strong><span>待缴账单、历史账单、收银台</span></div><span class="badge orange">¥428</span></div>
+              <div class="row"><div><strong>访客邀请</strong><span>生成访客通行凭证</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="row"><div><strong>车辆车位</strong><span>车牌、月租、车位信息</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab active"><svg class="icon"><use href="#i-file"/></svg>服务</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>房屋绑定</h2>
+            <span>流程式</span>
+          </div>
+          <div class="hero">
+            <h3>绑定我的房屋</h3>
+            <p>绑定成功后可接收对应房屋通知，查看账单并办理缴费、报修、访客和家属管理。</p>
+            <div class="hero-row">
+              <span class="hero-meta"><svg class="icon"><use href="#i-shield"/></svg> 审核通过后生效</span>
+            </div>
+          </div>
+
+          <div class="steps">
+            <div class="step"><div class="step-num">1</div><div><h4>选择小区</h4><p>支持按小区名称搜索，默认展示当前物业服务项目。</p></div></div>
+            <div class="step"><div class="step-num">2</div><div><h4>填写房屋</h4><p>按楼栋、单元、房号逐步选择，减少手输错误。</p></div></div>
+            <div class="step"><div class="step-num">3</div><div><h4>选择身份</h4><p>业主、家属、租户、住户，不同身份可配置不同权限。</p></div></div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>绑定信息</h3><span>示例</span></div>
+            <div class="form card">
+              <div class="field"><span>清江花园</span><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="field"><span>3 栋</span></div>
+                <div class="field"><span>1 单元</span></div>
+              </div>
+              <div class="field"><span>1201</span><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="field"><span>身份：家属</span><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div style="display:flex; gap:10px;">
+                <span class="button primary" style="flex:1;">提交审核</span>
+                <span class="button soft">保存草稿</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab active"><svg class="icon"><use href="#i-file"/></svg>服务</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>账单缴费</h2>
+            <span>待缴优先</span>
+          </div>
+          <div class="bill-total">
+            <span>清江花园 3栋1201 当前待缴</span>
+            <strong>¥428.00</strong>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <span class="button accent">立即缴费</span>
+              <span class="button light">历史账单</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>待缴账单</h3><span>2 笔</span></div>
+            <div class="row-list card">
+              <div class="row"><div><strong>6月物业服务费</strong><span>2026-06-01 至 2026-06-30</span></div><div class="amount">¥238</div></div>
+              <div class="row"><div><strong>地下车位管理费</strong><span>B2-108 车位，月租费用</span></div><div class="amount">¥190</div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>缴费记录</h3><span>近 3 个月</span></div>
+            <div class="row-list card">
+              <div class="row"><div><strong>5月物业服务费</strong><span>微信支付，2026-05-08</span></div><span class="badge green">已缴</span></div>
+              <div class="row"><div><strong>4月物业服务费</strong><span>微信支付，2026-04-06</span></div><span class="badge green">已缴</span></div>
+              <div class="row"><div><strong>3月物业服务费</strong><span>微信支付，2026-03-05</span></div><span class="badge green">已缴</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="notice-card card">
+              <h4>缴费说明</h4>
+              <p>正式上线后接入微信支付；当前演示环境保留模拟支付流程，用于验证账单、订单和支付状态闭环。</p>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab active"><svg class="icon"><use href="#i-wallet"/></svg>缴费</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mock">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="bars">5G ▬ ▰</span></div>
+        <div class="screen">
+          <div class="screen-title">
+            <h2>我的</h2>
+            <span>家庭与账户</span>
+          </div>
+          <div class="profile-card">
+            <div class="avatar-row">
+              <div class="avatar">陈</div>
+              <div class="avatar-copy">
+                <strong>陈女士</strong>
+                <span>清江花园 3栋 1单元 1201</span>
+              </div>
+              <span class="button light">切换</span>
+            </div>
+            <div class="family-strip">
+              <div class="family">房屋 2</div>
+              <div class="family">家属 3</div>
+              <div class="family">车辆 1</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>我的关系</h3><span>可管理</span></div>
+            <div class="mini-stack">
+              <div class="wide-card card"><strong>家属管理</strong><span>添加配偶、父母、子女等同住人，授权接收通知和办理服务。</span></div>
+              <div class="wide-card card"><strong>房屋绑定审核</strong><span>查看本人提交和家属提交的绑定审核状态。</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>我的服务</h3><span>全部</span></div>
+            <div class="row-list card">
+              <div class="row"><div><strong>我的账单</strong><span>待缴费用和缴费记录</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="row"><div><strong>我的工单</strong><span>报修、投诉、评价记录</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="row"><div><strong>我的车辆</strong><span>车牌、车位、月租信息</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+              <div class="row"><div><strong>联系物业</strong><span>客服电话、管家、服务时间</span></div><svg class="icon"><use href="#i-chevron"/></svg></div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab"><svg class="icon"><use href="#i-home"/></svg>首页</div>
+            <div class="tab"><svg class="icon"><use href="#i-file"/></svg>服务</div>
+            <div class="tab"><svg class="icon"><use href="#i-bell"/></svg>消息</div>
+            <div class="tab active"><svg class="icon"><use href="#i-user"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
