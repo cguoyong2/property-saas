@@ -1,19 +1,19 @@
 <template>
-  <view class="page">
-    <view class="screen-title">
+  <view class="page owner-home">
+    <view class="owner-screen-title">
       <view>
-        <text class="page-title">{{ member.token ? '已绑定首页' : '游客首页' }}</text>
-        <text class="page-sub">{{ member.token ? '业主状态' : '公共入口' }}</text>
+        <text class="owner-page-title">{{ member.token ? '已绑定首页' : '游客首页' }}</text>
+        <text class="owner-page-sub">{{ member.token ? '业主状态' : '公共入口' }}</text>
       </view>
-      <text class="pill">{{ member.token ? '业主服务' : '公共服务' }}</text>
+      <text class="owner-pill">{{ member.token ? '业主服务' : '公共入口' }}</text>
     </view>
 
-    <view class="hero">
-      <text class="hero-title">{{ member.token ? projectName : '智慧物业' }}</text>
-      <text class="hero-copy">{{ heroCopy }}</text>
-      <view class="hero-row">
-        <text class="hero-meta">{{ member.token ? member.currentHouseNo || '请绑定或选择房屋' : '公共服务入口' }}</text>
-        <button class="hero-button" @click="go(member.token ? '/pages/house/switch' : '/pages/house/bind')">
+    <view class="owner-hero">
+      <text class="owner-hero-title">{{ member.token ? projectName : '智慧物业' }}</text>
+      <text class="owner-hero-copy">{{ heroCopy }}</text>
+      <view class="owner-hero-row">
+        <text class="owner-hero-meta">{{ member.token ? member.currentHouseNo || '请绑定或选择房屋' : '公共服务入口' }}</text>
+        <button class="owner-hero-button" @click="go(member.token ? '/pages/house/switch' : '/pages/house/bind')">
           {{ member.token ? '切换' : '绑定房屋' }}
         </button>
       </view>
@@ -25,17 +25,17 @@
       <view class="metric"><text>{{ summary.workOrderCount ?? 0 }}</text><label>工单</label></view>
     </view>
 
-    <view v-else class="public-card">
-      <text class="public-title">绑定后可使用完整业主服务</text>
-      <text class="public-copy">支持业主、家属、租户、住户提交绑定审核，审核通过后可接收对应房屋的通知、账单和工单消息。</text>
-      <view class="public-actions">
-        <button class="primary" @click="go('/pages/house/bind')">立即绑定</button>
-        <button class="secondary" @click="go('/pages/notice/list')">查看公告</button>
+    <view v-else class="owner-public-card">
+      <text class="owner-public-title">绑定后可使用完整业主服务</text>
+      <text class="owner-public-copy">支持业主、家属、租户、住户提交绑定审核，审核通过后可接收对应房屋的通知、账单和工单消息。</text>
+      <view class="owner-public-actions">
+        <button class="owner-primary" @click="go('/pages/house/bind')">立即绑定</button>
+        <button class="owner-secondary" @click="go('/pages/notice/list')">查看公告</button>
       </view>
     </view>
 
-    <view v-if="member.token" class="section">
-      <view class="section-head">
+    <view v-if="member.token" class="owner-section">
+      <view class="owner-section-head">
         <text>重点待办</text>
         <text>本周</text>
       </view>
@@ -58,22 +58,22 @@
       </view>
     </view>
 
-    <view class="section">
-      <view class="section-head">
+    <view class="owner-section">
+      <view class="owner-section-head">
         <text>{{ member.token ? '快捷服务' : '常用服务' }}</text>
-        <text>全部</text>
+        <text>{{ member.token ? '全部' : '绑定后解锁更多' }}</text>
       </view>
-      <view class="service-grid">
-        <button v-for="item in entries" :key="item.url" class="service" @click="openEntry(item)">
+      <view class="owner-service-grid">
+        <view v-for="item in entries" :key="item.url" class="owner-service" @click="openEntry(item)">
           <text class="service-icon">{{ item.icon }}</text>
           <text class="service-title">{{ item.title }}</text>
           <text class="service-sub">{{ item.sub }}</text>
-        </button>
+        </view>
       </view>
     </view>
 
-    <view class="section">
-      <view class="section-head">
+    <view class="owner-section">
+      <view class="owner-section-head">
         <text>{{ member.token ? '最新消息' : '社区动态' }}</text>
         <text @click="go('/pages/notice/list')">更多</text>
       </view>
@@ -160,155 +160,172 @@ function openEntry(item: { url: string, public?: boolean }) {
 </script>
 
 <style scoped>
-.page {
+.owner-home {
   min-height: 100vh;
-  padding: 28rpx;
+  padding: 16px;
   box-sizing: border-box;
   background:
     radial-gradient(circle at 12% -2%, rgba(15, 118, 110, .18), transparent 35%),
     linear-gradient(180deg, #eef8f5 0%, #f8fafc 45%, #f3f6f8 100%);
 }
 
-.screen-title {
+.owner-screen-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 28rpx;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.page-title {
+.owner-page-title {
   display: block;
   color: #172033;
-  font-size: 38rpx;
+  font-size: 18px;
+  line-height: 1.25;
   font-weight: 900;
 }
 
-.page-sub {
+.owner-page-sub {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 2px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.pill {
-  padding: 12rpx 20rpx;
+.owner-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 11px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 999rpx;
-  font-size: 23rpx;
+  border: 0.5px solid rgba(15, 118, 110, .13);
+  border-radius: 499.5px;
+  font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
-.hero {
-  min-height: 292rpx;
-  padding: 40rpx;
+.owner-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 146px;
+  padding: 20px;
   color: #fff;
   background:
     radial-gradient(circle at 82% 12%, rgba(255, 255, 255, .24), transparent 24%),
     linear-gradient(135deg, #0f766e 0%, #124e61 100%);
-  border-radius: 36rpx;
+  border-radius: 18px;
   box-sizing: border-box;
 }
 
-.hero-title {
+.owner-hero-title {
   display: block;
-  font-size: 50rpx;
+  font-size: 25px;
   font-weight: 900;
   line-height: 1.25;
 }
 
-.hero-copy {
+.owner-hero-copy {
   display: block;
-  margin-top: 18rpx;
+  margin-top: 9px;
   color: #cdfcf1;
-  font-size: 25rpx;
+  font-size: 12.5px;
   line-height: 1.55;
 }
 
-.hero-row {
+.owner-hero-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 18rpx;
-  margin-top: 30rpx;
+  gap: 12px;
+  margin-top: 18px;
 }
 
-.hero-meta {
+.owner-hero-meta {
   flex: 1;
   min-width: 0;
-  height: 62rpx;
-  padding: 0 20rpx;
+  max-width: 210px;
+  min-height: 34px;
+  padding: 0 11px;
   overflow: hidden;
   color: #ecfeff;
   background: rgba(255, 255, 255, .14);
-  border: 1rpx solid rgba(255, 255, 255, .18);
-  border-radius: 999rpx;
-  font-size: 23rpx;
+  border: 0.5px solid rgba(255, 255, 255, .18);
+  border-radius: 499.5px;
+  font-size: 12px;
   font-weight: 900;
-  line-height: 62rpx;
+  line-height: 34px;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.hero-button {
+.owner-hero-button {
   flex: none;
-  height: 70rpx;
-  padding: 0 26rpx;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
   color: #0b5f59;
   background: #fff;
-  border-radius: 999rpx;
-  font-size: 25rpx;
+  border-radius: 499.5px;
+  font-size: 13px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
-.public-card,
+.owner-public-card,
 .card {
   background: rgba(255, 255, 255, .96);
-  border: 1rpx solid #dfe9e6;
-  border-radius: 28rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, .055);
+  border: 0.5px solid #dfe9e6;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .055);
 }
 
-.public-card {
-  margin-top: 24rpx;
-  padding: 30rpx;
+.owner-public-card {
+  margin-top: 14px;
+  padding: 15px;
 }
 
-.public-title {
+.owner-public-title {
   display: block;
   color: #172033;
-  font-size: 32rpx;
+  font-size: 16px;
   font-weight: 900;
+  line-height: 1.35;
 }
 
-.public-copy {
+.owner-public-copy {
   display: block;
-  margin-top: 14rpx;
+  margin-top: 7px;
   color: #65758a;
-  font-size: 24rpx;
+  font-size: 12px;
   line-height: 1.6;
 }
 
-.public-actions {
+.owner-public-actions {
   display: flex;
-  gap: 16rpx;
-  margin-top: 26rpx;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.public-actions button {
-  flex: 1;
-  height: 72rpx;
-  border-radius: 999rpx;
-  font-size: 25rpx;
+.owner-public-actions button {
+  flex: none;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 499.5px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
-.primary {
+.owner-primary {
   color: #fff;
   background: #0f766e;
+  box-shadow: 0 5px 9px rgba(15, 118, 110, .2);
 }
 
-.secondary {
+.owner-secondary {
   color: #334155;
   background: #e8f0f2;
 }
@@ -316,22 +333,22 @@ function openEntry(item: { url: string, public?: boolean }) {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
-  margin-top: 22rpx;
+  gap: 7px;
+  margin-top: 11px;
 }
 
 .metric {
-  padding: 24rpx 10rpx;
+  padding: 12px 5px;
   background: rgba(255, 255, 255, .96);
-  border: 1rpx solid #e2ece9;
-  border-radius: 24rpx;
+  border: 0.5px solid #e2ece9;
+  border-radius: 12px;
   text-align: center;
 }
 
 .metric text {
   display: block;
   color: #0b5f59;
-  font-size: 36rpx;
+  font-size: 18px;
   font-weight: 950;
 }
 
@@ -341,47 +358,51 @@ function openEntry(item: { url: string, public?: boolean }) {
 
 .metric label {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 4px;
   color: #65758a;
-  font-size: 22rpx;
+  font-size: 11px;
 }
 
-.section {
-  margin-top: 28rpx;
+.owner-section {
+  margin-top: 14px;
 }
 
-.section-head {
+.owner-section-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin: 0 4rpx 18rpx;
+  gap: 10px;
+  margin: 0 2px 10px;
 }
 
-.section-head text:first-child {
+.owner-section-head text:first-child {
   color: #172033;
-  font-size: 31rpx;
+  font-size: 16px;
+  line-height: 1.25;
   font-weight: 900;
 }
 
-.section-head text:last-child {
+.owner-section-head text:last-child {
   color: #65758a;
-  font-size: 23rpx;
+  font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
-.service-grid {
+.owner-service-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
+  gap: 10px;
 }
 
-.service {
-  display: block;
+.owner-service {
   width: 100%;
-  min-height: 150rpx;
-  padding: 16rpx 8rpx;
+  min-height: 78px;
+  padding: 10px 5px 8px;
   background: #fff;
-  border: 1rpx solid #e2ece9;
-  border-radius: 24rpx;
+  border: 0.5px solid #e2ece9;
+  border-radius: 16px;
+  box-shadow: 0 4px 9px rgba(15, 23, 42, .035);
   text-align: center;
 }
 
@@ -389,22 +410,22 @@ function openEntry(item: { url: string, public?: boolean }) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  margin: 0 auto 10rpx;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 7px;
   color: #0b5f59;
   background: #dff5ef;
-  border-radius: 22rpx;
-  font-size: 23rpx;
+  border-radius: 12px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
-.service:nth-child(2n) .service-icon {
+.owner-service:nth-child(2n) .service-icon {
   color: #1d4ed8;
   background: #e8f0ff;
 }
 
-.service:nth-child(3n) .service-icon {
+.owner-service:nth-child(3n) .service-icon {
   color: #b45309;
   background: #fff4dd;
 }
@@ -412,33 +433,33 @@ function openEntry(item: { url: string, public?: boolean }) {
 .service-title {
   display: block;
   color: #172033;
-  font-size: 23rpx;
+  font-size: 11.5px;
   font-weight: 900;
   white-space: nowrap;
 }
 
 .service-sub {
   display: block;
-  margin-top: 6rpx;
+  margin-top: 3px;
   color: #65758a;
-  font-size: 19rpx;
+  font-size: 9.5px;
   line-height: 1.25;
   white-space: nowrap;
 }
 
 .notice-list {
-  padding: 8rpx 28rpx;
+  padding: 4px 15px;
 }
 
 .notice-line {
   display: flex;
   align-items: center;
-  gap: 18rpx;
+  gap: 9px;
   width: 100%;
-  min-height: 110rpx;
+  min-height: 55px;
   padding: 0;
   background: transparent;
-  border-bottom: 1rpx solid #eef2f3;
+  border-bottom: 0.5px solid #eef2f3;
   text-align: left;
 }
 
@@ -448,13 +469,13 @@ function openEntry(item: { url: string, public?: boolean }) {
 
 .badge {
   flex: none;
-  min-width: 76rpx;
-  height: 44rpx;
-  padding: 0 14rpx;
-  border-radius: 999rpx;
-  font-size: 21rpx;
+  min-width: 38px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 499.5px;
+  font-size: 10.5px;
   font-weight: 900;
-  line-height: 44rpx;
+  line-height: 22px;
   text-align: center;
 }
 
@@ -476,21 +497,21 @@ function openEntry(item: { url: string, public?: boolean }) {
 .line-title {
   display: block;
   color: #172033;
-  font-size: 27rpx;
+  font-size: 13.5px;
   font-weight: 900;
 }
 
 .line-sub {
   display: block;
-  margin-top: 7rpx;
+  margin-top: 3.5px;
   color: #65758a;
-  font-size: 22rpx;
+  font-size: 11px;
 }
 
 .pay-link {
   margin-left: auto;
   color: #dc2626;
-  font-size: 28rpx;
+  font-size: 14px;
   font-weight: 950;
 }
 </style>

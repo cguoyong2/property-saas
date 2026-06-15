@@ -103,7 +103,7 @@ uni-button::after {
 
 .preview-shell .page {
   width: 100%;
-  max-width: 430px;
+  max-width: 390px;
   min-height: 100vh;
   margin: 0 auto;
   padding: 16px 14px 28px;
@@ -277,6 +277,8 @@ uni-button::after {
 
 .preview-shell .hero-button,
 .preview-shell .public-actions button,
+.preview-shell .owner-hero-button,
+.preview-shell .owner-public-actions button,
 .preview-shell .total-actions button,
 .preview-shell .actions button,
 .preview-shell .bind-card button,
@@ -285,6 +287,14 @@ uni-button::after {
   padding-left: 14px !important;
   padding-right: 14px !important;
   line-height: normal !important;
+}
+
+.preview-shell .owner-home .card {
+  margin-bottom: 0;
+}
+
+.preview-shell .owner-home .card::before {
+  display: none;
 }
 
 .preview-shell .actions,
