@@ -7,7 +7,6 @@
       :class="{ active: active === item.key }"
       @click="go(item.url)"
     >
-      <text class="tab-icon">{{ item.icon }}</text>
       <text class="tab-text">{{ item.label }}</text>
     </view>
   </view>
@@ -46,10 +45,8 @@ function go(url: string) {
 
 .tab {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
   width: 100%;
   min-width: 0;
   min-height: 45px;
@@ -65,25 +62,9 @@ function go(url: string) {
   color: #0f766e;
 }
 
-.tab-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 6px;
-  background: #eef3f5;
-  font-size: 0;
-  font-weight: 900;
-}
-
-.tab.active .tab-icon {
-  background: #dff5ef;
-}
-
 .tab-text {
   display: block;
-  line-height: 1.1;
+  line-height: 1;
   white-space: nowrap;
 }
 </style>
