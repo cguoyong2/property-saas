@@ -11,6 +11,7 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 const pages = {
   '/pages/login/index': defineAsyncComponent(() => import('@/pages/login/index.vue')),
   '/pages/home/index': defineAsyncComponent(() => import('@/pages/home/index.vue')),
+  '/pages/service/index': defineAsyncComponent(() => import('@/pages/service/index.vue')),
   '/pages/house/list': defineAsyncComponent(() => import('@/pages/house/list.vue')),
   '/pages/house/bind': defineAsyncComponent(() => import('@/pages/house/bind.vue')),
   '/pages/house/switch': defineAsyncComponent(() => import('@/pages/house/switch.vue')),

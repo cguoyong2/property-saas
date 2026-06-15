@@ -18,7 +18,8 @@ type UniRouteOptions = {
 const API_BASE_URL = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? 'http://localhost:19023/api')
 
 function resolveApiUrl(url: string, data?: Record<string, unknown>, method = 'GET') {
-  const target = url.startsWith('http') ? new URL(url) : new URL(`${API_BASE_URL}${url}`)
+  const baseUrl = API_BASE_URL.startsWith('http') ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`
+  const target = url.startsWith('http') ? new URL(url) : new URL(`${baseUrl}${url}`)
   if (method.toUpperCase() === 'GET' && data) {
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {

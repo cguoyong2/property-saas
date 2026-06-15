@@ -13,6 +13,12 @@
       }
     },
     {
+      "path": "pages/service/index",
+      "style": {
+        "navigationBarTitleText": "服务"
+      }
+    },
+    {
       "path": "pages/house/list",
       "style": {
         "navigationBarTitleText": "我的房屋"
@@ -127,12 +133,12 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/bill/list",
-        "text": "缴费"
+        "pagePath": "pages/service/index",
+        "text": "服务"
       },
       {
-        "pagePath": "pages/workorder/list",
-        "text": "工单"
+        "pagePath": "pages/notice/list",
+        "text": "消息"
       },
       {
         "pagePath": "pages/mine/index",
