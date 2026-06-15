@@ -1,0 +1,8 @@
+services:
+  admin-web:
+    ports:
+      - "19031:80"
+
+  mobile-h5:
+    ports:
+      - "19032:80"
