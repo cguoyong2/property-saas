@@ -31,7 +31,7 @@
         <span>{{ auth.userType === 'PLATFORM' ? '平台运营端' : '物业管理端' }}</span>
         <el-button text :icon="SwitchButton" @click="logout">退出</el-button>
       </el-header>
-      <el-main class="layout__main">
+      <el-main ref="mainRef" class="layout__main">
         <RouterView />
       </el-main>
     </el-container>
@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { House, OfficeBuilding, SwitchButton } from '@element-plus/icons-vue'
 import { allPages, reportLinks } from '@/config/pages'
@@ -48,6 +48,7 @@ import { useAuthStore } from '@/store/auth'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const mainRef = ref<HTMLElement>()
 
 const visibleReportLinks = computed(() => reportLinks.filter((item) => auth.hasPermission(item.permission)))
 
@@ -68,4 +69,14 @@ function logout() {
   auth.clearSession()
   router.push('/login')
 }
+
+watch(
+  () => route.fullPath,
+  () => {
+    requestAnimationFrame(() => {
+      mainRef.value?.scrollTo({ top: 0, left: 0 })
+      window.scrollTo({ top: 0, left: 0 })
+    })
+  },
+)
 </script>

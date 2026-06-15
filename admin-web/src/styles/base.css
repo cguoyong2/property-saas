@@ -9,13 +9,22 @@ body {
   font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+#app {
+  height: 100vh;
+}
+
 .layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .layout__aside {
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .layout__brand {
@@ -28,7 +37,16 @@ body {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.layout__aside .el-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: 0;
+}
+
 .layout__header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,6 +56,8 @@ body {
 
 .layout__main {
   padding: 20px;
+  height: calc(100vh - 60px);
+  overflow: auto;
 }
 
 .page-shell {
