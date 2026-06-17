@@ -90,10 +90,20 @@
       />
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑' : '新增'" width="620px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑' : '新增'" width="620px" draggable>
       <el-form label-position="top">
         <el-form-item v-for="field in formFields" :key="field.prop" :label="field.label" :required="field.required">
-          <el-select v-if="field.type === 'select'" v-model="form[field.prop]" clearable class="form-control">
+          <el-cascader
+            v-if="field.type === 'area'"
+            v-model="areaSelection"
+            :options="chinaAreaOptions"
+            clearable
+            filterable
+            class="form-control"
+            placeholder="请选择省份 / 城市 / 区县"
+            @change="syncAreaToForm"
+          />
+          <el-select v-else-if="field.type === 'select'" v-model="form[field.prop]" clearable class="form-control">
             <el-option v-for="option in field.options ?? []" :key="option" :label="option" :value="option" />
           </el-select>
           <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]" class="form-control" />
@@ -121,7 +131,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="actionDialogVisible" :title="currentAction?.label ?? '业务操作'" width="560px">
+    <el-dialog v-model="actionDialogVisible" :title="currentAction?.label ?? '业务操作'" width="560px" draggable>
       <el-form label-position="top">
         <el-form-item
           v-for="field in currentAction?.fields ?? []"
@@ -164,6 +174,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Bell, Download, Edit, Finished, Plus, Refresh, Search, SwitchButton, Tools, Upload } from '@element-plus/icons-vue'
+import { pcaTextArr } from 'element-china-area-data'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { createRecord, downloadFile, fetchPage, postAction, putAction, updateRecord } from '@/api/admin'
@@ -206,6 +217,8 @@ const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
+const areaSelection = ref<string[]>([])
+const chinaAreaOptions = pcaTextArr
 
 const businessActions: Record<string, BusinessAction[]> = {
   bills: [
@@ -486,6 +499,7 @@ function openCreate() {
   formFields.value.forEach((field) => {
     form[field.prop] = undefined
   })
+  areaSelection.value = []
   dialogVisible.value = true
 }
 
@@ -495,6 +509,10 @@ function openEdit(row: Record<string, unknown>) {
   formFields.value.forEach((field) => {
     form[field.prop] = row[field.prop] as string | number | undefined | null
   })
+  form.province = row.province as string | undefined
+  form.city = row.city as string | undefined
+  form.district = row.district as string | undefined
+  syncAreaFromForm()
   dialogVisible.value = true
 }
 
@@ -502,7 +520,11 @@ async function save() {
   if (!config.value.createPath) return
   saving.value = true
   try {
+    if (hasAreaField()) {
+      syncAreaToForm()
+    }
     const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== undefined && value !== ''))
+    delete payload.area
     if (editingId.value && config.value.updatePath && config.value.idProp) {
       await updateRecord(config.value.updatePath, editingId.value, config.value.idProp, payload)
     } else {
@@ -516,6 +538,22 @@ async function save() {
   } finally {
     saving.value = false
   }
+}
+
+function hasAreaField() {
+  return formFields.value.some((field) => field.type === 'area')
+}
+
+function syncAreaToForm() {
+  const [province, city, district] = areaSelection.value
+  form.province = province
+  form.city = city
+  form.district = district
+}
+
+function syncAreaFromForm() {
+  areaSelection.value = [form.province, form.city, form.district]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
 }
 
 function canRunAction(action: BusinessAction) {

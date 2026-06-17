@@ -28,6 +28,8 @@ knife4j:
   enable: false
 
 property-saas:
+  project-code:
+    pattern: ${PROPERTY_SAAS_PROJECT_CODE_PATTERN:SQ-{yyyyMMdd}-{projectId}}
   jwt:
     secret: ${PROPERTY_SAAS_JWT_SECRET}
     ttl-seconds: ${PROPERTY_SAAS_JWT_TTL_SECONDS:7200}

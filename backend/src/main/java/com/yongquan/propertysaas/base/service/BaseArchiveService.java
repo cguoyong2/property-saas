@@ -13,9 +13,12 @@ import com.yongquan.propertysaas.base.dto.UnitRequest;
 import com.yongquan.propertysaas.base.repository.BaseArchiveRepository;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +30,14 @@ public class BaseArchiveService {
     private static final Set<String> HOUSE_STATUSES = Set.of("VACANT", "OCCUPIED", "RENTED", "LOCKED", "RENOVATING");
 
     private final BaseArchiveRepository repository;
+    private final String projectCodePattern;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
-    public BaseArchiveService(BaseArchiveRepository repository) {
+    public BaseArchiveService(
+            BaseArchiveRepository repository,
+            @Value("${property-saas.project-code.pattern:SQ-{yyyyMMdd}-{projectId}}") String projectCodePattern) {
         this.repository = repository;
+        this.projectCodePattern = projectCodePattern;
     }
 
     public PageResult<ProjectView> pageProjects(String keyword, String status, long pageNo, long pageSize) {
@@ -53,7 +60,8 @@ public class BaseArchiveService {
     public Long createProject(ProjectRequest request) {
         validateStatus(request.status());
         Long projectId = newId();
-        repository.insertProject(tenantId(), projectId, userId(), request);
+        String projectCode = hasText(request.projectCode()) ? request.projectCode().trim() : generateProjectCode(projectId);
+        repository.insertProject(tenantId(), projectId, userId(), withProjectCode(request, projectCode));
         return projectId;
     }
 
@@ -277,5 +285,31 @@ public class BaseArchiveService {
 
     private Long newId() {
         return idSequence.incrementAndGet();
+    }
+
+    private ProjectRequest withProjectCode(ProjectRequest request, String projectCode) {
+        return new ProjectRequest(
+                projectCode,
+                request.projectName(),
+                request.projectType(),
+                request.province(),
+                request.city(),
+                request.district(),
+                request.address(),
+                request.managerUserId(),
+                request.servicePhone(),
+                request.collectionSubject(),
+                request.status());
+    }
+
+    private String generateProjectCode(Long projectId) {
+        String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        return projectCodePattern
+                .replace("{yyyyMMdd}", date)
+                .replace("{projectId}", String.valueOf(projectId));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

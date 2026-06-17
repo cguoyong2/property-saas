@@ -3,7 +3,7 @@ package com.yongquan.propertysaas.base.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public record ProjectRequest(
-        @NotBlank String projectCode,
+        String projectCode,
         @NotBlank String projectName,
         String projectType,
         String province,
