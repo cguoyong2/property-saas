@@ -79,7 +79,9 @@ public class SecurityConfig {
                 "http://localhost:19022",
                 "http://localhost:19024",
                 "http://127.0.0.1:19022",
-                "http://127.0.0.1:19024"
+                "http://127.0.0.1:19024",
+                "https://property.yqej.cn",
+                "https://property-h5.yqej.cn"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
