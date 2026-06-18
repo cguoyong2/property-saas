@@ -56,7 +56,11 @@
         :label="column.label"
         min-width="132"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ displayCell(row, column) }}
+        </template>
+      </el-table-column>
       <el-table-column v-if="hasOperationColumn" label="操作" :width="operationWidth" fixed="right">
         <template #default="{ row }">
           <el-tooltip content="编辑" placement="top">
@@ -93,18 +97,21 @@
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑' : '新增'" width="620px" draggable>
       <el-form label-position="top">
         <el-form-item v-for="field in formFields" :key="field.prop" :label="field.label" :required="field.required">
-          <el-cascader
-            v-if="field.type === 'area'"
-            v-model="areaSelection"
-            :options="chinaAreaOptions"
+          <el-select
+            v-if="isSelectField(field)"
+            v-model="form[field.prop]"
             clearable
-            filterable
             class="form-control"
-            placeholder="请选择省份 / 城市 / 区县"
-            @change="syncAreaToForm"
-          />
-          <el-select v-else-if="field.type === 'select'" v-model="form[field.prop]" clearable class="form-control">
-            <el-option v-for="option in field.options ?? []" :key="option" :label="option" :value="option" />
+            filterable
+            :placeholder="field.label"
+            @change="handleFieldChange(field)"
+          >
+            <el-option
+              v-for="option in optionsForField(field)"
+              :key="String(optionValue(option))"
+              :label="optionLabel(option)"
+              :value="optionValue(option)"
+            />
           </el-select>
           <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]" class="form-control" />
           <el-date-picker
@@ -140,7 +147,12 @@
           :required="field.required"
         >
           <el-select v-if="field.type === 'select'" v-model="actionForm[field.prop]" clearable class="form-control">
-            <el-option v-for="option in field.options ?? []" :key="option" :label="option" :value="option" />
+            <el-option
+              v-for="option in field.options ?? []"
+              :key="String(optionValue(option))"
+              :label="optionLabel(option)"
+              :value="optionValue(option)"
+            />
           </el-select>
           <el-input-number v-else-if="field.type === 'number'" v-model="actionForm[field.prop]" class="form-control" />
           <el-date-picker
@@ -217,7 +229,6 @@ const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
-const areaSelection = ref<string[]>([])
 const chinaAreaOptions = pcaTextArr
 
 const businessActions: Record<string, BusinessAction[]> = {
@@ -499,7 +510,6 @@ function openCreate() {
   formFields.value.forEach((field) => {
     form[field.prop] = undefined
   })
-  areaSelection.value = []
   dialogVisible.value = true
 }
 
@@ -509,10 +519,6 @@ function openEdit(row: Record<string, unknown>) {
   formFields.value.forEach((field) => {
     form[field.prop] = row[field.prop] as string | number | undefined | null
   })
-  form.province = row.province as string | undefined
-  form.city = row.city as string | undefined
-  form.district = row.district as string | undefined
-  syncAreaFromForm()
   dialogVisible.value = true
 }
 
@@ -520,11 +526,7 @@ async function save() {
   if (!config.value.createPath) return
   saving.value = true
   try {
-    if (hasAreaField()) {
-      syncAreaToForm()
-    }
     const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== undefined && value !== ''))
-    delete payload.area
     if (editingId.value && config.value.updatePath && config.value.idProp) {
       await updateRecord(config.value.updatePath, editingId.value, config.value.idProp, payload)
     } else {
@@ -540,20 +542,62 @@ async function save() {
   }
 }
 
-function hasAreaField() {
-  return formFields.value.some((field) => field.type === 'area')
+type SelectOption = string | { label: string; value: string | number }
+type AreaOption = { label: string; value: string; children?: AreaOption[] }
+
+function isSelectField(field: FieldConfig) {
+  return field.type === 'select' || field.type === 'province' || field.type === 'city' || field.type === 'district'
 }
 
-function syncAreaToForm() {
-  const [province, city, district] = areaSelection.value
-  form.province = province
-  form.city = city
-  form.district = district
+function optionsForField(field: FieldConfig): SelectOption[] {
+  if (field.type === 'province') {
+    return chinaAreaOptions.map(toSelectOption)
+  }
+  if (field.type === 'city') {
+    const province = findAreaOption(chinaAreaOptions, form.province)
+    return (province?.children ?? []).map(toSelectOption)
+  }
+  if (field.type === 'district') {
+    const province = findAreaOption(chinaAreaOptions, form.province)
+    const city = findAreaOption(province?.children ?? [], form.city)
+    return (city?.children ?? []).map(toSelectOption)
+  }
+  return field.options ?? []
 }
 
-function syncAreaFromForm() {
-  areaSelection.value = [form.province, form.city, form.district]
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+function handleFieldChange(field: FieldConfig) {
+  if (field.type === 'province') {
+    form.city = undefined
+    form.district = undefined
+  }
+  if (field.type === 'city') {
+    form.district = undefined
+  }
+}
+
+function displayCell(row: Record<string, unknown>, field: FieldConfig) {
+  const value = row[field.prop]
+  if (field.type !== 'select') {
+    return value ?? ''
+  }
+  const option = (field.options ?? []).find((item) => optionValue(item) === value)
+  return option ? optionLabel(option) : value ?? ''
+}
+
+function toSelectOption(option: AreaOption): SelectOption {
+  return { label: option.label, value: option.value }
+}
+
+function findAreaOption(options: AreaOption[], value: unknown) {
+  return options.find((option) => option.value === value || option.label === value)
+}
+
+function optionLabel(option: SelectOption) {
+  return typeof option === 'string' ? option : option.label
+}
+
+function optionValue(option: SelectOption) {
+  return typeof option === 'string' ? option : option.value
 }
 
 function canRunAction(action: BusinessAction) {

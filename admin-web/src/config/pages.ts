@@ -18,8 +18,8 @@ import {
 export interface FieldConfig {
   prop: string
   label: string
-  type?: 'text' | 'number' | 'date' | 'datetime' | 'textarea' | 'select' | 'area'
-  options?: string[]
+  type?: 'text' | 'number' | 'date' | 'datetime' | 'textarea' | 'select' | 'province' | 'city' | 'district'
+  options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
 }
@@ -121,15 +121,22 @@ export const pages: PageConfig[] = [
       { prop: 'projectCode', label: '小区编码' },
       { prop: 'city', label: '城市' },
       { prop: 'address', label: '地址' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] },
     ],
     fields: [
       { prop: 'projectName', label: '小区名称', required: true },
-      { prop: 'projectType', label: '项目类型', type: 'select', options: ['RESIDENTIAL', 'COMMERCIAL', 'PARK', 'MIXED'] },
-      { prop: 'area', label: '省份 / 城市 / 区县', type: 'area' },
+      { prop: 'projectType', label: '项目类型', type: 'select', options: [
+        { label: '住宅小区', value: 'RESIDENTIAL' },
+        { label: '商业项目', value: 'COMMERCIAL' },
+        { label: '园区', value: 'PARK' },
+        { label: '综合业态', value: 'MIXED' },
+      ] },
+      { prop: 'province', label: '省份', type: 'province' },
+      { prop: 'city', label: '城市', type: 'city' },
+      { prop: 'district', label: '区县', type: 'district' },
       { prop: 'address', label: '地址' },
       { prop: 'servicePhone', label: '服务电话' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] },
     ],
   },
   {
