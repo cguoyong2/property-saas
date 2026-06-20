@@ -6,6 +6,7 @@ import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
 import com.yongquan.propertysaas.member.dto.MemberAuditRequest;
+import com.yongquan.propertysaas.member.dto.MemberRequest;
 import com.yongquan.propertysaas.member.dto.UnbindRequest;
 import com.yongquan.propertysaas.member.dto.WxLoginRequest;
 import com.yongquan.propertysaas.member.service.MemberService;
@@ -50,10 +51,27 @@ public class MemberController {
     @GetMapping("/api/base/members")
     @RequiresPermission("base:member:list")
     public ApiResponse<PageResult<MemberView>> pageMembers(@RequestParam(required = false) String keyword,
+                                                           @RequestParam(required = false) String realName,
                                                            @RequestParam(required = false) String status,
                                                            @RequestParam(defaultValue = "1") long pageNo,
                                                            @RequestParam(defaultValue = "20") long pageSize) {
+        if ((keyword == null || keyword.isBlank()) && realName != null && !realName.isBlank()) {
+            keyword = realName;
+        }
         return ApiResponse.success(service.pageMembers(keyword, status, pageNo, pageSize));
+    }
+
+    @PostMapping("/api/base/members")
+    @RequiresPermission("base:member:create")
+    public ApiResponse<Map<String, Long>> createMember(@Valid @RequestBody MemberRequest request) {
+        return ApiResponse.success(Map.of("memberId", service.createMember(request)));
+    }
+
+    @PutMapping("/api/base/members/{memberId}")
+    @RequiresPermission("base:member:update")
+    public ApiResponse<Void> updateMember(@PathVariable Long memberId, @Valid @RequestBody MemberRequest request) {
+        service.updateMember(memberId, request);
+        return ApiResponse.success();
     }
 
     @GetMapping("/api/base/member-bindings")

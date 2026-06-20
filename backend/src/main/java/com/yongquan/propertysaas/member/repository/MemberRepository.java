@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.member.repository;
 import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
+import com.yongquan.propertysaas.member.dto.MemberRequest;
 import com.yongquan.propertysaas.member.dto.WxLoginRequest;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -63,6 +64,43 @@ public class MemberRepository {
                 request.mobile(),
                 request.realName(),
                 request.avatarUrl(),
+                tenantId,
+                memberId);
+    }
+
+    public void insertBackofficeMember(Long tenantId, Long memberId, MemberRequest request, String openid) {
+        jdbcTemplate.update("""
+                        INSERT INTO member_user(member_id, tenant_id, openid, unionid, mobile, real_name,
+                                                avatar_url, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                memberId,
+                tenantId,
+                openid,
+                text(request.unionid()),
+                text(request.mobile()),
+                text(request.realName()),
+                text(request.avatarUrl()),
+                text(request.status(), "ACTIVE"));
+    }
+
+    public void updateBackofficeMember(Long tenantId, Long memberId, MemberRequest request, String openid) {
+        jdbcTemplate.update("""
+                        UPDATE member_user
+                        SET openid = ?,
+                            unionid = ?,
+                            mobile = ?,
+                            real_name = ?,
+                            avatar_url = ?,
+                            status = ?
+                        WHERE tenant_id = ? AND member_id = ? AND deleted = 0
+                        """,
+                openid,
+                text(request.unionid()),
+                text(request.mobile()),
+                text(request.realName()),
+                text(request.avatarUrl()),
+                text(request.status(), "ACTIVE"),
                 tenantId,
                 memberId);
     }
@@ -175,6 +213,11 @@ public class MemberRepository {
                 tenantId, memberId);
     }
 
+    public boolean memberRecordExists(Long tenantId, Long memberId) {
+        return exists("SELECT COUNT(*) FROM member_user WHERE tenant_id = ? AND member_id = ? AND deleted = 0",
+                tenantId, memberId);
+    }
+
     public boolean houseExists(Long tenantId, Long projectId, Long houseId) {
         return exists("SELECT COUNT(*) FROM base_house WHERE tenant_id = ? AND project_id = ? AND house_id = ? AND deleted = 0",
                 tenantId, projectId, houseId);
@@ -283,5 +326,14 @@ public class MemberRepository {
 
     private long value(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private String text(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String text(String value, String fallback) {
+        String text = text(value);
+        return text == null ? fallback : text;
     }
 }

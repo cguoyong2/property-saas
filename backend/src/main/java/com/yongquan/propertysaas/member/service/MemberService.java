@@ -5,6 +5,7 @@ import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
 import com.yongquan.propertysaas.member.dto.MemberAuditRequest;
+import com.yongquan.propertysaas.member.dto.MemberRequest;
 import com.yongquan.propertysaas.member.dto.UnbindRequest;
 import com.yongquan.propertysaas.member.dto.WxLoginRequest;
 import com.yongquan.propertysaas.member.repository.MemberRepository;
@@ -24,6 +25,7 @@ public class MemberService {
 
     private static final Set<String> BIND_ROLES = Set.of("OWNER", "FAMILY", "TENANT", "RESIDENT");
     private static final Set<String> AUDIT_RESULTS = Set.of("APPROVED", "REJECTED");
+    private static final Set<String> MEMBER_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final List<String> APP_PERMISSIONS = List.of(
             "app:home:view",
             "app:house:list",
@@ -96,6 +98,25 @@ public class MemberService {
                 repository.countMembers(tenantId, keyword, status),
                 pageNo,
                 pageSize);
+    }
+
+    @Transactional
+    public Long createMember(MemberRequest request) {
+        validateMember(request);
+        Long tenantId = tenantId();
+        Long memberId = newId();
+        repository.insertBackofficeMember(tenantId, memberId, request, normalizedOpenid(tenantId, memberId, request.openid()));
+        return memberId;
+    }
+
+    @Transactional
+    public void updateMember(Long memberId, MemberRequest request) {
+        validateMember(request);
+        Long tenantId = tenantId();
+        if (!repository.memberRecordExists(tenantId, memberId)) {
+            throw new IllegalArgumentException("业主/住户不存在：" + memberId);
+        }
+        repository.updateBackofficeMember(tenantId, memberId, request, blankToNull(request.openid()));
     }
 
     public PageResult<MemberHouseBindingView> pageBindings(Long projectId, Long memberId, String status,
@@ -175,6 +196,21 @@ public class MemberService {
         if (repository.pendingBindingExists(request.tenantId(), request.memberId(), request.houseId())) {
             throw new IllegalArgumentException("该会员已有待审核绑定申请");
         }
+    }
+
+    private void validateMember(MemberRequest request) {
+        if (request.status() != null && !request.status().isBlank() && !MEMBER_STATUSES.contains(request.status())) {
+            throw new IllegalArgumentException("非法状态：" + request.status());
+        }
+    }
+
+    private String normalizedOpenid(Long tenantId, Long memberId, String openid) {
+        String value = blankToNull(openid);
+        return value == null ? "BACKOFFICE-" + tenantId + "-" + memberId : value;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void ensureTenant(Long tenantId) {

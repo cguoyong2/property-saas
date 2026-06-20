@@ -58,6 +58,7 @@ export interface PageConfig {
 }
 
 const enabledStatusOptions = [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]
+const memberStatusOptions = enabledStatusOptions
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
   { label: '商业项目', value: 'COMMERCIAL' },
@@ -224,13 +225,26 @@ export const pages: PageConfig[] = [
     route: '/base/members',
     icon: User,
     listPath: '/base/members',
+    createPath: '/base/members',
+    updatePath: '/base/members/:memberId',
+    idProp: 'memberId',
     permission: 'base:member:list',
+    createPermission: 'base:member:create',
+    updatePermission: 'base:member:update',
     menuOrder: 50,
     columns: [
       { prop: 'realName', label: '姓名', inFilter: true },
       { prop: 'mobile', label: '手机号' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: memberStatusOptions },
       { prop: 'createdAt', label: '创建时间' },
+    ],
+    fields: [
+      { prop: 'realName', label: '姓名', required: true },
+      { prop: 'mobile', label: '手机号', required: true },
+      { prop: 'openid', label: '微信 openid' },
+      { prop: 'unionid', label: '微信 unionid' },
+      { prop: 'avatarUrl', label: '头像地址' },
+      { prop: 'status', label: '状态', type: 'select', options: memberStatusOptions },
     ],
   },
   {
