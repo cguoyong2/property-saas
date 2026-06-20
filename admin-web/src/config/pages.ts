@@ -51,11 +51,19 @@ export interface PageConfig {
   updatePermission?: string
   projectScoped?: boolean
   menuOrder?: number
+  showDetails?: boolean
   columns: FieldConfig[]
+  detailFields?: FieldConfig[]
   fields?: FieldConfig[]
 }
 
 const enabledStatusOptions = [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]
+const projectTypeOptions = [
+  { label: '住宅小区', value: 'RESIDENTIAL' },
+  { label: '商业项目', value: 'COMMERCIAL' },
+  { label: '园区', value: 'PARK' },
+  { label: '综合业态', value: 'MIXED' },
+]
 const houseUsageOptions = [
   { label: '住宅', value: 'RESIDENTIAL' },
   { label: '商业', value: 'COMMERCIAL' },
@@ -145,6 +153,7 @@ export const pages: PageConfig[] = [
     createPermission: 'base:project:create',
     updatePermission: 'base:project:update',
     menuOrder: 10,
+    showDetails: true,
     columns: [
       { prop: 'projectName', label: '小区名称', inFilter: true },
       { prop: 'projectCode', label: '小区编码' },
@@ -154,15 +163,21 @@ export const pages: PageConfig[] = [
     ],
     fields: [
       { prop: 'projectName', label: '小区名称', required: true },
-      { prop: 'projectType', label: '项目类型', type: 'select', options: [
-        { label: '住宅小区', value: 'RESIDENTIAL' },
-        { label: '商业项目', value: 'COMMERCIAL' },
-        { label: '园区', value: 'PARK' },
-        { label: '综合业态', value: 'MIXED' },
-      ] },
+      { prop: 'projectType', label: '项目类型', type: 'select', options: projectTypeOptions },
       { prop: 'province', label: '省份', type: 'province' },
       { prop: 'city', label: '城市', type: 'city' },
       { prop: 'district', label: '区县', type: 'district' },
+      { prop: 'address', label: '地址' },
+      { prop: 'servicePhone', label: '服务电话' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+    detailFields: [
+      { prop: 'projectName', label: '小区名称' },
+      { prop: 'projectCode', label: '小区编码' },
+      { prop: 'projectType', label: '项目类型', type: 'select', options: projectTypeOptions },
+      { prop: 'province', label: '省份' },
+      { prop: 'city', label: '城市' },
+      { prop: 'district', label: '区县' },
       { prop: 'address', label: '地址' },
       { prop: 'servicePhone', label: '服务电话' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },

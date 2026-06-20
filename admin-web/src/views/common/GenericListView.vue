@@ -81,6 +81,7 @@
           <el-tooltip content="编辑" placement="top">
             <el-button v-if="config.updatePath && canUpdate" text type="primary" :icon="Edit" @click="openEdit(row)" />
           </el-tooltip>
+          <el-button v-if="config.showDetails" text type="primary" @click="openDetail(row)">详情</el-button>
           <el-button
             v-for="action in rowActions"
             :key="action.key"
@@ -150,6 +151,17 @@
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="detailDialogVisible" title="小区详情" width="720px" draggable>
+      <el-descriptions v-if="detailRow" :column="2" border class="detail-descriptions">
+        <el-descriptions-item v-for="field in detailFields" :key="field.prop" :label="field.label">
+          {{ displayDetailCell(detailRow, field) }}
+        </el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -269,11 +281,13 @@ const actionForm = reactive<Record<string, string | number | undefined | null>>(
 const dialogVisible = ref(false)
 const actionDialogVisible = ref(false)
 const bulkBuildingDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
 const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
 const bulkBuildingSaving = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
+const detailRow = ref<Record<string, unknown> | null>(null)
 const chinaAreaOptions = pcaTextArr
 const bulkBuildingForm = reactive<{ projectId?: string | number; content: string }>({
   projectId: undefined,
@@ -514,8 +528,12 @@ const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermi
 const availableActions = computed(() => (businessActions[config.value.key] ?? []).filter(canRunAction))
 const pageActions = computed(() => availableActions.value.filter((action) => action.scope === 'page'))
 const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
-const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || rowActions.value.length))
-const operationWidth = computed(() => (rowActions.value.length > 4 ? 360 : rowActions.value.length > 1 ? 260 : 140))
+const detailFields = computed(() => config.value.detailFields ?? config.value.columns)
+const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
+const operationWidth = computed(() => {
+  if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
+  return rowActions.value.length > 4 ? 360 : rowActions.value.length > 1 ? 260 : 140
+})
 
 async function load() {
   loading.value = true
@@ -577,6 +595,11 @@ function openEdit(row: Record<string, unknown>) {
   })
   loadFormRemoteOptions()
   dialogVisible.value = true
+}
+
+function openDetail(row: Record<string, unknown>) {
+  detailRow.value = row
+  detailDialogVisible.value = true
 }
 
 async function save() {
@@ -729,6 +752,11 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   }
   const option = optionsForDisplay(field).find((item) => optionValue(item) === value)
   return option ? optionLabel(option) : value ?? ''
+}
+
+function displayDetailCell(row: Record<string, unknown>, field: FieldConfig) {
+  const value = displayCell(row, field)
+  return value === '' ? '-' : value
 }
 
 function optionsForDisplay(field: FieldConfig) {
@@ -959,5 +987,11 @@ onMounted(loadProjects)
   color: #64748b;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.detail-descriptions :deep(.el-descriptions__label) {
+  width: 128px;
+  color: #64748b;
+  font-weight: 600;
 }
 </style>
