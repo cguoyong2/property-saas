@@ -154,12 +154,12 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailDialogVisible" title="小区详情" width="720px" draggable>
-      <el-descriptions v-if="detailRow" :column="2" border class="detail-descriptions">
-        <el-descriptions-item v-for="field in detailFields" :key="field.prop" :label="field.label">
-          {{ displayDetailCell(detailRow, field) }}
-        </el-descriptions-item>
-      </el-descriptions>
+    <el-dialog v-model="detailDialogVisible" title="小区详情" width="620px" draggable>
+      <el-form v-if="detailRow" label-position="top" class="detail-form">
+        <el-form-item v-for="field in detailFields" :key="field.prop" :label="field.label">
+          <el-input :model-value="displayDetailCell(detailRow, field)" disabled />
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </template>
@@ -989,9 +989,13 @@ onMounted(loadProjects)
   line-height: 1.5;
 }
 
-.detail-descriptions :deep(.el-descriptions__label) {
-  width: 128px;
-  color: #64748b;
-  font-weight: 600;
+.detail-form :deep(.el-input.is-disabled .el-input__wrapper) {
+  background-color: #f8fafc;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.detail-form :deep(.el-input.is-disabled .el-input__inner) {
+  color: #303133;
+  -webkit-text-fill-color: #303133;
 }
 </style>
