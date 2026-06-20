@@ -27,8 +27,15 @@
     </div>
 
     <el-form class="filter-bar" :inline="true" @submit.prevent>
-      <el-form-item v-if="config.projectScoped" label="项目ID">
-        <el-input v-model="filters.projectId" clearable placeholder="项目ID" />
+      <el-form-item v-if="config.projectScoped" label="小区名称">
+        <el-select v-model="filters.projectId" clearable filterable placeholder="小区名称" class="form-control">
+          <el-option
+            v-for="option in remoteOptions.projectId"
+            :key="String(optionValue(option))"
+            :label="optionLabel(option)"
+            :value="optionValue(option)"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item v-for="field in filterFields" :key="field.prop" :label="field.label">
         <el-input v-model="filters[field.prop]" clearable :placeholder="field.label" />
@@ -220,7 +227,7 @@ const records = ref<Record<string, unknown>[]>([])
 const total = ref(0)
 const pageNo = ref(1)
 const pageSize = ref(20)
-const filters = reactive<Record<string, string>>({})
+const filters = reactive<Record<string, string | number>>({})
 const form = reactive<Record<string, string | number | undefined | null>>({})
 const actionForm = reactive<Record<string, string | number | undefined | null>>({})
 const dialogVisible = ref(false)
@@ -230,6 +237,11 @@ const actionSaving = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const chinaAreaOptions = pcaTextArr
+const remoteOptions = reactive<Record<string, SelectOption[]>>({
+  projectId: [],
+  buildingId: [],
+  unitId: [],
+})
 
 const businessActions: Record<string, BusinessAction[]> = {
   bills: [
@@ -489,6 +501,7 @@ async function load() {
       records.value = []
       total.value = 0
     }
+    await loadVisibleRemoteOptions()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -510,6 +523,7 @@ function openCreate() {
   formFields.value.forEach((field) => {
     form[field.prop] = undefined
   })
+  loadFormRemoteOptions()
   dialogVisible.value = true
 }
 
@@ -519,6 +533,7 @@ function openEdit(row: Record<string, unknown>) {
   formFields.value.forEach((field) => {
     form[field.prop] = row[field.prop] as string | number | undefined | null
   })
+  loadFormRemoteOptions()
   dialogVisible.value = true
 }
 
@@ -546,10 +561,19 @@ type SelectOption = string | { label: string; value: string | number }
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
-  return field.type === 'select' || field.type === 'province' || field.type === 'city' || field.type === 'district'
+  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit'].includes(field.type ?? '')
 }
 
 function optionsForField(field: FieldConfig): SelectOption[] {
+  if (field.type === 'project') {
+    return remoteOptions.projectId
+  }
+  if (field.type === 'building') {
+    return remoteOptions.buildingId
+  }
+  if (field.type === 'unit') {
+    return remoteOptions.unitId
+  }
   if (field.type === 'province') {
     return chinaAreaOptions.map(toSelectOption)
   }
@@ -573,15 +597,32 @@ function handleFieldChange(field: FieldConfig) {
   if (field.type === 'city') {
     form.district = undefined
   }
+  if (field.type === 'project') {
+    form.buildingId = undefined
+    form.unitId = undefined
+    loadBuildings()
+    remoteOptions.unitId = []
+  }
+  if (field.type === 'building') {
+    form.unitId = undefined
+    loadUnits()
+  }
 }
 
 function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = row[field.prop]
-  if (field.type !== 'select') {
+  if (!isSelectField(field)) {
     return value ?? ''
   }
-  const option = (field.options ?? []).find((item) => optionValue(item) === value)
+  const option = optionsForDisplay(field).find((item) => optionValue(item) === value)
   return option ? optionLabel(option) : value ?? ''
+}
+
+function optionsForDisplay(field: FieldConfig) {
+  if (field.type === 'project') return remoteOptions.projectId
+  if (field.type === 'building') return remoteOptions.buildingId
+  if (field.type === 'unit') return remoteOptions.unitId
+  return field.options ?? []
 }
 
 function toSelectOption(option: AreaOption): SelectOption {
@@ -598,6 +639,68 @@ function optionLabel(option: SelectOption) {
 
 function optionValue(option: SelectOption) {
   return typeof option === 'string' ? option : option.value
+}
+
+function needsRemoteOptions(fields: FieldConfig[]) {
+  return fields.some((field) => ['project', 'building', 'unit'].includes(field.type ?? ''))
+}
+
+async function loadVisibleRemoteOptions() {
+  const fields = [...config.value.columns, ...formFields.value]
+  if (!needsRemoteOptions(fields)) return
+  await loadProjects()
+  await loadBuildings()
+  await loadUnits()
+}
+
+async function loadFormRemoteOptions() {
+  if (!needsRemoteOptions(formFields.value)) return
+  await loadProjects()
+  await loadBuildings()
+  await loadUnits()
+}
+
+async function loadProjects() {
+  const { data } = await fetchPage('/base/projects', { pageNo: 1, pageSize: 200 })
+  remoteOptions.projectId = toRecords(data.data).map((item) => ({
+    label: String(item.projectName ?? item.projectCode ?? item.projectId),
+    value: Number(item.projectId),
+  }))
+}
+
+async function loadBuildings() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  const { data } = await fetchPage('/base/buildings', params)
+  remoteOptions.buildingId = toRecords(data.data).map((item) => ({
+    label: String(item.buildingName ?? item.buildingCode ?? item.buildingId),
+    value: Number(item.buildingId),
+  }))
+}
+
+async function loadUnits() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const buildingId = Number(form.buildingId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  if (Number.isFinite(buildingId) && buildingId > 0) params.buildingId = buildingId
+  const { data } = await fetchPage('/base/units', params)
+  remoteOptions.unitId = toRecords(data.data).map((item) => ({
+    label: String(item.unitName ?? item.unitCode ?? item.unitId),
+    value: Number(item.unitId),
+  }))
+}
+
+function toRecords(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) return payload as Record<string, unknown>[]
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { records?: unknown }).records)) {
+    return (payload as { records: Record<string, unknown>[] }).records
+  }
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { items?: unknown }).items)) {
+    return (payload as { items: Record<string, unknown>[] }).items
+  }
+  return []
 }
 
 function canRunAction(action: BusinessAction) {
@@ -727,6 +830,7 @@ watch(
 )
 
 onMounted(load)
+onMounted(loadProjects)
 </script>
 
 <style scoped>

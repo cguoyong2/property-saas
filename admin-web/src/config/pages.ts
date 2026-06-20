@@ -18,7 +18,19 @@ import {
 export interface FieldConfig {
   prop: string
   label: string
-  type?: 'text' | 'number' | 'date' | 'datetime' | 'textarea' | 'select' | 'province' | 'city' | 'district'
+  type?:
+    | 'text'
+    | 'number'
+    | 'date'
+    | 'datetime'
+    | 'textarea'
+    | 'select'
+    | 'province'
+    | 'city'
+    | 'district'
+    | 'project'
+    | 'building'
+    | 'unit'
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
@@ -41,6 +53,21 @@ export interface PageConfig {
   columns: FieldConfig[]
   fields?: FieldConfig[]
 }
+
+const enabledStatusOptions = [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]
+const houseUsageOptions = [
+  { label: '住宅', value: 'RESIDENTIAL' },
+  { label: '商业', value: 'COMMERCIAL' },
+  { label: '办公', value: 'OFFICE' },
+  { label: '车位/车库', value: 'PARKING' },
+]
+const houseStatusOptions = [
+  { label: '空置', value: 'VACANT' },
+  { label: '已入住', value: 'OCCUPIED' },
+  { label: '已出租', value: 'RENTED' },
+  { label: '装修中', value: 'RENOVATING' },
+  { label: '已锁定', value: 'LOCKED' },
+]
 
 export const pages: PageConfig[] = [
   {
@@ -121,7 +148,7 @@ export const pages: PageConfig[] = [
       { prop: 'projectCode', label: '小区编码' },
       { prop: 'city', label: '城市' },
       { prop: 'address', label: '地址' },
-      { prop: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
     fields: [
       { prop: 'projectName', label: '小区名称', required: true },
@@ -136,7 +163,7 @@ export const pages: PageConfig[] = [
       { prop: 'district', label: '区县', type: 'district' },
       { prop: 'address', label: '地址' },
       { prop: 'servicePhone', label: '服务电话' },
-      { prop: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -155,20 +182,21 @@ export const pages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'houseNo', label: '房号', inFilter: true },
-      { prop: 'buildingId', label: '楼栋ID' },
-      { prop: 'unitId', label: '单元ID' },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'buildingId', label: '楼栋', type: 'building' },
+      { prop: 'unitId', label: '单元', type: 'unit' },
       { prop: 'buildingArea', label: '面积' },
-      { prop: 'houseStatus', label: '状态' },
+      { prop: 'houseStatus', label: '状态', type: 'select', options: houseStatusOptions },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'buildingId', label: '楼栋ID', type: 'number', required: true },
-      { prop: 'unitId', label: '单元ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'buildingId', label: '楼栋', type: 'building', required: true },
+      { prop: 'unitId', label: '单元', type: 'unit', required: true },
       { prop: 'houseNo', label: '房号', required: true },
       { prop: 'floorNo', label: '楼层', type: 'number' },
       { prop: 'buildingArea', label: '建筑面积', type: 'number' },
-      { prop: 'houseUsage', label: '用途', type: 'select', options: ['RESIDENTIAL', 'COMMERCIAL', 'OFFICE', 'PARKING'] },
-      { prop: 'houseStatus', label: '状态', type: 'select', options: ['VACANT', 'OCCUPIED', 'DECORATING', 'DISABLED'] },
+      { prop: 'houseUsage', label: '用途', type: 'select', options: houseUsageOptions },
+      { prop: 'houseStatus', label: '状态', type: 'select', options: houseStatusOptions },
     ],
   },
   {
@@ -207,14 +235,14 @@ export const pages: PageConfig[] = [
       { prop: 'status', label: '状态' },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'plateNo', label: '车牌号', required: true },
       { prop: 'vehicleType', label: '车辆类型', type: 'select', options: ['CAR', 'EV', 'MOTORCYCLE'] },
       { prop: 'memberId', label: '会员ID', type: 'number' },
       { prop: 'houseId', label: '房屋ID', type: 'number' },
       { prop: 'spaceId', label: '车位ID', type: 'number' },
       { prop: 'monthlyRentStatus', label: '月租状态', type: 'select', options: ['NONE', 'ACTIVE', 'EXPIRED', 'SUSPENDED'] },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
 ]
@@ -237,15 +265,16 @@ const baseArchiveExtraPages: PageConfig[] = [
     columns: [
       { prop: 'buildingName', label: '楼栋名称', inFilter: true },
       { prop: 'buildingCode', label: '编码' },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'floorCount', label: '层数' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'buildingName', label: '楼栋名称', required: true },
       { prop: 'buildingCode', label: '楼栋编码', required: true },
       { prop: 'floorCount', label: '层数', type: 'number' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -265,15 +294,16 @@ const baseArchiveExtraPages: PageConfig[] = [
     columns: [
       { prop: 'unitName', label: '单元名称', inFilter: true },
       { prop: 'unitCode', label: '编码' },
-      { prop: 'buildingId', label: '楼栋ID' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'buildingId', label: '楼栋', type: 'building' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'buildingId', label: '楼栋ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'buildingId', label: '楼栋', type: 'building', required: true },
       { prop: 'unitName', label: '单元名称', required: true },
       { prop: 'unitCode', label: '单元编码', required: true },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
