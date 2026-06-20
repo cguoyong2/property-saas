@@ -10,6 +10,12 @@ public record MemberView(
         String realName,
         String avatarUrl,
         String status,
+        Long projectId,
+        Long buildingId,
+        Long unitId,
+        Long houseId,
+        String houseNo,
+        String bindRole,
         LocalDateTime lastLoginAt,
         LocalDateTime createdAt
 ) {

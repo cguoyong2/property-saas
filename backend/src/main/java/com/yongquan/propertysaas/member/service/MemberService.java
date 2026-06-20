@@ -106,6 +106,7 @@ public class MemberService {
         Long tenantId = tenantId();
         Long memberId = newId();
         repository.insertBackofficeMember(tenantId, memberId, request, normalizedOpenid(tenantId, memberId, request.openid()));
+        repository.replaceApprovedBinding(tenantId, memberId, newId(), userId(), request);
         return memberId;
     }
 
@@ -117,6 +118,7 @@ public class MemberService {
             throw new IllegalArgumentException("业主/住户不存在：" + memberId);
         }
         repository.updateBackofficeMember(tenantId, memberId, request, blankToNull(request.openid()));
+        repository.replaceApprovedBinding(tenantId, memberId, newId(), userId(), request);
     }
 
     public PageResult<MemberHouseBindingView> pageBindings(Long projectId, Long memberId, String status,
@@ -202,6 +204,18 @@ public class MemberService {
         if (request.status() != null && !request.status().isBlank() && !MEMBER_STATUSES.contains(request.status())) {
             throw new IllegalArgumentException("非法状态：" + request.status());
         }
+        if (!BIND_ROLES.contains(bindRole(request))) {
+            throw new IllegalArgumentException("非法住户类型：" + request.bindRole());
+        }
+        Long tenantId = tenantId();
+        ensureProjectAllowed(request.projectId());
+        if (!repository.houseHierarchyExists(tenantId, request.projectId(), request.buildingId(), request.unitId(), request.houseId())) {
+            throw new IllegalArgumentException("房屋不存在或不属于所选小区、楼栋、单元");
+        }
+    }
+
+    private String bindRole(MemberRequest request) {
+        return request.bindRole() == null || request.bindRole().isBlank() ? "OWNER" : request.bindRole();
     }
 
     private String normalizedOpenid(Long tenantId, Long memberId, String openid) {

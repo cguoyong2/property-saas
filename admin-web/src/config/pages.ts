@@ -31,6 +31,7 @@ export interface FieldConfig {
     | 'project'
     | 'building'
     | 'unit'
+    | 'house'
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
@@ -59,6 +60,12 @@ export interface PageConfig {
 
 const enabledStatusOptions = [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]
 const memberStatusOptions = enabledStatusOptions
+const memberBindRoleOptions = [
+  { label: '业主', value: 'OWNER' },
+  { label: '家属', value: 'FAMILY' },
+  { label: '租户', value: 'TENANT' },
+  { label: '住户', value: 'RESIDENT' },
+]
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
   { label: '商业项目', value: 'COMMERCIAL' },
@@ -233,14 +240,24 @@ export const pages: PageConfig[] = [
     updatePermission: 'base:member:update',
     menuOrder: 50,
     columns: [
-      { prop: 'realName', label: '姓名', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'buildingId', label: '楼栋名称', type: 'building' },
+      { prop: 'unitId', label: '单元', type: 'unit' },
+      { prop: 'houseId', label: '房屋', type: 'house' },
+      { prop: 'realName', label: '业主/住户', inFilter: true },
       { prop: 'mobile', label: '手机号' },
+      { prop: 'bindRole', label: '住户类型', type: 'select', options: memberBindRoleOptions },
       { prop: 'status', label: '状态', type: 'select', options: memberStatusOptions },
       { prop: 'createdAt', label: '创建时间' },
     ],
     fields: [
-      { prop: 'realName', label: '姓名', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'buildingId', label: '楼栋名称', type: 'building', required: true },
+      { prop: 'unitId', label: '单元', type: 'unit', required: true },
+      { prop: 'houseId', label: '房屋', type: 'house', required: true },
+      { prop: 'realName', label: '业主/住户', required: true },
       { prop: 'mobile', label: '手机号', required: true },
+      { prop: 'bindRole', label: '住户类型', type: 'select', options: memberBindRoleOptions },
       { prop: 'openid', label: '微信 openid' },
       { prop: 'unionid', label: '微信 unionid' },
       { prop: 'avatarUrl', label: '头像地址' },

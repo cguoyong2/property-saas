@@ -27,9 +27,22 @@ public class MemberRepository {
 
     public Optional<MemberView> findMemberByOpenid(Long tenantId, String openid) {
         List<MemberView> members = jdbcTemplate.query("""
-                SELECT member_id, openid, unionid, mobile, real_name, avatar_url, status, last_login_at, created_at
-                FROM member_user
-                WHERE tenant_id = ? AND openid = ? AND deleted = 0
+                SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
+                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       m.last_login_at, m.created_at
+                FROM member_user m
+                LEFT JOIN member_house_bind b
+                       ON b.bind_id = (
+                         SELECT mb.bind_id
+                         FROM member_house_bind mb
+                         WHERE mb.tenant_id = m.tenant_id AND mb.member_id = m.member_id
+                           AND mb.status = 'APPROVED' AND mb.deleted = 0
+                         ORDER BY mb.created_at DESC, mb.bind_id DESC
+                         LIMIT 1
+                       )
+                LEFT JOIN base_house h
+                       ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                WHERE m.tenant_id = ? AND m.openid = ? AND m.deleted = 0
                 LIMIT 1
                 """, this::mapMember, tenantId, openid);
         return members.stream().findFirst();
@@ -105,16 +118,53 @@ public class MemberRepository {
                 memberId);
     }
 
+    public void replaceApprovedBinding(Long tenantId, Long memberId, Long bindId, Long userId, MemberRequest request) {
+        jdbcTemplate.update("""
+                        UPDATE member_house_bind
+                        SET status = 'UNBOUND', audit_user_id = ?, audit_at = NOW(), audit_remark = '后台修改房屋绑定'
+                        WHERE tenant_id = ? AND member_id = ? AND status = 'APPROVED' AND deleted = 0
+                        """, userId, tenantId, memberId);
+        jdbcTemplate.update("""
+                        INSERT INTO member_house_bind(bind_id, tenant_id, project_id, member_id, house_id, bind_role,
+                                                      real_name, mobile, status, effective_date, audit_user_id,
+                                                      audit_at, audit_remark, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED', CURRENT_DATE, ?, NOW(), '后台维护绑定', ?)
+                        """,
+                bindId,
+                tenantId,
+                request.projectId(),
+                memberId,
+                request.houseId(),
+                text(request.bindRole(), "OWNER"),
+                text(request.realName()),
+                text(request.mobile()),
+                userId,
+                userId);
+    }
+
     public List<MemberView> findMembers(Long tenantId, String keyword, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT member_id, openid, unionid, mobile, real_name, avatar_url, status, last_login_at, created_at
-                FROM member_user
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
+                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       m.last_login_at, m.created_at
+                FROM member_user m
+                LEFT JOIN member_house_bind b
+                       ON b.bind_id = (
+                         SELECT mb.bind_id
+                         FROM member_house_bind mb
+                         WHERE mb.tenant_id = m.tenant_id AND mb.member_id = m.member_id
+                           AND mb.status = 'APPROVED' AND mb.deleted = 0
+                         ORDER BY mb.created_at DESC, mb.bind_id DESC
+                         LIMIT 1
+                       )
+                LEFT JOIN base_house h
+                       ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                WHERE m.tenant_id = ? AND m.deleted = 0
                 """);
         args.add(tenantId);
         appendMemberFilters(sql, args, keyword, status);
-        sql.append(" ORDER BY created_at DESC, member_id DESC LIMIT ? OFFSET ?");
+        sql.append(" ORDER BY m.created_at DESC, m.member_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapMember, args.toArray());
@@ -122,7 +172,7 @@ public class MemberRepository {
 
     public long countMembers(Long tenantId, String keyword, String status) {
         List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM member_user WHERE tenant_id = ? AND deleted = 0");
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM member_user m WHERE m.tenant_id = ? AND m.deleted = 0");
         args.add(tenantId);
         appendMemberFilters(sql, args, keyword, status);
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
@@ -223,6 +273,15 @@ public class MemberRepository {
                 tenantId, projectId, houseId);
     }
 
+    public boolean houseHierarchyExists(Long tenantId, Long projectId, Long buildingId, Long unitId, Long houseId) {
+        return exists("""
+                        SELECT COUNT(*)
+                        FROM base_house
+                        WHERE tenant_id = ? AND project_id = ? AND building_id = ? AND unit_id = ?
+                          AND house_id = ? AND deleted = 0
+                        """, tenantId, projectId, buildingId, unitId, houseId);
+    }
+
     public boolean approvedBindingExists(Long tenantId, Long memberId, Long houseId) {
         return exists("""
                 SELECT COUNT(*) FROM member_house_bind
@@ -245,13 +304,13 @@ public class MemberRepository {
 
     private void appendMemberFilters(StringBuilder sql, List<Object> args, String keyword, String status) {
         if (keyword != null && !keyword.isBlank()) {
-            sql.append(" AND (real_name LIKE ? OR mobile LIKE ?)");
+            sql.append(" AND (m.real_name LIKE ? OR m.mobile LIKE ?)");
             String like = "%" + keyword.trim() + "%";
             args.add(like);
             args.add(like);
         }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND m.status = ?");
             args.add(status);
         }
     }
@@ -300,6 +359,12 @@ public class MemberRepository {
                 rs.getString("real_name"),
                 rs.getString("avatar_url"),
                 rs.getString("status"),
+                (Long) rs.getObject("project_id"),
+                (Long) rs.getObject("building_id"),
+                (Long) rs.getObject("unit_id"),
+                (Long) rs.getObject("house_id"),
+                rs.getString("house_no"),
+                rs.getString("bind_role"),
                 rs.getTimestamp("last_login_at") == null ? null : rs.getTimestamp("last_login_at").toLocalDateTime(),
                 rs.getTimestamp("created_at").toLocalDateTime()
         );
