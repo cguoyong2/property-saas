@@ -264,7 +264,6 @@ const baseArchiveExtraPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'buildingName', label: '楼栋名称', inFilter: true },
-      { prop: 'buildingCode', label: '编码' },
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'floorCount', label: '层数' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
@@ -272,7 +271,6 @@ const baseArchiveExtraPages: PageConfig[] = [
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'buildingName', label: '楼栋名称', required: true },
-      { prop: 'buildingCode', label: '楼栋编码', required: true },
       { prop: 'floorCount', label: '层数', type: 'number' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
