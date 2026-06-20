@@ -298,6 +298,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   buildingId: [],
   unitId: [],
   houseId: [],
+  areaId: [],
 })
 
 const businessActions: Record<string, BusinessAction[]> = {
@@ -698,7 +699,7 @@ type SelectOption = string | { label: string; value: string | number }
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
-  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house'].includes(field.type ?? '')
+  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea'].includes(field.type ?? '')
 }
 
 function optionsForField(field: FieldConfig): SelectOption[] {
@@ -713,6 +714,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'house') {
     return remoteOptions.houseId
+  }
+  if (field.type === 'parkingArea') {
+    return remoteOptions.areaId
   }
   if (field.type === 'province') {
     return chinaAreaOptions.map(toSelectOption)
@@ -741,7 +745,9 @@ function handleFieldChange(field: FieldConfig) {
     form.buildingId = undefined
     form.unitId = undefined
     form.houseId = undefined
+    form.areaId = undefined
     loadBuildings()
+    loadParkingAreas()
     remoteOptions.unitId = []
     remoteOptions.houseId = []
   }
@@ -762,6 +768,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'house' && row.houseNo) {
     return row.houseNo
   }
+  if (field.type === 'parkingArea' && row.areaName) {
+    return row.areaName
+  }
   if (!isSelectField(field)) {
     return value ?? ''
   }
@@ -779,6 +788,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'building') return remoteOptions.buildingId
   if (field.type === 'unit') return remoteOptions.unitId
   if (field.type === 'house') return remoteOptions.houseId
+  if (field.type === 'parkingArea') return remoteOptions.areaId
   return field.options ?? []
 }
 
@@ -799,7 +809,7 @@ function optionValue(option: SelectOption) {
 }
 
 function needsRemoteOptions(fields: FieldConfig[]) {
-  return fields.some((field) => ['project', 'building', 'unit', 'house'].includes(field.type ?? ''))
+  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea'].includes(field.type ?? ''))
 }
 
 async function loadVisibleRemoteOptions() {
@@ -809,6 +819,7 @@ async function loadVisibleRemoteOptions() {
   await loadBuildings()
   await loadUnits()
   await loadHouses()
+  await loadParkingAreas()
 }
 
 async function loadFormRemoteOptions() {
@@ -817,6 +828,7 @@ async function loadFormRemoteOptions() {
   await loadBuildings()
   await loadUnits()
   await loadHouses()
+  await loadParkingAreas()
 }
 
 async function loadProjects() {
@@ -863,6 +875,17 @@ async function loadHouses() {
   remoteOptions.houseId = toRecords(data.data).map((item) => ({
     label: String(item.houseNo ?? item.houseId),
     value: Number(item.houseId),
+  }))
+}
+
+async function loadParkingAreas() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  const { data } = await fetchPage('/base/parking-areas', params)
+  remoteOptions.areaId = toRecords(data.data).map((item) => ({
+    label: String(item.areaName ?? item.areaId),
+    value: Number(item.areaId),
   }))
 }
 

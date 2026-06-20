@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
+import com.yongquan.propertysaas.vehicle.domain.ParkingAreaView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSpaceView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSyncRecordView;
 import com.yongquan.propertysaas.vehicle.domain.VehicleView;
 import com.yongquan.propertysaas.vehicle.dto.MonthlyRentRequest;
+import com.yongquan.propertysaas.vehicle.dto.ParkingAreaRequest;
 import com.yongquan.propertysaas.vehicle.dto.ParkingSpaceRequest;
 import com.yongquan.propertysaas.vehicle.dto.VehicleRequest;
 import com.yongquan.propertysaas.vehicle.repository.VehicleRepository;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VehicleService {
 
     private static final Set<String> SPACE_STATUSES = Set.of("AVAILABLE", "OCCUPIED", "LOCKED", "DISABLED");
+    private static final Set<String> AREA_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> VEHICLE_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> RENT_STATUSES = Set.of("NONE", "ACTIVE", "EXPIRED", "SUSPENDED");
 
@@ -34,6 +37,36 @@ public class VehicleService {
     public VehicleService(VehicleRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+    }
+
+    public PageResult<ParkingAreaView> pageAreas(Long projectId, String keyword, String status, long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        return new PageResult<>(
+                repository.findAreas(tenantId, scope, projectId, keyword, status, offset(pageNo, pageSize), pageSize),
+                repository.countAreas(tenantId, scope, projectId, keyword, status),
+                pageNo,
+                pageSize);
+    }
+
+    @Transactional
+    public Long createArea(ParkingAreaRequest request) {
+        validateArea(request);
+        Long areaId = newId();
+        repository.insertArea(tenantId(), areaId, userId(), request);
+        return areaId;
+    }
+
+    @Transactional
+    public void updateArea(Long areaId, ParkingAreaRequest request) {
+        ParkingAreaView area = repository.getArea(tenantId(), areaId);
+        ensureProjectAllowed(area.projectId());
+        validateArea(request);
+        repository.updateArea(tenantId(), areaId, userId(), request);
     }
 
     public PageResult<ParkingSpaceView> pageSpaces(Long projectId, String keyword, String status, long pageNo, long pageSize) {
@@ -138,9 +171,17 @@ public class VehicleService {
     private void validateSpace(ParkingSpaceRequest request) {
         ensureProjectAllowed(request.projectId());
         validateSpaceStatus(request.status());
-        if (request.houseId() != null && !repository.houseExists(tenantId(), request.projectId(), request.houseId())) {
-            throw new IllegalArgumentException("房屋不存在或不属于项目：" + request.houseId());
+        if (!repository.areaExists(tenantId(), request.projectId(), request.areaId())) {
+            throw new IllegalArgumentException("车位区域不存在或不属于小区：" + request.areaId());
         }
+        if (!repository.houseHierarchyExists(tenantId(), request.projectId(), request.buildingId(), request.unitId(), request.houseId())) {
+            throw new IllegalArgumentException("房屋不存在或不属于所选小区、楼栋、单元");
+        }
+    }
+
+    private void validateArea(ParkingAreaRequest request) {
+        ensureProjectAllowed(request.projectId());
+        validateAreaStatus(request.status());
     }
 
     private void validateVehicle(VehicleRequest request, Long excludeVehicleId) {
@@ -176,6 +217,12 @@ public class VehicleService {
     private void validateSpaceStatus(String status) {
         if (status != null && !status.isBlank() && !SPACE_STATUSES.contains(status)) {
             throw new IllegalArgumentException("非法车位状态：" + status);
+        }
+    }
+
+    private void validateAreaStatus(String status) {
+        if (status != null && !status.isBlank() && !AREA_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("非法车位区域状态：" + status);
         }
     }
 

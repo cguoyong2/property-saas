@@ -1,9 +1,11 @@
 package com.yongquan.propertysaas.vehicle.repository;
 
+import com.yongquan.propertysaas.vehicle.domain.ParkingAreaView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSpaceView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSyncRecordView;
 import com.yongquan.propertysaas.vehicle.domain.VehicleView;
 import com.yongquan.propertysaas.vehicle.dto.MonthlyRentRequest;
+import com.yongquan.propertysaas.vehicle.dto.ParkingAreaRequest;
 import com.yongquan.propertysaas.vehicle.dto.ParkingSpaceRequest;
 import com.yongquan.propertysaas.vehicle.dto.VehicleRequest;
 import java.sql.ResultSet;
@@ -29,20 +31,77 @@ public class VehicleRepository {
         return projectScopeRepository.findAllowedProjectIds(tenantId, userId);
     }
 
-    public List<ParkingSpaceView> findSpaces(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                             String keyword, String status, long offset, long pageSize) {
+    public List<ParkingAreaView> findAreas(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                           String keyword, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT space_id, project_id, space_no, space_type, status, house_id, created_at
-                FROM base_parking_space
+                SELECT area_id, project_id, area_name, status, created_at
+                FROM base_parking_area
                 WHERE tenant_id = ? AND deleted = 0
                 """);
         args.add(tenantId);
         appendProjectEquals(sql, args, projectId);
-        appendKeyword(sql, args, "space_no", keyword);
+        appendKeyword(sql, args, "area_name", keyword);
         appendStatus(sql, args, status);
         appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY project_id ASC, space_no ASC LIMIT ? OFFSET ?");
+        sql.append(" ORDER BY project_id ASC, area_name ASC LIMIT ? OFFSET ?");
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(sql.toString(), this::mapArea, args.toArray());
+    }
+
+    public long countAreas(Long tenantId, List<Long> allowedProjectIds, Long projectId, String keyword, String status) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM base_parking_area WHERE tenant_id = ? AND deleted = 0");
+        args.add(tenantId);
+        appendProjectEquals(sql, args, projectId);
+        appendKeyword(sql, args, "area_name", keyword);
+        appendStatus(sql, args, status);
+        appendProjectScope(sql, args, allowedProjectIds);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return value(count);
+    }
+
+    public ParkingAreaView getArea(Long tenantId, Long areaId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT area_id, project_id, area_name, status, created_at
+                FROM base_parking_area
+                WHERE tenant_id = ? AND area_id = ? AND deleted = 0
+                """, this::mapArea, tenantId, areaId);
+    }
+
+    public void insertArea(Long tenantId, Long areaId, Long userId, ParkingAreaRequest request) {
+        jdbcTemplate.update("""
+                        INSERT INTO base_parking_area(area_id, tenant_id, project_id, area_name, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, areaId, tenantId, request.projectId(), request.areaName(), text(request.status(), "ACTIVE"), userId);
+    }
+
+    public void updateArea(Long tenantId, Long areaId, Long userId, ParkingAreaRequest request) {
+        jdbcTemplate.update("""
+                        UPDATE base_parking_area
+                        SET project_id = ?, area_name = ?, status = ?, updated_by = ?
+                        WHERE tenant_id = ? AND area_id = ? AND deleted = 0
+                        """, request.projectId(), request.areaName(), text(request.status(), "ACTIVE"), userId, tenantId, areaId);
+    }
+
+    public List<ParkingSpaceView> findSpaces(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                             String keyword, String status, long offset, long pageSize) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT s.space_id, s.project_id, s.building_id, s.unit_id, s.house_id, s.area_id, a.area_name,
+                       s.space_no, s.space_type, s.status, s.created_at
+                FROM base_parking_space s
+                LEFT JOIN base_parking_area a
+                       ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                """);
+        args.add(tenantId);
+        appendProjectEquals(sql, args, "s.project_id", projectId);
+        appendKeyword(sql, args, "s.space_no", keyword);
+        appendStatus(sql, args, "s.status", status);
+        appendProjectScope(sql, args, "s.project_id", allowedProjectIds);
+        sql.append(" ORDER BY s.project_id ASC, s.space_no ASC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapSpace, args.toArray());
@@ -62,30 +121,36 @@ public class VehicleRepository {
 
     public ParkingSpaceView getSpace(Long tenantId, Long spaceId) {
         return jdbcTemplate.queryForObject("""
-                SELECT space_id, project_id, space_no, space_type, status, house_id, created_at
-                FROM base_parking_space
-                WHERE tenant_id = ? AND space_id = ? AND deleted = 0
+                SELECT s.space_id, s.project_id, s.building_id, s.unit_id, s.house_id, s.area_id, a.area_name,
+                       s.space_no, s.space_type, s.status, s.created_at
+                FROM base_parking_space s
+                LEFT JOIN base_parking_area a
+                       ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                WHERE s.tenant_id = ? AND s.space_id = ? AND s.deleted = 0
                 """, this::mapSpace, tenantId, spaceId);
     }
 
     public void insertSpace(Long tenantId, Long spaceId, Long userId, ParkingSpaceRequest request) {
         jdbcTemplate.update("""
-                        INSERT INTO base_parking_space(space_id, tenant_id, project_id, space_no, space_type,
-                                                       status, house_id, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO base_parking_space(space_id, tenant_id, project_id, building_id, unit_id, house_id,
+                                                       area_id, space_no, space_type, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
-                spaceId, tenantId, request.projectId(), request.spaceNo(), text(request.spaceType(), "UNDERGROUND"),
-                text(request.status(), "AVAILABLE"), request.houseId(), userId);
+                spaceId, tenantId, request.projectId(), request.buildingId(), request.unitId(), request.houseId(),
+                request.areaId(), request.spaceNo(), text(request.spaceType(), "UNDERGROUND"),
+                text(request.status(), "AVAILABLE"), userId);
     }
 
     public void updateSpace(Long tenantId, Long spaceId, Long userId, ParkingSpaceRequest request) {
         jdbcTemplate.update("""
                         UPDATE base_parking_space
-                        SET project_id = ?, space_no = ?, space_type = ?, status = ?, house_id = ?, updated_by = ?
+                        SET project_id = ?, building_id = ?, unit_id = ?, house_id = ?, area_id = ?,
+                            space_no = ?, space_type = ?, status = ?, updated_by = ?
                         WHERE tenant_id = ? AND space_id = ? AND deleted = 0
                         """,
-                request.projectId(), request.spaceNo(), text(request.spaceType(), "UNDERGROUND"),
-                text(request.status(), "AVAILABLE"), request.houseId(), userId, tenantId, spaceId);
+                request.projectId(), request.buildingId(), request.unitId(), request.houseId(), request.areaId(),
+                request.spaceNo(), text(request.spaceType(), "UNDERGROUND"),
+                text(request.status(), "AVAILABLE"), userId, tenantId, spaceId);
     }
 
     public List<VehicleView> findVehicles(Long tenantId, List<Long> allowedProjectIds, Long projectId,
@@ -218,6 +283,23 @@ public class VehicleRepository {
                 tenantId, projectId, houseId);
     }
 
+    public boolean houseHierarchyExists(Long tenantId, Long projectId, Long buildingId, Long unitId, Long houseId) {
+        return exists("""
+                        SELECT COUNT(*)
+                        FROM base_house
+                        WHERE tenant_id = ? AND project_id = ? AND building_id = ? AND unit_id = ?
+                          AND house_id = ? AND deleted = 0
+                        """, tenantId, projectId, buildingId, unitId, houseId);
+    }
+
+    public boolean areaExists(Long tenantId, Long projectId, Long areaId) {
+        return exists("""
+                        SELECT COUNT(*)
+                        FROM base_parking_area
+                        WHERE tenant_id = ? AND project_id = ? AND area_id = ? AND deleted = 0 AND status = 'ACTIVE'
+                        """, tenantId, projectId, areaId);
+    }
+
     public boolean memberExists(Long tenantId, Long memberId) {
         if (memberId == null) {
             return true;
@@ -251,6 +333,10 @@ public class VehicleRepository {
     }
 
     private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds) {
+        appendProjectScope(sql, args, "project_id", allowedProjectIds);
+    }
+
+    private void appendProjectScope(StringBuilder sql, List<Object> args, String field, List<Long> allowedProjectIds) {
         if (allowedProjectIds == null) {
             return;
         }
@@ -258,7 +344,7 @@ public class VehicleRepository {
             sql.append(" AND 1 = 0");
             return;
         }
-        sql.append(" AND project_id IN (");
+        sql.append(" AND ").append(field).append(" IN (");
         sql.append("?,".repeat(allowedProjectIds.size()));
         sql.setLength(sql.length() - 1);
         sql.append(")");
@@ -266,8 +352,12 @@ public class VehicleRepository {
     }
 
     private void appendProjectEquals(StringBuilder sql, List<Object> args, Long projectId) {
+        appendProjectEquals(sql, args, "project_id", projectId);
+    }
+
+    private void appendProjectEquals(StringBuilder sql, List<Object> args, String field, Long projectId) {
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND ").append(field).append(" = ?");
             args.add(projectId);
         }
     }
@@ -280,8 +370,12 @@ public class VehicleRepository {
     }
 
     private void appendStatus(StringBuilder sql, List<Object> args, String status) {
+        appendStatus(sql, args, "status", status);
+    }
+
+    private void appendStatus(StringBuilder sql, List<Object> args, String field, String status) {
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND ").append(field).append(" = ?");
             args.add(status);
         }
     }
@@ -291,9 +385,16 @@ public class VehicleRepository {
         return count != null && count > 0;
     }
 
+    private ParkingAreaView mapArea(ResultSet rs, int rowNum) throws SQLException {
+        return new ParkingAreaView(rs.getLong("area_id"), rs.getLong("project_id"), rs.getString("area_name"),
+                rs.getString("status"), rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
     private ParkingSpaceView mapSpace(ResultSet rs, int rowNum) throws SQLException {
-        return new ParkingSpaceView(rs.getLong("space_id"), rs.getLong("project_id"), rs.getString("space_no"),
-                rs.getString("space_type"), rs.getString("status"), (Long) rs.getObject("house_id"),
+        return new ParkingSpaceView(rs.getLong("space_id"), rs.getLong("project_id"),
+                (Long) rs.getObject("building_id"), (Long) rs.getObject("unit_id"),
+                (Long) rs.getObject("house_id"), (Long) rs.getObject("area_id"), rs.getString("area_name"),
+                rs.getString("space_no"), rs.getString("space_type"), rs.getString("status"),
                 rs.getTimestamp("created_at").toLocalDateTime());
     }
 

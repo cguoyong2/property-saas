@@ -3,10 +3,12 @@ package com.yongquan.propertysaas.vehicle.controller;
 import com.yongquan.propertysaas.common.api.ApiResponse;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.security.permission.RequiresPermission;
+import com.yongquan.propertysaas.vehicle.domain.ParkingAreaView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSpaceView;
 import com.yongquan.propertysaas.vehicle.domain.ParkingSyncRecordView;
 import com.yongquan.propertysaas.vehicle.domain.VehicleView;
 import com.yongquan.propertysaas.vehicle.dto.MonthlyRentRequest;
+import com.yongquan.propertysaas.vehicle.dto.ParkingAreaRequest;
 import com.yongquan.propertysaas.vehicle.dto.ParkingSpaceRequest;
 import com.yongquan.propertysaas.vehicle.dto.VehicleRequest;
 import com.yongquan.propertysaas.vehicle.service.VehicleService;
@@ -27,6 +29,29 @@ public class VehicleController {
 
     public VehicleController(VehicleService service) {
         this.service = service;
+    }
+
+    @GetMapping("/api/base/parking-areas")
+    @RequiresPermission("base:parkingArea:list")
+    public ApiResponse<PageResult<ParkingAreaView>> pageAreas(@RequestParam(required = false) Long projectId,
+                                                              @RequestParam(required = false) String keyword,
+                                                              @RequestParam(required = false) String status,
+                                                              @RequestParam(defaultValue = "1") long pageNo,
+                                                              @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.pageAreas(projectId, keyword, status, pageNo, pageSize));
+    }
+
+    @PostMapping("/api/base/parking-areas")
+    @RequiresPermission("base:parkingArea:create")
+    public ApiResponse<Map<String, Long>> createArea(@Valid @RequestBody ParkingAreaRequest request) {
+        return ApiResponse.success(Map.of("areaId", service.createArea(request)));
+    }
+
+    @PutMapping("/api/base/parking-areas/{areaId}")
+    @RequiresPermission("base:parkingArea:update")
+    public ApiResponse<Void> updateArea(@PathVariable Long areaId, @Valid @RequestBody ParkingAreaRequest request) {
+        service.updateArea(areaId, request);
+        return ApiResponse.success();
     }
 
     @GetMapping("/api/base/parking-spaces")

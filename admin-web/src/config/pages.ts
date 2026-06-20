@@ -32,6 +32,7 @@ export interface FieldConfig {
     | 'building'
     | 'unit'
     | 'house'
+    | 'parkingArea'
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
@@ -84,6 +85,17 @@ const houseStatusOptions = [
   { label: '已出租', value: 'RENTED' },
   { label: '装修中', value: 'RENOVATING' },
   { label: '已锁定', value: 'LOCKED' },
+]
+const parkingSpaceTypeOptions = [
+  { label: '地面车位', value: 'GROUND' },
+  { label: '地下车位', value: 'UNDERGROUND' },
+  { label: '机械车位', value: 'MECHANICAL' },
+]
+const parkingSpaceStatusOptions = [
+  { label: '空闲', value: 'AVAILABLE' },
+  { label: '已占用', value: 'OCCUPIED' },
+  { label: '锁定', value: 'LOCKED' },
+  { label: '停用', value: 'DISABLED' },
 ]
 
 export const pages: PageConfig[] = [
@@ -375,6 +387,32 @@ const baseArchiveExtraPages: PageConfig[] = [
     ],
   },
   {
+    key: 'parking-areas',
+    title: '车位区域',
+    group: '基础档案',
+    route: '/base/parking-areas',
+    icon: Van,
+    listPath: '/base/parking-areas',
+    createPath: '/base/parking-areas',
+    updatePath: '/base/parking-areas/:areaId',
+    idProp: 'areaId',
+    permission: 'base:parkingArea:list',
+    createPermission: 'base:parkingArea:create',
+    updatePermission: 'base:parkingArea:update',
+    projectScoped: true,
+    menuOrder: 55,
+    columns: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'areaName', label: '区域', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
+    ],
+    fields: [
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'areaName', label: '区域', required: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+  },
+  {
     key: 'parking-spaces',
     title: '车位管理',
     group: '基础档案',
@@ -390,17 +428,24 @@ const baseArchiveExtraPages: PageConfig[] = [
     projectScoped: true,
     menuOrder: 60,
     columns: [
-      { prop: 'spaceCode', label: '车位编号', inFilter: true },
-      { prop: 'spaceType', label: '类型' },
-      { prop: 'areaName', label: '区域' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'buildingId', label: '楼栋名称', type: 'building' },
+      { prop: 'unitId', label: '单元', type: 'unit' },
+      { prop: 'houseId', label: '房屋', type: 'house' },
+      { prop: 'areaId', label: '区域', type: 'parkingArea' },
+      { prop: 'spaceNo', label: '车位编号', inFilter: true },
+      { prop: 'spaceType', label: '类型', type: 'select', options: parkingSpaceTypeOptions },
+      { prop: 'status', label: '状态', type: 'select', options: parkingSpaceStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'spaceCode', label: '车位编号', required: true },
-      { prop: 'areaName', label: '区域' },
-      { prop: 'spaceType', label: '类型', type: 'select', options: ['GROUND', 'UNDERGROUND', 'MECHANICAL'] },
-      { prop: 'status', label: '状态', type: 'select', options: ['VACANT', 'OCCUPIED', 'DISABLED'] },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'buildingId', label: '楼栋名称', type: 'building', required: true },
+      { prop: 'unitId', label: '单元', type: 'unit', required: true },
+      { prop: 'houseId', label: '房屋', type: 'house', required: true },
+      { prop: 'areaId', label: '区域', type: 'parkingArea', required: true },
+      { prop: 'spaceNo', label: '车位编号', required: true },
+      { prop: 'spaceType', label: '类型', type: 'select', options: parkingSpaceTypeOptions },
+      { prop: 'status', label: '状态', type: 'select', options: parkingSpaceStatusOptions },
     ],
   },
 ]
