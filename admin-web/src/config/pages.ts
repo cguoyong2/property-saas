@@ -290,9 +290,9 @@ const baseArchiveExtraPages: PageConfig[] = [
     updatePermission: 'base:unit:update',
     projectScoped: true,
     columns: [
-      { prop: 'unitName', label: '单元名称', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'buildingId', label: '楼栋', type: 'building' },
+      { prop: 'unitName', label: '单元', inFilter: true },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
