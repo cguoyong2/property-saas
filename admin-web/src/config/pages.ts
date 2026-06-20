@@ -182,7 +182,7 @@ export const pages: PageConfig[] = [
     createPermission: 'base:house:create',
     updatePermission: 'base:house:update',
     projectScoped: true,
-    menuOrder: 20,
+    menuOrder: 45,
     columns: [
       { prop: 'houseNo', label: '房号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
