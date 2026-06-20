@@ -240,14 +240,14 @@ export const pages: PageConfig[] = [
     updatePermission: 'base:member:update',
     menuOrder: 50,
     columns: [
-      { prop: 'projectId', label: '小区名称', type: 'project' },
-      { prop: 'buildingId', label: '楼栋名称', type: 'building' },
-      { prop: 'unitId', label: '单元', type: 'unit' },
-      { prop: 'houseId', label: '房屋', type: 'house' },
       { prop: 'realName', label: '业主/住户', inFilter: true },
       { prop: 'mobile', label: '手机号' },
       { prop: 'bindRole', label: '住户类型', type: 'select', options: memberBindRoleOptions },
       { prop: 'status', label: '状态', type: 'select', options: memberStatusOptions },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'buildingId', label: '楼栋名称', type: 'building' },
+      { prop: 'unitId', label: '单元', type: 'unit' },
+      { prop: 'houseId', label: '房屋', type: 'house' },
       { prop: 'createdAt', label: '创建时间' },
     ],
     fields: [
