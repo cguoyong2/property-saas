@@ -50,6 +50,7 @@ export interface PageConfig {
   createPermission?: string
   updatePermission?: string
   projectScoped?: boolean
+  menuOrder?: number
   columns: FieldConfig[]
   fields?: FieldConfig[]
 }
@@ -143,6 +144,7 @@ export const pages: PageConfig[] = [
     permission: 'base:project:list',
     createPermission: 'base:project:create',
     updatePermission: 'base:project:update',
+    menuOrder: 10,
     columns: [
       { prop: 'projectName', label: '小区名称', inFilter: true },
       { prop: 'projectCode', label: '小区编码' },
@@ -180,6 +182,7 @@ export const pages: PageConfig[] = [
     createPermission: 'base:house:create',
     updatePermission: 'base:house:update',
     projectScoped: true,
+    menuOrder: 20,
     columns: [
       { prop: 'houseNo', label: '房号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -207,6 +210,7 @@ export const pages: PageConfig[] = [
     icon: User,
     listPath: '/base/members',
     permission: 'base:member:list',
+    menuOrder: 50,
     columns: [
       { prop: 'realName', label: '姓名', inFilter: true },
       { prop: 'mobile', label: '手机号' },
@@ -228,6 +232,7 @@ export const pages: PageConfig[] = [
     createPermission: 'base:vehicle:create',
     updatePermission: 'base:vehicle:update',
     projectScoped: true,
+    menuOrder: 70,
     columns: [
       { prop: 'plateNo', label: '车牌', inFilter: true },
       { prop: 'vehicleType', label: '类型' },
@@ -262,6 +267,7 @@ const baseArchiveExtraPages: PageConfig[] = [
     createPermission: 'base:building:create',
     updatePermission: 'base:building:update',
     projectScoped: true,
+    menuOrder: 30,
     columns: [
       { prop: 'buildingName', label: '楼栋名称', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -289,6 +295,7 @@ const baseArchiveExtraPages: PageConfig[] = [
     createPermission: 'base:unit:create',
     updatePermission: 'base:unit:update',
     projectScoped: true,
+    menuOrder: 40,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'buildingId', label: '楼栋', type: 'building' },
@@ -311,6 +318,7 @@ const baseArchiveExtraPages: PageConfig[] = [
     listPath: '/base/member-bindings',
     permission: 'base:memberBinding:list',
     projectScoped: true,
+    menuOrder: 80,
     columns: [
       { prop: 'realName', label: '姓名', inFilter: true },
       { prop: 'mobile', label: '手机号' },
@@ -333,6 +341,7 @@ const baseArchiveExtraPages: PageConfig[] = [
     createPermission: 'base:parkingSpace:create',
     updatePermission: 'base:parkingSpace:update',
     projectScoped: true,
+    menuOrder: 60,
     columns: [
       { prop: 'spaceCode', label: '车位编号', inFilter: true },
       { prop: 'spaceType', label: '类型' },

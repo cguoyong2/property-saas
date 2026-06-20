@@ -62,6 +62,9 @@ const menuGroups = computed(() => {
       }
       groups.get(item.group)?.items.push(item)
     })
+  groups.forEach((group) => {
+    group.items.sort((a, b) => (a.menuOrder ?? 9999) - (b.menuOrder ?? 9999))
+  })
   return Array.from(groups.values())
 })
 
