@@ -16,6 +16,14 @@
           {{ action.label }}
         </el-button>
         <el-button
+          v-if="config.key === 'buildings' && canCreate"
+          type="success"
+          :icon="Plus"
+          @click="openBulkBuildingDialog"
+        >
+          批量新增
+        </el-button>
+        <el-button
           v-if="config.createPath && canCreate"
           type="primary"
           :icon="Plus"
@@ -145,6 +153,34 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="bulkBuildingDialogVisible" title="批量新增楼栋/单元" width="720px" draggable>
+      <el-form label-position="top">
+        <el-form-item label="小区名称" required>
+          <el-select v-model="bulkBuildingForm.projectId" clearable filterable class="form-control" placeholder="请选择小区">
+            <el-option
+              v-for="option in remoteOptions.projectId"
+              :key="String(optionValue(option))"
+              :label="optionLabel(option)"
+              :value="optionValue(option)"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="楼栋与单元" required>
+          <el-input
+            v-model="bulkBuildingForm.content"
+            type="textarea"
+            :rows="10"
+            placeholder="每行一个楼栋。示例：&#10;1栋：1单元、2单元&#10;2栋：1单元、2单元&#10;3栋"
+          />
+          <p class="field-help">冒号前为楼栋名称，冒号后为该楼栋下的单元名称；多个单元可用顿号、逗号、分号或空格分隔。</p>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="bulkBuildingDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="bulkBuildingSaving" @click="submitBulkBuildings">批量保存</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="actionDialogVisible" :title="currentAction?.label ?? '业务操作'" width="560px" draggable>
       <el-form label-position="top">
         <el-form-item
@@ -232,11 +268,17 @@ const form = reactive<Record<string, string | number | undefined | null>>({})
 const actionForm = reactive<Record<string, string | number | undefined | null>>({})
 const dialogVisible = ref(false)
 const actionDialogVisible = ref(false)
+const bulkBuildingDialogVisible = ref(false)
 const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
+const bulkBuildingSaving = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const chinaAreaOptions = pcaTextArr
+const bulkBuildingForm = reactive<{ projectId?: string | number; content: string }>({
+  projectId: undefined,
+  content: '',
+})
 const remoteOptions = reactive<Record<string, SelectOption[]>>({
   projectId: [],
   buildingId: [],
@@ -555,6 +597,77 @@ async function save() {
   } finally {
     saving.value = false
   }
+}
+
+function openBulkBuildingDialog() {
+  bulkBuildingForm.projectId = filters.projectId || undefined
+  bulkBuildingForm.content = ''
+  loadProjects()
+  bulkBuildingDialogVisible.value = true
+}
+
+async function submitBulkBuildings() {
+  const projectId = Number(bulkBuildingForm.projectId)
+  if (!Number.isFinite(projectId) || projectId <= 0) {
+    ElMessage.warning('请选择小区名称')
+    return
+  }
+  const rows = parseBulkBuildingContent(bulkBuildingForm.content)
+  if (!rows.length) {
+    ElMessage.warning('请填写楼栋名称')
+    return
+  }
+
+  bulkBuildingSaving.value = true
+  try {
+    let buildingCount = 0
+    let unitCount = 0
+    for (const row of rows) {
+      const buildingResponse = await createRecord('/base/buildings', {
+        projectId,
+        buildingName: row.buildingName,
+        status: 'ACTIVE',
+      })
+      buildingCount += 1
+      const buildingId = buildingResponse.data?.data?.buildingId
+      for (const unitName of row.unitNames) {
+        await createRecord('/base/units', {
+          projectId,
+          buildingId,
+          unitName,
+          status: 'ACTIVE',
+        })
+        unitCount += 1
+      }
+    }
+    ElMessage.success(`已新增 ${buildingCount} 个楼栋、${unitCount} 个单元`)
+    bulkBuildingDialogVisible.value = false
+    filters.projectId = projectId
+    pageNo.value = 1
+    await load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '批量新增失败')
+  } finally {
+    bulkBuildingSaving.value = false
+  }
+}
+
+function parseBulkBuildingContent(content: string) {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [buildingName = '', unitText = ''] = line.split(/[:：]/, 2)
+      return {
+        buildingName: buildingName.trim(),
+        unitNames: unitText
+          .split(/[、,，;；\s]+/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+      }
+    })
+    .filter((row) => row.buildingName)
 }
 
 type SelectOption = string | { label: string; value: string | number }
