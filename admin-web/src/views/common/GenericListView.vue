@@ -36,7 +36,13 @@
 
     <el-form class="filter-bar" :inline="true" @submit.prevent>
       <el-form-item v-if="config.projectScoped" label="小区名称">
-        <el-select v-model="filters.projectId" clearable filterable placeholder="小区名称" class="form-control">
+        <el-select
+          v-model="filters.projectId"
+          clearable
+          filterable
+          placeholder="小区名称"
+          class="form-control project-filter-control"
+        >
           <el-option
             v-for="option in remoteOptions.projectId"
             :key="String(optionValue(option))"
@@ -1796,6 +1802,11 @@ onMounted(loadProjects)
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.project-filter-control {
+  min-width: 220px;
+  width: 220px;
 }
 
 .field-help {
