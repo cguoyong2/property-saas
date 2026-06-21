@@ -436,6 +436,8 @@ const customVehicleBrandModels = ref<Record<string, string[]>>(loadJsonRecord(ve
 const memberSearchKeyword = ref('')
 const memberSearchResults = ref<Record<string, unknown>[]>([])
 const selectedParkingMember = ref<Record<string, unknown> | null>(null)
+const memberSearchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const memberSearchRequestId = ref(0)
 const bulkBuildingForm = reactive<{ projectId?: string | number; content: string }>({
   projectId: undefined,
   content: '',
@@ -1006,18 +1008,27 @@ function loadJsonRecord(key: string) {
 }
 
 function resetParkingMemberPicker() {
+  if (memberSearchTimer.value) {
+    clearTimeout(memberSearchTimer.value)
+    memberSearchTimer.value = null
+  }
   memberSearchKeyword.value = ''
   memberSearchResults.value = []
   selectedParkingMember.value = null
 }
 
-async function searchMembers() {
+async function searchMembers(showNotice = true) {
   if (!needsMemberPicker.value) return
   const keyword = memberSearchKeyword.value.trim()
   if (!keyword) {
-    ElMessage.warning('请输入业主/住户姓名或手机号')
+    memberSearchResults.value = []
+    if (showNotice) {
+      ElMessage.warning('请输入业主/住户姓名或手机号')
+    }
     return
   }
+  const requestId = memberSearchRequestId.value + 1
+  memberSearchRequestId.value = requestId
   memberSearchLoading.value = true
   try {
     const { data } = await fetchPage('/base/members', {
@@ -1026,15 +1037,35 @@ async function searchMembers() {
       pageNo: 1,
       pageSize: 10,
     })
+    if (requestId !== memberSearchRequestId.value) return
     memberSearchResults.value = toRecords(data.data)
-    if (!memberSearchResults.value.length) {
+    if (showNotice && !memberSearchResults.value.length) {
       ElMessage.info('未找到匹配的业主/住户')
     }
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '搜索业主/住户失败')
+    if (showNotice) {
+      ElMessage.error(err instanceof Error ? err.message : '搜索业主/住户失败')
+    }
   } finally {
-    memberSearchLoading.value = false
+    if (requestId === memberSearchRequestId.value) {
+      memberSearchLoading.value = false
+    }
   }
+}
+
+function scheduleMemberSearch() {
+  if (memberSearchTimer.value) {
+    clearTimeout(memberSearchTimer.value)
+  }
+  const keyword = memberSearchKeyword.value.trim()
+  if (!keyword) {
+    memberSearchResults.value = []
+    memberSearchLoading.value = false
+    return
+  }
+  memberSearchTimer.value = setTimeout(() => {
+    searchMembers(false)
+  }, 250)
 }
 
 async function selectParkingMember(member: Record<string, unknown>) {
@@ -1442,6 +1473,11 @@ watch(
     reset()
   },
 )
+
+watch(memberSearchKeyword, () => {
+  if (!dialogVisible.value || !needsMemberPicker.value) return
+  scheduleMemberSearch()
+})
 
 onMounted(load)
 onMounted(loadProjects)
