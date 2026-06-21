@@ -15,9 +15,11 @@ import com.yongquan.propertysaas.vehicle.dto.VehicleRequest;
 import com.yongquan.propertysaas.vehicle.repository.VehicleRepository;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class VehicleService {
     private static final Set<String> AREA_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> VEHICLE_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> RENT_STATUSES = Set.of("NONE", "ACTIVE", "SOLD", "EXPIRED", "SUSPENDED");
+    private static final Pattern PLATE_NO_PATTERN = Pattern.compile("^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9挂学警港澳领使]{5,6}$");
 
     private final VehicleRepository repository;
     private final ObjectMapper objectMapper;
@@ -188,6 +191,10 @@ public class VehicleService {
         ensureProjectAllowed(request.projectId());
         validateVehicleStatus(request.status());
         validateRentStatus(request.monthlyRentStatus());
+        String plateNo = normalizePlate(request.plateNo());
+        if (!PLATE_NO_PATTERN.matcher(plateNo).matches()) {
+            throw new IllegalArgumentException("车牌号格式不正确，请输入标准车牌号");
+        }
         if (!repository.memberExists(tenantId(), request.memberId())) {
             throw new IllegalArgumentException("会员不存在：" + request.memberId());
         }
@@ -197,9 +204,13 @@ public class VehicleService {
         if (!repository.spaceExists(tenantId(), request.projectId(), request.spaceId())) {
             throw new IllegalArgumentException("车位不存在或不属于项目：" + request.spaceId());
         }
-        if (repository.plateExists(tenantId(), request.projectId(), request.plateNo(), excludeVehicleId)) {
-            throw new IllegalArgumentException("车牌号已存在：" + request.plateNo());
+        if (repository.plateExists(tenantId(), request.projectId(), plateNo, excludeVehicleId)) {
+            throw new IllegalArgumentException("车牌号已存在：" + plateNo);
         }
+    }
+
+    private String normalizePlate(String plateNo) {
+        return plateNo == null ? "" : plateNo.trim().replaceAll("[\\s\\-·.]", "").toUpperCase(Locale.ROOT);
     }
 
     private void createSync(Long projectId, String plateNo, String syncType, Map<String, Object> requestData) {

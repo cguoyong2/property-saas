@@ -8,6 +8,8 @@ public record VehicleView(
         Long projectId,
         String plateNo,
         String vehicleType,
+        String vehicleBrand,
+        String vehicleModel,
         Long memberId,
         Long houseId,
         Long spaceId,

@@ -307,6 +307,8 @@ export const pages: PageConfig[] = [
     columns: [
       { prop: 'plateNo', label: '车牌', inFilter: true },
       { prop: 'vehicleType', label: '车辆类型', type: 'select', options: vehicleTypeOptions },
+      { prop: 'vehicleBrand', label: '品牌' },
+      { prop: 'vehicleModel', label: '型号' },
       { prop: 'spaceId', label: '车位', type: 'parkingSpace' },
       { prop: 'monthlyRentStatus', label: '车位租售状态', type: 'select', options: vehicleSpaceStatusOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
@@ -315,6 +317,8 @@ export const pages: PageConfig[] = [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'plateNo', label: '车牌号', required: true },
       { prop: 'vehicleType', label: '车辆类型', type: 'select', options: vehicleTypeOptions },
+      { prop: 'vehicleBrand', label: '车辆品牌' },
+      { prop: 'vehicleModel', label: '车辆型号' },
       { prop: 'memberId', label: '会员ID', type: 'number' },
       { prop: 'houseId', label: '房屋ID', type: 'number' },
       { prop: 'spaceId', label: '车位', type: 'parkingSpace' },

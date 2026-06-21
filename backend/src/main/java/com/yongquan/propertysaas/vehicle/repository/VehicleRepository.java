@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.yongquan.propertysaas.security.scope.ProjectScopeRepository;
 import org.springframework.stereotype.Repository;
@@ -157,7 +158,8 @@ public class VehicleRepository {
                                           String keyword, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT vehicle_id, project_id, plate_no, vehicle_type, member_id, house_id, space_id,
+                SELECT vehicle_id, project_id, plate_no, vehicle_type, vehicle_brand, vehicle_model,
+                       member_id, house_id, space_id,
                        monthly_rent_status, start_date, end_date, status, created_at
                 FROM base_vehicle
                 WHERE tenant_id = ? AND deleted = 0
@@ -187,7 +189,8 @@ public class VehicleRepository {
 
     public VehicleView getVehicle(Long tenantId, Long vehicleId) {
         return jdbcTemplate.queryForObject("""
-                SELECT vehicle_id, project_id, plate_no, vehicle_type, member_id, house_id, space_id,
+                SELECT vehicle_id, project_id, plate_no, vehicle_type, vehicle_brand, vehicle_model,
+                       member_id, house_id, space_id,
                        monthly_rent_status, start_date, end_date, status, created_at
                 FROM base_vehicle
                 WHERE tenant_id = ? AND vehicle_id = ? AND deleted = 0
@@ -196,25 +199,27 @@ public class VehicleRepository {
 
     public void insertVehicle(Long tenantId, Long vehicleId, Long userId, VehicleRequest request) {
         jdbcTemplate.update("""
-                        INSERT INTO base_vehicle(vehicle_id, tenant_id, project_id, plate_no, vehicle_type, member_id,
-                                                 house_id, space_id, monthly_rent_status, start_date, end_date,
-                                                 status, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO base_vehicle(vehicle_id, tenant_id, project_id, plate_no, vehicle_type,
+                                                 vehicle_brand, vehicle_model, member_id, house_id, space_id,
+                                                 monthly_rent_status, start_date, end_date, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 vehicleId, tenantId, request.projectId(), normalizePlate(request.plateNo()), text(request.vehicleType(), "CAR"),
-                request.memberId(), request.houseId(), request.spaceId(), text(request.monthlyRentStatus(), "NONE"),
+                request.vehicleBrand(), request.vehicleModel(), request.memberId(), request.houseId(), request.spaceId(), text(request.monthlyRentStatus(), "NONE"),
                 request.startDate(), request.endDate(), text(request.status(), "ACTIVE"), userId);
     }
 
     public void updateVehicle(Long tenantId, Long vehicleId, Long userId, VehicleRequest request) {
         jdbcTemplate.update("""
                         UPDATE base_vehicle
-                        SET project_id = ?, plate_no = ?, vehicle_type = ?, member_id = ?, house_id = ?, space_id = ?,
-                            monthly_rent_status = ?, start_date = ?, end_date = ?, status = ?, updated_by = ?
+                        SET project_id = ?, plate_no = ?, vehicle_type = ?, vehicle_brand = ?, vehicle_model = ?,
+                            member_id = ?, house_id = ?, space_id = ?, monthly_rent_status = ?, start_date = ?,
+                            end_date = ?, status = ?, updated_by = ?
                         WHERE tenant_id = ? AND vehicle_id = ? AND deleted = 0
                         """,
-                request.projectId(), normalizePlate(request.plateNo()), text(request.vehicleType(), "CAR"), request.memberId(),
-                request.houseId(), request.spaceId(), text(request.monthlyRentStatus(), "NONE"), request.startDate(),
+                request.projectId(), normalizePlate(request.plateNo()), text(request.vehicleType(), "CAR"),
+                request.vehicleBrand(), request.vehicleModel(), request.memberId(), request.houseId(),
+                request.spaceId(), text(request.monthlyRentStatus(), "NONE"), request.startDate(),
                 request.endDate(), text(request.status(), "ACTIVE"), userId, tenantId, vehicleId);
     }
 
@@ -400,7 +405,8 @@ public class VehicleRepository {
 
     private VehicleView mapVehicle(ResultSet rs, int rowNum) throws SQLException {
         return new VehicleView(rs.getLong("vehicle_id"), rs.getLong("project_id"), rs.getString("plate_no"),
-                rs.getString("vehicle_type"), (Long) rs.getObject("member_id"), (Long) rs.getObject("house_id"),
+                rs.getString("vehicle_type"), rs.getString("vehicle_brand"), rs.getString("vehicle_model"),
+                (Long) rs.getObject("member_id"), (Long) rs.getObject("house_id"),
                 (Long) rs.getObject("space_id"), rs.getString("monthly_rent_status"),
                 rs.getObject("start_date", java.time.LocalDate.class), rs.getObject("end_date", java.time.LocalDate.class),
                 rs.getString("status"), rs.getTimestamp("created_at").toLocalDateTime());
@@ -417,7 +423,7 @@ public class VehicleRepository {
     }
 
     private String normalizePlate(String plateNo) {
-        return plateNo == null ? null : plateNo.trim().toUpperCase();
+        return plateNo == null ? null : plateNo.trim().replaceAll("[\\s\\-·.]", "").toUpperCase(Locale.ROOT);
     }
 
     private long value(Long value) {

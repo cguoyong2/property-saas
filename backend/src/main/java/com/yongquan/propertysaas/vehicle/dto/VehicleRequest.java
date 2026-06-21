@@ -8,6 +8,8 @@ public record VehicleRequest(
         @NotNull Long projectId,
         @NotBlank String plateNo,
         String vehicleType,
+        String vehicleBrand,
+        String vehicleModel,
         Long memberId,
         Long houseId,
         Long spaceId,

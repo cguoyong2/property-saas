@@ -208,8 +208,8 @@
           <el-input
             v-else
             v-model="form[field.prop]"
-            :maxlength="isMobileField(field) ? 11 : undefined"
-            :inputmode="isMobileField(field) ? 'numeric' : undefined"
+            :maxlength="inputMaxLength(field)"
+            :inputmode="inputMode(field)"
             @input="handleTextInput(field, $event)"
           />
         </el-form-item>
@@ -696,6 +696,11 @@ async function save() {
     ElMessage.warning('手机号必须为11位数字')
     return
   }
+  const invalidPlateField = formFields.value.find((field) => isPlateField(field) && !PLATE_NO_PATTERN.test(String(form[field.prop] ?? '')))
+  if (invalidPlateField) {
+    ElMessage.warning('车牌号格式不正确，请输入可被道闸识别的标准车牌')
+    return
+  }
   if (isParkingSpacePage.value && (!form.projectId || !form.buildingId || !form.unitId || !form.houseId)) {
     ElMessage.warning('请先搜索并选择业主/住户')
     return
@@ -797,9 +802,34 @@ function isMobileField(field: FieldConfig) {
   return field.prop === 'mobile'
 }
 
+const PLATE_NO_PATTERN = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9挂学警港澳领使]{5,6}$/
+
+function isPlateField(field: FieldConfig) {
+  return field.prop === 'plateNo'
+}
+
+function inputMaxLength(field: FieldConfig) {
+  if (isMobileField(field)) return 11
+  if (isPlateField(field)) return 8
+  return undefined
+}
+
+function inputMode(field: FieldConfig) {
+  return isMobileField(field) ? 'numeric' : undefined
+}
+
 function handleTextInput(field: FieldConfig, value: string) {
-  if (!isMobileField(field)) return
-  form[field.prop] = value.replace(/\D/g, '').slice(0, 11)
+  if (isMobileField(field)) {
+    form[field.prop] = value.replace(/\D/g, '').slice(0, 11)
+    return
+  }
+  if (isPlateField(field)) {
+    form[field.prop] = normalizePlateNo(value)
+  }
+}
+
+function normalizePlateNo(value: string) {
+  return value.replace(/[\s\-·.]/g, '').toUpperCase().slice(0, 8)
 }
 
 function resetParkingMemberPicker() {
