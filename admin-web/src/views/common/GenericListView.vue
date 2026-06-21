@@ -818,6 +818,13 @@ async function save() {
     ElMessage.warning('请先搜索并选择业主/住户')
     return
   }
+  if (isVehiclePage.value && form.spaceId) {
+    const selectedSpace = selectedParkingSpaceOption()
+    if (!selectedSpace) {
+      ElMessage.warning('该车位不可用或已被其它车辆占用，请选择空闲车位')
+      return
+    }
+  }
   saving.value = true
   try {
     const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== undefined && value !== ''))
@@ -1125,7 +1132,11 @@ async function selectParkingMember(member: Record<string, unknown>) {
   if (isVehiclePage.value) {
     form.memberId = Number(member.memberId)
     form.spaceId = undefined
+    form.monthlyRentStatus = form.monthlyRentStatus === 'NONE' ? undefined : form.monthlyRentStatus
     await loadParkingSpaces()
+    if (!remoteOptions.spaceId.length) {
+      ElMessage.warning('该业主/住户名下暂无空闲车位，请先在车位管理新增或释放车位')
+    }
   }
   ElMessage.success('已带出业主/住户房屋信息')
 }
@@ -1156,7 +1167,12 @@ function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingAr
   return option ? optionLabel(option) : value ?? '-'
 }
 
-type SelectOption = string | { label: string; value: string | number }
+type SelectOption = string | {
+  label: string
+  value: string | number
+  status?: string
+  monthlyRentStatus?: string
+}
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
@@ -1230,10 +1246,37 @@ function handleFieldChange(field: FieldConfig) {
     form.houseId = undefined
     loadHouses()
   }
+  if (field.type === 'parkingSpace' && isVehiclePage.value) {
+    const selectedSpace = selectedParkingSpaceOption()
+    if (!form.spaceId) {
+      return
+    }
+    if (!selectedSpace) {
+      ElMessage.warning('该车位不可用或已被其它车辆占用，请选择空闲车位')
+      return
+    }
+    if (selectedSpace.status && selectedSpace.status !== 'AVAILABLE') {
+      ElMessage.warning('该车位当前不是空闲状态，请确认是否为正在编辑的原车位')
+    }
+    if (!form.monthlyRentStatus || form.monthlyRentStatus === 'NONE') {
+      form.monthlyRentStatus = selectedSpace.monthlyRentStatus && selectedSpace.monthlyRentStatus !== 'NONE'
+        ? selectedSpace.monthlyRentStatus
+        : 'ACTIVE'
+    }
+  }
 }
 
 function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = row[field.prop]
+  if (field.type === 'project' && row.projectName) {
+    return row.projectName
+  }
+  if (field.type === 'building' && row.buildingName) {
+    return row.buildingName
+  }
+  if (field.type === 'unit' && row.unitName) {
+    return row.unitName
+  }
   if (field.type === 'house' && row.houseNo) {
     return row.houseNo
   }
@@ -1241,7 +1284,7 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
     return row.areaName
   }
   if (field.type === 'parkingSpace' && row.spaceNo) {
-    return row.spaceNo
+    return [row.areaName, row.spaceNo].filter(Boolean).join(' - ')
   }
   if (field.type === 'vehicleBrandId' && row.brandName) {
     return row.brandName
@@ -1251,6 +1294,12 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   }
   const option = optionsForDisplay(field).find((item) => optionValue(item) === value)
   return option ? optionLabel(option) : value ?? ''
+}
+
+function selectedParkingSpaceOption() {
+  return remoteOptions.spaceId.find((item) => optionValue(item) === form.spaceId && typeof item !== 'string') as
+    | Exclude<SelectOption, string>
+    | undefined
 }
 
 function displayDetailCell(row: Record<string, unknown>, field: FieldConfig) {
@@ -1393,6 +1442,8 @@ async function loadParkingSpaces() {
         isVehiclePage.value && item.status === 'AVAILABLE' ? '空闲' : '',
       ].filter(Boolean).join(' - ') || item.spaceId),
       value: Number(item.spaceId),
+      status: String(item.status ?? ''),
+      monthlyRentStatus: String(item.monthlyRentStatus ?? 'NONE'),
     }))
 }
 

@@ -90,11 +90,29 @@ public class VehicleRepository {
                                              String keyword, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT s.space_id, s.project_id, s.building_id, s.unit_id, s.house_id, s.area_id, a.area_name,
-                       s.space_no, s.space_type, s.status, s.created_at
+                SELECT s.space_id, s.project_id, p.project_name, s.building_id, b.building_name,
+                       s.unit_id, u.unit_name, s.house_id, h.house_no, s.area_id, a.area_name,
+                       s.space_no, s.space_type, s.status,
+                       v.vehicle_id AS bound_vehicle_id, v.plate_no AS bound_plate_no,
+                       v.vehicle_brand AS bound_vehicle_brand, v.vehicle_model AS bound_vehicle_model,
+                       v.monthly_rent_status, m.member_id AS bound_member_id,
+                       m.real_name AS bound_member_name, m.mobile AS bound_member_mobile,
+                       s.created_at
                 FROM base_parking_space s
+                LEFT JOIN base_project p
+                       ON p.tenant_id = s.tenant_id AND p.project_id = s.project_id AND p.deleted = 0
+                LEFT JOIN base_building b
+                       ON b.tenant_id = s.tenant_id AND b.building_id = s.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = s.tenant_id AND u.unit_id = s.unit_id AND u.deleted = 0
+                LEFT JOIN base_house h
+                       ON h.tenant_id = s.tenant_id AND h.house_id = s.house_id AND h.deleted = 0
                 LEFT JOIN base_parking_area a
                        ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                LEFT JOIN base_vehicle v
+                       ON v.tenant_id = s.tenant_id AND v.space_id = s.space_id AND v.deleted = 0
+                LEFT JOIN member_user m
+                       ON m.tenant_id = v.tenant_id AND m.member_id = v.member_id AND m.deleted = 0
                 WHERE s.tenant_id = ? AND s.deleted = 0
                 """);
         args.add(tenantId);
@@ -122,11 +140,29 @@ public class VehicleRepository {
 
     public ParkingSpaceView getSpace(Long tenantId, Long spaceId) {
         return jdbcTemplate.queryForObject("""
-                SELECT s.space_id, s.project_id, s.building_id, s.unit_id, s.house_id, s.area_id, a.area_name,
-                       s.space_no, s.space_type, s.status, s.created_at
+                SELECT s.space_id, s.project_id, p.project_name, s.building_id, b.building_name,
+                       s.unit_id, u.unit_name, s.house_id, h.house_no, s.area_id, a.area_name,
+                       s.space_no, s.space_type, s.status,
+                       v.vehicle_id AS bound_vehicle_id, v.plate_no AS bound_plate_no,
+                       v.vehicle_brand AS bound_vehicle_brand, v.vehicle_model AS bound_vehicle_model,
+                       v.monthly_rent_status, m.member_id AS bound_member_id,
+                       m.real_name AS bound_member_name, m.mobile AS bound_member_mobile,
+                       s.created_at
                 FROM base_parking_space s
+                LEFT JOIN base_project p
+                       ON p.tenant_id = s.tenant_id AND p.project_id = s.project_id AND p.deleted = 0
+                LEFT JOIN base_building b
+                       ON b.tenant_id = s.tenant_id AND b.building_id = s.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = s.tenant_id AND u.unit_id = s.unit_id AND u.deleted = 0
+                LEFT JOIN base_house h
+                       ON h.tenant_id = s.tenant_id AND h.house_id = s.house_id AND h.deleted = 0
                 LEFT JOIN base_parking_area a
                        ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                LEFT JOIN base_vehicle v
+                       ON v.tenant_id = s.tenant_id AND v.space_id = s.space_id AND v.deleted = 0
+                LEFT JOIN member_user m
+                       ON m.tenant_id = v.tenant_id AND m.member_id = v.member_id AND m.deleted = 0
                 WHERE s.tenant_id = ? AND s.space_id = ? AND s.deleted = 0
                 """, this::mapSpace, tenantId, spaceId);
     }
@@ -158,18 +194,35 @@ public class VehicleRepository {
                                           String keyword, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT vehicle_id, project_id, plate_no, vehicle_type, vehicle_brand, vehicle_model,
-                       member_id, house_id, space_id,
-                       monthly_rent_status, start_date, end_date, status, created_at
-                FROM base_vehicle
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT v.vehicle_id, v.project_id, p.project_name,
+                       h.building_id, b.building_name, h.unit_id, u.unit_name, h.house_no,
+                       v.plate_no, v.vehicle_type, v.vehicle_brand, v.vehicle_model,
+                       v.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
+                       v.house_id, v.space_id, a.area_name, s.space_no,
+                       v.monthly_rent_status, v.start_date, v.end_date, v.status, v.created_at
+                FROM base_vehicle v
+                LEFT JOIN base_project p
+                       ON p.tenant_id = v.tenant_id AND p.project_id = v.project_id AND p.deleted = 0
+                LEFT JOIN member_user m
+                       ON m.tenant_id = v.tenant_id AND m.member_id = v.member_id AND m.deleted = 0
+                LEFT JOIN base_house h
+                       ON h.tenant_id = v.tenant_id AND h.house_id = v.house_id AND h.deleted = 0
+                LEFT JOIN base_building b
+                       ON b.tenant_id = v.tenant_id AND b.building_id = h.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = v.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                LEFT JOIN base_parking_space s
+                       ON s.tenant_id = v.tenant_id AND s.space_id = v.space_id AND s.deleted = 0
+                LEFT JOIN base_parking_area a
+                       ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                WHERE v.tenant_id = ? AND v.deleted = 0
                 """);
         args.add(tenantId);
-        appendProjectEquals(sql, args, projectId);
-        appendKeyword(sql, args, "plate_no", keyword);
-        appendStatus(sql, args, status);
-        appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY project_id ASC, plate_no ASC LIMIT ? OFFSET ?");
+        appendProjectEquals(sql, args, "v.project_id", projectId);
+        appendKeyword(sql, args, "v.plate_no", keyword);
+        appendStatus(sql, args, "v.status", status);
+        appendProjectScope(sql, args, "v.project_id", allowedProjectIds);
+        sql.append(" ORDER BY v.project_id ASC, v.plate_no ASC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapVehicle, args.toArray());
@@ -189,11 +242,28 @@ public class VehicleRepository {
 
     public VehicleView getVehicle(Long tenantId, Long vehicleId) {
         return jdbcTemplate.queryForObject("""
-                SELECT vehicle_id, project_id, plate_no, vehicle_type, vehicle_brand, vehicle_model,
-                       member_id, house_id, space_id,
-                       monthly_rent_status, start_date, end_date, status, created_at
-                FROM base_vehicle
-                WHERE tenant_id = ? AND vehicle_id = ? AND deleted = 0
+                SELECT v.vehicle_id, v.project_id, p.project_name,
+                       h.building_id, b.building_name, h.unit_id, u.unit_name, h.house_no,
+                       v.plate_no, v.vehicle_type, v.vehicle_brand, v.vehicle_model,
+                       v.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
+                       v.house_id, v.space_id, a.area_name, s.space_no,
+                       v.monthly_rent_status, v.start_date, v.end_date, v.status, v.created_at
+                FROM base_vehicle v
+                LEFT JOIN base_project p
+                       ON p.tenant_id = v.tenant_id AND p.project_id = v.project_id AND p.deleted = 0
+                LEFT JOIN member_user m
+                       ON m.tenant_id = v.tenant_id AND m.member_id = v.member_id AND m.deleted = 0
+                LEFT JOIN base_house h
+                       ON h.tenant_id = v.tenant_id AND h.house_id = v.house_id AND h.deleted = 0
+                LEFT JOIN base_building b
+                       ON b.tenant_id = v.tenant_id AND b.building_id = h.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = v.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                LEFT JOIN base_parking_space s
+                       ON s.tenant_id = v.tenant_id AND s.space_id = v.space_id AND s.deleted = 0
+                LEFT JOIN base_parking_area a
+                       ON a.tenant_id = s.tenant_id AND a.area_id = s.area_id AND a.deleted = 0
+                WHERE v.tenant_id = ? AND v.vehicle_id = ? AND v.deleted = 0
                 """, this::mapVehicle, tenantId, vehicleId);
     }
 
@@ -425,18 +495,27 @@ public class VehicleRepository {
     }
 
     private ParkingSpaceView mapSpace(ResultSet rs, int rowNum) throws SQLException {
-        return new ParkingSpaceView(rs.getLong("space_id"), rs.getLong("project_id"),
-                (Long) rs.getObject("building_id"), (Long) rs.getObject("unit_id"),
-                (Long) rs.getObject("house_id"), (Long) rs.getObject("area_id"), rs.getString("area_name"),
+        return new ParkingSpaceView(rs.getLong("space_id"), rs.getLong("project_id"), rs.getString("project_name"),
+                (Long) rs.getObject("building_id"), rs.getString("building_name"),
+                (Long) rs.getObject("unit_id"), rs.getString("unit_name"),
+                (Long) rs.getObject("house_id"), rs.getString("house_no"),
+                (Long) rs.getObject("area_id"), rs.getString("area_name"),
                 rs.getString("space_no"), rs.getString("space_type"), rs.getString("status"),
+                (Long) rs.getObject("bound_vehicle_id"), rs.getString("bound_plate_no"),
+                rs.getString("bound_vehicle_brand"), rs.getString("bound_vehicle_model"),
+                rs.getString("monthly_rent_status"), (Long) rs.getObject("bound_member_id"),
+                rs.getString("bound_member_name"), rs.getString("bound_member_mobile"),
                 rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     private VehicleView mapVehicle(ResultSet rs, int rowNum) throws SQLException {
-        return new VehicleView(rs.getLong("vehicle_id"), rs.getLong("project_id"), rs.getString("plate_no"),
-                rs.getString("vehicle_type"), rs.getString("vehicle_brand"), rs.getString("vehicle_model"),
-                (Long) rs.getObject("member_id"), (Long) rs.getObject("house_id"),
-                (Long) rs.getObject("space_id"), rs.getString("monthly_rent_status"),
+        return new VehicleView(rs.getLong("vehicle_id"), rs.getLong("project_id"), rs.getString("project_name"),
+                (Long) rs.getObject("building_id"), rs.getString("building_name"),
+                (Long) rs.getObject("unit_id"), rs.getString("unit_name"), rs.getString("house_no"),
+                rs.getString("plate_no"), rs.getString("vehicle_type"), rs.getString("vehicle_brand"), rs.getString("vehicle_model"),
+                (Long) rs.getObject("member_id"), rs.getString("member_name"), rs.getString("member_mobile"),
+                (Long) rs.getObject("house_id"), (Long) rs.getObject("space_id"), rs.getString("area_name"), rs.getString("space_no"),
+                rs.getString("monthly_rent_status"),
                 rs.getObject("start_date", java.time.LocalDate.class), rs.getObject("end_date", java.time.LocalDate.class),
                 rs.getString("status"), rs.getTimestamp("created_at").toLocalDateTime());
     }
