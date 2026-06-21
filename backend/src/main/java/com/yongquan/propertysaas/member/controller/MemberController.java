@@ -52,13 +52,14 @@ public class MemberController {
     @RequiresPermission("base:member:list")
     public ApiResponse<PageResult<MemberView>> pageMembers(@RequestParam(required = false) String keyword,
                                                            @RequestParam(required = false) String realName,
+                                                           @RequestParam(required = false) Long projectId,
                                                            @RequestParam(required = false) String status,
                                                            @RequestParam(defaultValue = "1") long pageNo,
                                                            @RequestParam(defaultValue = "20") long pageSize) {
         if ((keyword == null || keyword.isBlank()) && realName != null && !realName.isBlank()) {
             keyword = realName;
         }
-        return ApiResponse.success(service.pageMembers(keyword, status, pageNo, pageSize));
+        return ApiResponse.success(service.pageMembers(keyword, projectId, status, pageNo, pageSize));
     }
 
     @PostMapping("/api/base/members")

@@ -142,7 +142,7 @@ public class MemberRepository {
                 userId);
     }
 
-    public List<MemberView> findMembers(Long tenantId, String keyword, String status, long offset, long pageSize) {
+    public List<MemberView> findMembers(Long tenantId, String keyword, Long projectId, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
@@ -163,18 +163,18 @@ public class MemberRepository {
                 WHERE m.tenant_id = ? AND m.deleted = 0
                 """);
         args.add(tenantId);
-        appendMemberFilters(sql, args, keyword, status);
+        appendMemberFilters(sql, args, keyword, projectId, status, true);
         sql.append(" ORDER BY m.created_at DESC, m.member_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapMember, args.toArray());
     }
 
-    public long countMembers(Long tenantId, String keyword, String status) {
+    public long countMembers(Long tenantId, String keyword, Long projectId, String status) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM member_user m WHERE m.tenant_id = ? AND m.deleted = 0");
         args.add(tenantId);
-        appendMemberFilters(sql, args, keyword, status);
+        appendMemberFilters(sql, args, keyword, projectId, status, false);
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
     }
@@ -321,12 +321,27 @@ public class MemberRepository {
         return projectScopeRepository.findAllowedProjectIds(tenantId, userId);
     }
 
-    private void appendMemberFilters(StringBuilder sql, List<Object> args, String keyword, String status) {
+    private void appendMemberFilters(StringBuilder sql, List<Object> args, String keyword, Long projectId,
+                                     String status, boolean hasBindingAlias) {
         if (keyword != null && !keyword.isBlank()) {
             sql.append(" AND (m.real_name LIKE ? OR m.mobile LIKE ?)");
             String like = "%" + keyword.trim() + "%";
             args.add(like);
             args.add(like);
+        }
+        if (projectId != null) {
+            if (hasBindingAlias) {
+                sql.append(" AND b.project_id = ?");
+            } else {
+                sql.append("""
+                         AND EXISTS (
+                           SELECT 1 FROM member_house_bind mb
+                           WHERE mb.tenant_id = m.tenant_id AND mb.member_id = m.member_id
+                             AND mb.project_id = ? AND mb.status = 'APPROVED' AND mb.deleted = 0
+                         )
+                        """);
+            }
+            args.add(projectId);
         }
         if (status != null && !status.isBlank()) {
             sql.append(" AND m.status = ?");

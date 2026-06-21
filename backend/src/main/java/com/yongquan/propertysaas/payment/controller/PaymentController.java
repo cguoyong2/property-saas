@@ -8,6 +8,7 @@ import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
+import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
@@ -18,6 +19,7 @@ import com.yongquan.propertysaas.payment.service.PaymentRefundService;
 import com.yongquan.propertysaas.payment.service.PaymentService;
 import com.yongquan.propertysaas.security.permission.RequiresPermission;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,6 +80,13 @@ public class PaymentController {
                                                               @RequestParam(defaultValue = "1") long pageNo,
                                                               @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(refundService.pageRefunds(projectId, status, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/payment/refundable-orders")
+    @RequiresPermission("payment:refund:create")
+    public ApiResponse<List<RefundableOrderView>> refundableOrders(@RequestParam Long projectId,
+                                                                   @RequestParam Long memberId) {
+        return ApiResponse.success(refundService.refundableOrders(projectId, memberId));
     }
 
     @PostMapping("/api/payment/refunds")

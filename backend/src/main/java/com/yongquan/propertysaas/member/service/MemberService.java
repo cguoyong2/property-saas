@@ -92,12 +92,12 @@ public class MemberService {
         );
     }
 
-    public PageResult<MemberView> pageMembers(String keyword, String status, long pageNo, long pageSize) {
+    public PageResult<MemberView> pageMembers(String keyword, Long projectId, String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         Long tenantId = tenantId();
         return new PageResult<>(
-                repository.findMembers(tenantId, keyword, status, offset(pageNo, pageSize), pageSize),
-                repository.countMembers(tenantId, keyword, status),
+                repository.findMembers(tenantId, keyword, projectId, status, offset(pageNo, pageSize), pageSize),
+                repository.countMembers(tenantId, keyword, projectId, status),
                 pageNo,
                 pageSize);
     }

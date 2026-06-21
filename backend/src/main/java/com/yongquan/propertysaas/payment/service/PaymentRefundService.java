@@ -7,6 +7,7 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
+import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
 import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
@@ -59,6 +60,18 @@ public class PaymentRefundService {
                 repository.countRefunds(tenantId, scope, projectId, status),
                 pageNo,
                 pageSize);
+    }
+
+    public List<RefundableOrderView> refundableOrders(Long projectId, Long memberId) {
+        if (projectId == null) {
+            throw new IllegalArgumentException("请选择小区名称");
+        }
+        if (memberId == null) {
+            throw new IllegalArgumentException("请选择业主/住户");
+        }
+        ensureProjectAllowed(projectId);
+        Long tenantId = tenantId();
+        return repository.findRefundableOrders(tenantId, projectScope(tenantId), projectId, memberId);
     }
 
     @Transactional

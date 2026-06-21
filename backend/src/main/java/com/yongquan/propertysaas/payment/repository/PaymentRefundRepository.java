@@ -4,6 +4,7 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
+import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -83,6 +84,62 @@ public class PaymentRefundRepository {
                 FROM pay_order
                 WHERE tenant_id = ? AND order_id = ? AND deleted = 0
                 """, this::mapOrder, tenantId, orderId);
+    }
+
+    public List<RefundableOrderView> findRefundableOrders(Long tenantId, List<Long> allowedProjectIds,
+                                                          Long projectId, Long memberId) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT o.order_id, o.order_no, o.project_id, o.member_id,
+                       m.real_name AS member_name, m.mobile,
+                       GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                    ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                       o.amount,
+                       COALESCE(r.refund_amount, 0) AS refunded_amount,
+                       GREATEST(COALESCE(t.paid_amount, 0) - COALESCE(r.refund_amount, 0), 0) AS refundable_amount,
+                       GROUP_CONCAT(DISTINCT CONCAT(fi.item_name, ' ', fb.bill_period, ' ', ob.amount, '元')
+                                    ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary,
+                       o.paid_at
+                FROM pay_order o
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN pay_order_bill ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COALESCE(SUM(amount), 0) AS paid_amount
+                    FROM pay_transaction
+                    GROUP BY tenant_id, order_id
+                ) t ON t.tenant_id = o.tenant_id AND t.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COALESCE(SUM(refund_amount), 0) AS refund_amount
+                    FROM pay_refund
+                    WHERE deleted = 0 AND status NOT IN ('AUDIT_REJECTED', 'FAILED', 'CLOSED')
+                    GROUP BY tenant_id, order_id
+                ) r ON r.tenant_id = o.tenant_id AND r.order_id = o.order_id
+                WHERE o.tenant_id = ? AND o.deleted = 0 AND o.status IN ('PAID', 'PARTIAL_REFUNDED')
+                """);
+        args.add(tenantId);
+        if (projectId != null) {
+            sql.append(" AND o.project_id = ?");
+            args.add(projectId);
+        }
+        if (memberId != null) {
+            sql.append(" AND o.member_id = ?");
+            args.add(memberId);
+        }
+        appendProjectScope(sql, args, allowedProjectIds, "o.project_id");
+        sql.append("""
+
+                GROUP BY o.order_id, o.order_no, o.project_id, o.member_id, m.real_name, m.mobile,
+                         o.amount, r.refund_amount, t.paid_amount, o.paid_at
+                HAVING refundable_amount > 0
+                ORDER BY o.paid_at DESC, o.order_id DESC
+                LIMIT 100
+                """);
+        return jdbcTemplate.query(sql.toString(), this::mapRefundableOrder, args.toArray());
     }
 
     public Long findTransactionId(Long tenantId, Long orderId) {
@@ -269,6 +326,10 @@ public class PaymentRefundRepository {
     }
 
     private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds) {
+        appendProjectScope(sql, args, allowedProjectIds, "project_id");
+    }
+
+    private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds, String column) {
         if (allowedProjectIds == null) {
             return;
         }
@@ -276,7 +337,7 @@ public class PaymentRefundRepository {
             sql.append(" AND 1 = 0");
             return;
         }
-        sql.append(" AND project_id IN (");
+        sql.append(" AND ").append(column).append(" IN (");
         sql.append("?,".repeat(allowedProjectIds.size()));
         sql.setLength(sql.length() - 1);
         sql.append(")");
@@ -303,6 +364,13 @@ public class PaymentRefundRepository {
                 rs.getBigDecimal("amount"), rs.getString("subject"), rs.getString("status"), toLocalDateTime(rs, "expire_at"),
                 toLocalDateTime(rs, "paid_at"), rs.getString("third_trade_no"),
                 rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private RefundableOrderView mapRefundableOrder(ResultSet rs, int rowNum) throws SQLException {
+        return new RefundableOrderView(rs.getLong("order_id"), rs.getString("order_no"), rs.getLong("project_id"),
+                (Long) rs.getObject("member_id"), rs.getString("member_name"), rs.getString("mobile"),
+                rs.getString("house_no"), rs.getBigDecimal("amount"), rs.getBigDecimal("refunded_amount"),
+                rs.getBigDecimal("refundable_amount"), rs.getString("bill_summary"), toLocalDateTime(rs, "paid_at"));
     }
 
     private PayableBill mapPayableBill(ResultSet rs, int rowNum) throws SQLException {

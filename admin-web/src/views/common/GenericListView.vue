@@ -138,6 +138,23 @@
           <span>搜索业主/住户</span>
           <small>选择后自动带出业主/住户和房屋信息</small>
         </div>
+        <div v-if="isRefundPage" class="member-picker__project">
+          <el-select
+            v-model="form.projectId"
+            clearable
+            filterable
+            class="form-control"
+            placeholder="先选择小区名称"
+            @change="handleRefundProjectChange"
+          >
+            <el-option
+              v-for="option in remoteOptions.projectId"
+              :key="String(optionValue(option))"
+              :label="optionLabel(option)"
+              :value="optionValue(option)"
+            />
+          </el-select>
+        </div>
         <div class="member-picker__search">
           <el-input
             v-model="memberSearchKeyword"
@@ -153,7 +170,7 @@
             :key="String(member.memberId)"
             class="member-result"
             type="button"
-            :disabled="!member.houseId"
+            :disabled="!isRefundPage && !member.houseId"
             @click="selectParkingMember(member)"
           >
             <span>
@@ -190,6 +207,49 @@
           <div>
             <span>住户类型</span>
             <strong>{{ bindRoleLabel(selectedParkingMember?.bindRole) }}</strong>
+          </div>
+        </div>
+        <div v-if="isRefundPage && selectedParkingMember" class="refund-order-picker">
+          <div class="refund-order-picker__head">
+            <span>选择已收款账单</span>
+            <small>只显示已收款且还有可退金额的账单</small>
+          </div>
+          <el-select
+            v-model="form.orderId"
+            clearable
+            filterable
+            class="form-control"
+            placeholder="请选择已收款账单"
+            @change="selectRefundOrder"
+          >
+            <el-option
+              v-for="order in refundableOrders"
+              :key="String(order.orderId)"
+              :label="refundOrderLabel(order)"
+              :value="Number(order.orderId)"
+            />
+          </el-select>
+          <div v-if="selectedRefundOrder" class="refund-order-card">
+            <div>
+              <span>订单号</span>
+              <strong>{{ selectedRefundOrder.orderNo ?? '-' }}</strong>
+            </div>
+            <div>
+              <span>订单金额</span>
+              <strong>{{ moneyText(selectedRefundOrder.amount) }}</strong>
+            </div>
+            <div>
+              <span>已退金额</span>
+              <strong>{{ moneyText(selectedRefundOrder.refundedAmount) }}</strong>
+            </div>
+            <div>
+              <span>可退金额</span>
+              <strong>{{ moneyText(selectedRefundOrder.refundableAmount) }}</strong>
+            </div>
+            <div class="refund-order-card__summary">
+              <span>账单明细</span>
+              <strong>{{ selectedRefundOrder.billSummary ?? '-' }}</strong>
+            </div>
           </div>
         </div>
       </section>
@@ -476,6 +536,8 @@ const remoteVehicleModels = ref<string[]>([])
 const memberSearchKeyword = ref('')
 const memberSearchResults = ref<Record<string, unknown>[]>([])
 const selectedParkingMember = ref<Record<string, unknown> | null>(null)
+const refundableOrders = ref<Record<string, unknown>[]>([])
+const selectedRefundOrder = ref<Record<string, unknown> | null>(null)
 const memberSearchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const memberSearchRequestId = ref(0)
 const bulkBuildingForm = reactive<{ projectId?: string | number; content: string }>({
@@ -788,13 +850,17 @@ const filterFields = computed(() => config.value.columns.filter((field) => field
 const formFields = computed(() => config.value.fields ?? [])
 const isParkingSpacePage = computed(() => config.value.key === 'parking-spaces')
 const isVehiclePage = computed(() => config.value.key === 'vehicles')
-const needsMemberPicker = computed(() => isParkingSpacePage.value || isVehiclePage.value)
+const isRefundPage = computed(() => config.value.key === 'refunds')
+const needsMemberPicker = computed(() => isParkingSpacePage.value || isVehiclePage.value || isRefundPage.value)
 const visibleFormFields = computed(() => {
   if (isParkingSpacePage.value) {
     return formFields.value.filter((field) => !['projectId', 'buildingId', 'unitId', 'houseId'].includes(field.prop))
   }
   if (isVehiclePage.value) {
     return formFields.value.filter((field) => !['projectId', 'memberId', 'houseId'].includes(field.prop))
+  }
+  if (isRefundPage.value) {
+    return formFields.value.filter((field) => !['projectId', 'orderId'].includes(field.prop))
   }
   return formFields.value
 })
@@ -936,6 +1002,30 @@ async function save() {
     const selectedSpace = selectedParkingSpaceOption()
     if (!selectedSpace) {
       ElMessage.warning('该车位不可用或已被其它车辆占用，请选择空闲车位')
+      return
+    }
+  }
+  if (isRefundPage.value) {
+    if (!form.projectId) {
+      ElMessage.warning('请先选择小区名称')
+      return
+    }
+    if (!selectedParkingMember.value?.memberId) {
+      ElMessage.warning('请先搜索并选择业主/住户')
+      return
+    }
+    if (!form.orderId || !selectedRefundOrder.value) {
+      ElMessage.warning('请选择已收款账单')
+      return
+    }
+    const refundAmount = Number(form.refundAmount ?? 0)
+    const refundableAmount = Number(selectedRefundOrder.value.refundableAmount ?? 0)
+    if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+      ElMessage.warning('退款金额必须大于0')
+      return
+    }
+    if (refundableAmount > 0 && refundAmount > refundableAmount) {
+      ElMessage.warning(`退款金额不能超过可退金额 ${moneyText(refundableAmount)}`)
       return
     }
   }
@@ -1174,10 +1264,19 @@ function resetParkingMemberPicker() {
   memberSearchKeyword.value = ''
   memberSearchResults.value = []
   selectedParkingMember.value = null
+  refundableOrders.value = []
+  selectedRefundOrder.value = null
 }
 
 async function searchMembers(showNotice = true) {
   if (!needsMemberPicker.value) return
+  if (isRefundPage.value && !form.projectId) {
+    memberSearchResults.value = []
+    if (showNotice) {
+      ElMessage.warning('请先选择小区名称')
+    }
+    return
+  }
   const keyword = memberSearchKeyword.value.trim()
   if (!keyword) {
     memberSearchResults.value = []
@@ -1192,12 +1291,16 @@ async function searchMembers(showNotice = true) {
   try {
     const { data } = await fetchPage('/base/members', {
       keyword,
+      ...(isRefundPage.value ? { projectId: Number(form.projectId) } : {}),
       status: 'ACTIVE',
       pageNo: 1,
-      pageSize: 10,
+      pageSize: isRefundPage.value ? 50 : 10,
     })
     if (requestId !== memberSearchRequestId.value) return
-    memberSearchResults.value = toRecords(data.data)
+    const members = toRecords(data.data)
+    memberSearchResults.value = isRefundPage.value
+      ? members.filter((member) => String(member.projectId ?? '') === String(form.projectId ?? ''))
+      : members
     if (showNotice && !memberSearchResults.value.length) {
       ElMessage.info('未找到匹配的业主/住户')
     }
@@ -1228,13 +1331,22 @@ function scheduleMemberSearch() {
 }
 
 async function selectParkingMember(member: Record<string, unknown>) {
-  if (!member.projectId || !member.buildingId || !member.unitId || !member.houseId) {
+  if (isRefundPage.value) {
+    if (!form.projectId) {
+      ElMessage.warning('请先选择小区名称')
+      return
+    }
+    if (!member.memberId || String(member.projectId ?? '') !== String(form.projectId ?? '')) {
+      ElMessage.warning('请选择当前小区对应的业主/住户')
+      return
+    }
+  } else if (!member.projectId || !member.buildingId || !member.unitId || !member.houseId) {
     ElMessage.warning('该业主/住户没有已绑定房屋，不能用于当前新增')
     return
   }
   selectedParkingMember.value = member
   form.projectId = Number(member.projectId)
-  form.houseId = Number(member.houseId)
+  form.houseId = member.houseId ? Number(member.houseId) : undefined
   if (isParkingSpacePage.value) {
     form.buildingId = Number(member.buildingId)
     form.unitId = Number(member.unitId)
@@ -1252,7 +1364,59 @@ async function selectParkingMember(member: Record<string, unknown>) {
       ElMessage.warning('该业主/住户名下暂无空闲车位，请先在车位管理新增或释放车位')
     }
   }
+  if (isRefundPage.value) {
+    await loadRefundableOrders()
+    if (!refundableOrders.value.length) {
+      ElMessage.warning('该业主/住户暂无可退款的已收款账单')
+      return
+    }
+  }
   ElMessage.success('已带出业主/住户房屋信息')
+}
+
+function handleRefundProjectChange() {
+  resetParkingMemberPicker()
+  form.orderId = undefined
+  form.refundAmount = undefined
+}
+
+async function loadRefundableOrders() {
+  refundableOrders.value = []
+  selectedRefundOrder.value = null
+  form.orderId = undefined
+  form.refundAmount = undefined
+  const memberId = selectedParkingMember.value?.memberId
+  if (!form.projectId || !memberId) return
+  try {
+    const { data } = await fetchPage('/payment/refundable-orders', {
+      projectId: Number(form.projectId),
+      memberId: Number(memberId),
+    })
+    refundableOrders.value = toRecords(data.data)
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载已收款账单失败')
+  }
+}
+
+function selectRefundOrder(value: unknown) {
+  selectedRefundOrder.value = refundableOrders.value.find((order) => Number(order.orderId) === Number(value)) ?? null
+  if (selectedRefundOrder.value) {
+    form.refundAmount = selectedRefundOrder.value.refundableAmount
+  }
+}
+
+function refundOrderLabel(order: Record<string, unknown>) {
+  return [
+    order.orderNo,
+    order.billSummary,
+    `可退${moneyText(order.refundableAmount)}`,
+  ].filter(Boolean).join(' / ')
+}
+
+function moneyText(value: unknown) {
+  const amount = Number(value ?? 0)
+  if (!Number.isFinite(amount)) return '0.00'
+  return amount.toFixed(2)
 }
 
 function bindRoleLabel(value: unknown) {
@@ -1985,6 +2149,10 @@ onMounted(loadProjects)
   font-size: 12px;
 }
 
+.member-picker__project {
+  margin-bottom: 10px;
+}
+
 .member-picker__search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2049,6 +2217,59 @@ onMounted(loadProjects)
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 0 0 1px #d7e4e1 inset;
+}
+
+.refund-order-picker {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.refund-order-picker__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.refund-order-picker__head span {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.refund-order-picker__head small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.refund-order-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d7e4e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.refund-order-card div {
+  display: grid;
+  gap: 2px;
+}
+
+.refund-order-card span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.refund-order-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.refund-order-card__summary {
+  grid-column: 1 / -1;
 }
 
 .plate-input {
