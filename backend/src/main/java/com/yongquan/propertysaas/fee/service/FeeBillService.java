@@ -255,7 +255,7 @@ public class FeeBillService {
             BigDecimal area = repository.findHouseBuildingArea(tenantId, candidate.projectId(), candidate.objectId());
             return money(area.multiply(unitPrice).multiply(months));
         }
-        return money(unitPrice.multiply(months));
+        return money(unitPrice);
     }
 
     private BigDecimal calculateFormula(Long tenantId, BillStandardCandidate candidate, BigDecimal unitPrice,
