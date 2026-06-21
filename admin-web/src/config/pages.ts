@@ -76,6 +76,12 @@ const memberBindRoleOptions = [
   { label: '租户', value: 'TENANT' },
   { label: '住户', value: 'RESIDENT' },
 ]
+const memberBindingStatusOptions = [
+  { label: '待审核', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '已解绑', value: 'UNBOUND' },
+]
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
   { label: '商业项目', value: 'COMMERCIAL' },
@@ -524,7 +530,7 @@ const baseArchiveExtraPages: PageConfig[] = [
       { prop: 'houseNo', label: '房屋' },
       { prop: 'realName', label: '姓名', inFilter: true },
       { prop: 'mobile', label: '手机号' },
-      { prop: 'auditStatus', label: '审核状态', inFilter: true },
+      { prop: 'status', label: '审核状态', type: 'select', options: memberBindingStatusOptions, inFilter: true },
       { prop: 'createdAt', label: '申请时间' },
     ],
   },

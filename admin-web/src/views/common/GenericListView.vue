@@ -52,7 +52,22 @@
         </el-select>
       </el-form-item>
       <el-form-item v-for="field in filterFields" :key="field.prop" :label="field.label">
-        <el-input v-model="filters[field.prop]" clearable :placeholder="field.label" />
+        <el-select
+          v-if="isSelectField(field)"
+          v-model="filters[field.prop]"
+          clearable
+          filterable
+          :placeholder="field.label"
+          class="form-control"
+        >
+          <el-option
+            v-for="option in optionsForField(field)"
+            :key="String(optionValue(option))"
+            :label="optionLabel(option)"
+            :value="optionValue(option)"
+          />
+        </el-select>
+        <el-input v-else v-model="filters[field.prop]" clearable :placeholder="field.label" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="load">查询</el-button>
@@ -88,15 +103,16 @@
             <el-button v-if="config.updatePath && canUpdate" text type="primary" :icon="Edit" @click="openEdit(row)" />
           </el-tooltip>
           <el-button v-if="config.showDetails" text type="primary" @click="openDetail(row)">详情</el-button>
-          <el-button
-            v-for="action in rowActions"
-            :key="action.key"
-            text
-            :type="action.type ?? 'primary'"
-            @click="runAction(action, row)"
-          >
-            {{ action.label }}
-          </el-button>
+          <template v-for="action in rowActions" :key="action.key">
+            <el-button
+              v-if="isActionVisible(action, row)"
+              text
+              :type="action.type ?? 'primary'"
+              @click="runAction(action, row)"
+            >
+              {{ action.label }}
+            </el-button>
+          </template>
         </template>
       </el-table-column>
       <template #empty>
@@ -391,6 +407,7 @@ interface BusinessAction {
   fields?: Array<FieldConfig & { help?: string }>
   buildPayload?: (row?: Record<string, unknown>, form?: Record<string, unknown>) => Record<string, unknown>
   filename?: (row?: Record<string, unknown>) => string
+  visible?: (row?: Record<string, unknown>) => boolean
 }
 
 const route = useRoute()
@@ -586,6 +603,43 @@ const businessActions: Record<string, BusinessAction[]> = {
       permission: 'payment:refund:audit',
       fields: [{ prop: 'auditRemark', label: '拒绝原因', type: 'textarea', required: true }],
       buildPayload: (_row, formData = {}) => ({ auditResult: 'REJECTED', auditRemark: formData.auditRemark }),
+    },
+  ],
+  'member-bindings': [
+    {
+      key: 'member-binding-approve',
+      label: '通过',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
+      type: 'success',
+      permission: 'base:memberBinding:audit',
+      visible: (row) => row?.status === 'PENDING',
+      fields: [{ prop: 'auditRemark', label: '审核备注', type: 'textarea' }],
+      buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
+    },
+    {
+      key: 'member-binding-reject',
+      label: '驳回',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
+      type: 'danger',
+      permission: 'base:memberBinding:audit',
+      visible: (row) => row?.status === 'PENDING',
+      fields: [{ prop: 'auditRemark', label: '驳回原因', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ auditResult: 'REJECTED', auditRemark: formData.auditRemark }),
+    },
+    {
+      key: 'member-binding-unbind',
+      label: '解绑',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/base/member-bindings/${row?.bindId}/unbind`,
+      type: 'warning',
+      permission: 'base:memberBinding:unbind',
+      visible: (row) => row?.status === 'APPROVED',
+      fields: [{ prop: 'reason', label: '解绑原因', type: 'textarea', required: true }],
     },
   ],
   workorders: [
@@ -1743,6 +1797,10 @@ function toRecords(payload: unknown): Record<string, unknown>[] {
 
 function canRunAction(action: BusinessAction) {
   return !action.permission || auth.hasPermission(action.permission)
+}
+
+function isActionVisible(action: BusinessAction, row?: Record<string, unknown>) {
+  return !action.visible || action.visible(row)
 }
 
 function workOrderAction(
