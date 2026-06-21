@@ -113,23 +113,25 @@ public class FeeBillRepository {
         }
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT b.project_id, s.item_id, b.standard_id, s.charge_method, s.unit_price, s.cycle, s.formula,
-                       b.object_type, b.object_id
-                FROM fee_standard_bind b
-                JOIN fee_standard s ON s.tenant_id = b.tenant_id AND s.standard_id = b.standard_id
-                JOIN fee_item i ON i.tenant_id = s.tenant_id AND i.item_id = s.item_id
-                WHERE b.tenant_id = ?
-                  AND b.deleted = 0 AND s.deleted = 0 AND i.deleted = 0
-                  AND b.status = 'ACTIVE' AND s.status = 'ACTIVE' AND i.status = 'ACTIVE'
-                  AND b.effective_date <= ? AND (b.expire_date IS NULL OR b.expire_date >= ?)
-                  AND s.effective_date <= ? AND (s.expire_date IS NULL OR s.expire_date >= ?)
-                  AND (
-                    s.cycle = 'MONTH'
-                    OR (s.cycle = 'QUARTER'
-                        AND MOD(TIMESTAMPDIFF(MONTH, DATE_FORMAT(s.effective_date, '%Y-%m-01'), ?), 3) = 0)
-                    OR (s.cycle = 'YEAR' AND MONTH(s.effective_date) = MONTH(?))
-                    OR (s.cycle = 'ONCE' AND DATE_FORMAT(s.effective_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m'))
-                  )
+                SELECT project_id, item_id, standard_id, charge_method, unit_price, cycle, formula, object_type, object_id
+                FROM (
+                    SELECT b.project_id, s.item_id, b.standard_id, s.charge_method, s.unit_price, s.cycle, s.formula,
+                           b.object_type, b.object_id, b.bind_id AS source_id
+                    FROM fee_standard_bind b
+                    JOIN fee_standard s ON s.tenant_id = b.tenant_id AND s.standard_id = b.standard_id
+                    JOIN fee_item i ON i.tenant_id = s.tenant_id AND i.item_id = s.item_id
+                    WHERE b.tenant_id = ?
+                      AND b.deleted = 0 AND s.deleted = 0 AND i.deleted = 0
+                      AND b.status = 'ACTIVE' AND s.status = 'ACTIVE' AND i.status = 'ACTIVE'
+                      AND b.effective_date <= ? AND (b.expire_date IS NULL OR b.expire_date >= ?)
+                      AND s.effective_date <= ? AND (s.expire_date IS NULL OR s.expire_date >= ?)
+                      AND (
+                        s.cycle = 'MONTH'
+                        OR (s.cycle = 'QUARTER'
+                            AND MOD(TIMESTAMPDIFF(MONTH, DATE_FORMAT(s.effective_date, '%Y-%m-01'), ?), 3) = 0)
+                        OR (s.cycle = 'YEAR' AND MONTH(s.effective_date) = MONTH(?))
+                        OR (s.cycle = 'ONCE' AND DATE_FORMAT(s.effective_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m'))
+                      )
                 """);
         args.add(tenantId);
         args.add(billDate);
@@ -150,7 +152,59 @@ public class FeeBillRepository {
             sql.append(")");
             args.addAll(allowedProjectIds);
         }
-        sql.append(" ORDER BY b.project_id ASC, s.item_id ASC, b.object_type ASC, b.object_id ASC, b.bind_id ASC LIMIT ?");
+        sql.append("""
+                    UNION ALL
+                    SELECT h.project_id, s.item_id, s.standard_id, s.charge_method, s.unit_price, s.cycle, s.formula,
+                           'HOUSE' AS object_type, h.house_id AS object_id, h.house_id AS source_id
+                    FROM fee_standard s
+                    JOIN fee_item i ON i.tenant_id = s.tenant_id AND i.item_id = s.item_id
+                    JOIN base_house h ON h.tenant_id = s.tenant_id
+                         AND h.deleted = 0
+                         AND (s.project_id IS NULL OR s.project_id = h.project_id)
+                    WHERE s.tenant_id = ?
+                      AND s.deleted = 0 AND i.deleted = 0
+                      AND s.status = 'ACTIVE' AND i.status = 'ACTIVE'
+                      AND s.effective_date <= ? AND (s.expire_date IS NULL OR s.expire_date >= ?)
+                      AND (
+                        s.cycle = 'MONTH'
+                        OR (s.cycle = 'QUARTER'
+                            AND MOD(TIMESTAMPDIFF(MONTH, DATE_FORMAT(s.effective_date, '%Y-%m-01'), ?), 3) = 0)
+                        OR (s.cycle = 'YEAR' AND MONTH(s.effective_date) = MONTH(?))
+                        OR (s.cycle = 'ONCE' AND DATE_FORMAT(s.effective_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m'))
+                      )
+                      AND NOT EXISTS (
+                        SELECT 1
+                        FROM fee_standard_bind bx
+                        WHERE bx.tenant_id = s.tenant_id
+                          AND bx.project_id = h.project_id
+                          AND bx.standard_id = s.standard_id
+                          AND bx.object_type = 'HOUSE'
+                          AND bx.object_id = h.house_id
+                          AND bx.deleted = 0
+                      )
+                """);
+        args.add(tenantId);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        if (projectId != null) {
+            sql.append(" AND h.project_id = ?");
+            args.add(projectId);
+        }
+        if (allowedProjectIds != null) {
+            sql.append(" AND h.project_id IN (");
+            sql.append("?,".repeat(allowedProjectIds.size()));
+            sql.setLength(sql.length() - 1);
+            sql.append(")");
+            args.addAll(allowedProjectIds);
+        }
+        sql.append("""
+                ) candidates
+                ORDER BY project_id ASC, item_id ASC, object_type ASC, object_id ASC, source_id ASC
+                LIMIT ?
+                """);
         args.add(limit);
         return jdbcTemplate.query(sql.toString(), this::mapCandidate, args.toArray());
     }
