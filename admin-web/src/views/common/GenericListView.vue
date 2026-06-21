@@ -620,11 +620,20 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: '/payment/orders',
       type: 'primary',
       permission: 'payment:order:create',
-      confirm: '确认生成当前业主/房屋/账期的收款码订单？',
-      buildPayload: (row) => ({
+      fields: [
+        {
+          prop: 'amount',
+          label: '收款金额',
+          type: 'number',
+          required: true,
+          help: '生成收款码的金额。可小于、等于或大于应收金额：少收时保留待收款，超收支付成功后转为业主/住户预存款。',
+        },
+      ],
+      buildPayload: (row, formData = {}) => ({
         projectId: Number(row?.projectId),
         billIds: billCollectionIds(row),
         payChannel: 'WECHAT',
+        amount: formData.amount,
       }),
     },
     {
@@ -2034,7 +2043,7 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
   ;(action.fields ?? []).forEach((field) => {
     actionForm[field.prop] = undefined
   })
-  if (action.key === 'bill-cash-collect') {
+  if (action.key === 'bill-cash-collect' || action.key === 'bill-qr-collect') {
     actionForm.amount = billCollectionRemainingAmount(row)
   }
 
@@ -2065,7 +2074,7 @@ async function submitAction() {
     ElMessage.warning(`请填写${missing.label}`)
     return
   }
-  if (currentAction.value.key === 'bill-cash-collect') {
+  if (currentAction.value.key === 'bill-cash-collect' || currentAction.value.key === 'bill-qr-collect') {
     const amount = Number(actionForm.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       ElMessage.warning('收款金额必须大于0')
