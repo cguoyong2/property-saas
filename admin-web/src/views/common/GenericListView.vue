@@ -471,7 +471,7 @@ const businessActions: Record<string, BusinessAction[]> = {
   bills: [
     {
       key: 'bill-generate',
-      label: '批量生成',
+      label: '自动生成账单',
       scope: 'page',
       method: 'POST',
       path: '/fee/bills/generate',

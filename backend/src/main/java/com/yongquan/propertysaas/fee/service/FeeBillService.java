@@ -14,10 +14,12 @@ import com.yongquan.propertysaas.system.audit.domain.OperationLogWrite;
 import com.yongquan.propertysaas.system.audit.service.OperationLogService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.security.access.AccessDeniedException;
@@ -88,9 +90,6 @@ public class FeeBillService {
         for (int i = 0; i < candidates.size(); i++) {
             BillStandardCandidate candidate = candidates.get(i);
             try {
-                if ("FORMULA".equals(candidate.chargeMethod())) {
-                    throw new IllegalArgumentException("公式计费标准暂不支持自动生成，请先人工确认金额");
-                }
                 BigDecimal amount = calculateGeneratedAmount(tenantId, candidate);
                 BillObjectTarget target = repository.resolveObjectTarget(
                         tenantId, candidate.projectId(), candidate.objectType(), candidate.objectId());
@@ -234,14 +233,178 @@ public class FeeBillService {
 
     private BigDecimal calculateGeneratedAmount(Long tenantId, BillStandardCandidate candidate) {
         BigDecimal unitPrice = money(candidate.unitPrice());
+        BigDecimal months = BigDecimal.valueOf(cycleMonths(candidate.cycle()));
+        if ("FORMULA".equals(candidate.chargeMethod())) {
+            return money(calculateFormula(tenantId, candidate, unitPrice, months));
+        }
         if ("AREA".equals(candidate.chargeMethod())) {
             if (!"HOUSE".equals(candidate.objectType())) {
                 throw new IllegalArgumentException("面积计费仅支持房屋对象");
             }
             BigDecimal area = repository.findHouseBuildingArea(tenantId, candidate.projectId(), candidate.objectId());
-            return money(area.multiply(unitPrice));
+            return money(area.multiply(unitPrice).multiply(months));
         }
-        return unitPrice;
+        return money(unitPrice.multiply(months));
+    }
+
+    private BigDecimal calculateFormula(Long tenantId, BillStandardCandidate candidate, BigDecimal unitPrice,
+                                        BigDecimal months) {
+        if (candidate.formula() == null || candidate.formula().isBlank()) {
+            throw new IllegalArgumentException("自定义公式不能为空");
+        }
+        Map<String, BigDecimal> variables = new HashMap<>();
+        variables.put("unitPrice", unitPrice);
+        variables.put("price", unitPrice);
+        variables.put("months", months);
+        variables.put("cycleMonths", months);
+        variables.put("area", formulaArea(tenantId, candidate));
+        return new FormulaParser(candidate.formula(), variables).parse();
+    }
+
+    private BigDecimal formulaArea(Long tenantId, BillStandardCandidate candidate) {
+        if (!"HOUSE".equals(candidate.objectType())) {
+            return BigDecimal.ZERO;
+        }
+        return money(repository.findHouseBuildingArea(tenantId, candidate.projectId(), candidate.objectId()));
+    }
+
+    private int cycleMonths(String cycle) {
+        if ("QUARTER".equals(cycle)) {
+            return 3;
+        }
+        if ("YEAR".equals(cycle)) {
+            return 12;
+        }
+        return 1;
+    }
+
+    private static final class FormulaParser {
+
+        private final String expression;
+        private final Map<String, BigDecimal> variables;
+        private int index;
+
+        private FormulaParser(String expression, Map<String, BigDecimal> variables) {
+            this.expression = expression;
+            this.variables = variables;
+        }
+
+        private BigDecimal parse() {
+            BigDecimal value = expression();
+            skipSpaces();
+            if (index != expression.length()) {
+                throw new IllegalArgumentException("公式存在无法识别的内容：" + expression.substring(index));
+            }
+            return value;
+        }
+
+        private BigDecimal expression() {
+            BigDecimal value = term();
+            while (true) {
+                skipSpaces();
+                if (match('+')) {
+                    value = value.add(term());
+                } else if (match('-')) {
+                    value = value.subtract(term());
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private BigDecimal term() {
+            BigDecimal value = factor();
+            while (true) {
+                skipSpaces();
+                if (match('*')) {
+                    value = value.multiply(factor());
+                } else if (match('/')) {
+                    BigDecimal divisor = factor();
+                    if (BigDecimal.ZERO.compareTo(divisor) == 0) {
+                        throw new IllegalArgumentException("公式除数不能为0");
+                    }
+                    value = value.divide(divisor, MathContext.DECIMAL64);
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private BigDecimal factor() {
+            skipSpaces();
+            if (match('+')) {
+                return factor();
+            }
+            if (match('-')) {
+                return factor().negate();
+            }
+            if (match('(')) {
+                BigDecimal value = expression();
+                skipSpaces();
+                if (!match(')')) {
+                    throw new IllegalArgumentException("公式括号不完整");
+                }
+                return value;
+            }
+            if (index >= expression.length()) {
+                throw new IllegalArgumentException("公式不完整");
+            }
+            char current = expression.charAt(index);
+            if (Character.isDigit(current) || current == '.') {
+                return number();
+            }
+            if (Character.isLetter(current) || current == '_') {
+                return variable();
+            }
+            throw new IllegalArgumentException("公式存在非法字符：" + current);
+        }
+
+        private BigDecimal number() {
+            int start = index;
+            while (index < expression.length()) {
+                char current = expression.charAt(index);
+                if (!Character.isDigit(current) && current != '.') {
+                    break;
+                }
+                index++;
+            }
+            try {
+                return new BigDecimal(expression.substring(start, index));
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("公式数字格式错误：" + expression.substring(start, index));
+            }
+        }
+
+        private BigDecimal variable() {
+            int start = index;
+            while (index < expression.length()) {
+                char current = expression.charAt(index);
+                if (!Character.isLetterOrDigit(current) && current != '_') {
+                    break;
+                }
+                index++;
+            }
+            String name = expression.substring(start, index);
+            BigDecimal value = variables.get(name);
+            if (value == null) {
+                throw new IllegalArgumentException("公式变量不支持：" + name);
+            }
+            return value;
+        }
+
+        private boolean match(char expected) {
+            if (index < expression.length() && expression.charAt(index) == expected) {
+                index++;
+                return true;
+            }
+            return false;
+        }
+
+        private void skipSpaces() {
+            while (index < expression.length() && Character.isWhitespace(expression.charAt(index))) {
+                index++;
+            }
+        }
     }
 
     private void validateItem(Long itemId) {

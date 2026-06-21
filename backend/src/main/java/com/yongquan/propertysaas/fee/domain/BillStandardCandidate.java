@@ -8,6 +8,8 @@ public record BillStandardCandidate(
         Long standardId,
         String chargeMethod,
         BigDecimal unitPrice,
+        String cycle,
+        String formula,
         String objectType,
         Long objectId
 ) {

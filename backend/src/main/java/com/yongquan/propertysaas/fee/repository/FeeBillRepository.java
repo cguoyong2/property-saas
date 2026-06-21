@@ -74,7 +74,7 @@ public class FeeBillRepository {
                                                               LocalDate billDate) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT b.project_id, s.item_id, b.standard_id, s.charge_method, s.unit_price,
+                SELECT b.project_id, s.item_id, b.standard_id, s.charge_method, s.unit_price, s.cycle, s.formula,
                        b.object_type, b.object_id
                 FROM fee_standard_bind b
                 JOIN fee_standard s ON s.tenant_id = b.tenant_id AND s.standard_id = b.standard_id
@@ -298,8 +298,8 @@ public class FeeBillRepository {
 
     private BillStandardCandidate mapCandidate(ResultSet rs, int rowNum) throws SQLException {
         return new BillStandardCandidate(rs.getLong("project_id"), rs.getLong("item_id"), rs.getLong("standard_id"),
-                rs.getString("charge_method"), rs.getBigDecimal("unit_price"), rs.getString("object_type"),
-                rs.getLong("object_id"));
+                rs.getString("charge_method"), rs.getBigDecimal("unit_price"), rs.getString("cycle"),
+                rs.getString("formula"), rs.getString("object_type"), rs.getLong("object_id"));
     }
 
     private BillObjectTarget mapTarget(ResultSet rs, int rowNum) throws SQLException {

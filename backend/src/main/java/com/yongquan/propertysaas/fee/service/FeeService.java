@@ -23,7 +23,7 @@ public class FeeService {
 
     private static final Set<String> STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> ITEM_TYPES = Set.of("PERIODIC", "ONCE", "DEPOSIT", "PREPAID", "AGENCY");
-    private static final Set<String> CHARGE_METHODS = Set.of("AREA", "HOUSE", "VEHICLE", "SPACE", "CONTRACT", "FIXED", "FORMULA");
+    private static final Set<String> CHARGE_METHODS = Set.of("AREA", "METER", "HOUSE", "VEHICLE", "SPACE", "CONTRACT", "FIXED", "FORMULA");
     private static final Set<String> CYCLES = Set.of("MONTH", "QUARTER", "YEAR", "ONCE");
     private static final Set<String> OBJECT_TYPES = Set.of("HOUSE", "VEHICLE", "SPACE");
 

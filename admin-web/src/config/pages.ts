@@ -716,10 +716,8 @@ const billingPages: PageConfig[] = [
     route: '/fee/bills',
     icon: Files,
     listPath: '/fee/bills',
-    createPath: '/fee/bills',
     idProp: 'billId',
     permission: 'fee:bill:list',
-    createPermission: 'fee:bill:create',
     projectScoped: true,
     columns: [
       { prop: 'billNo', label: '账单号', inFilter: true },
@@ -735,17 +733,6 @@ const billingPages: PageConfig[] = [
       { prop: 'dueDate', label: '到期日' },
       { prop: 'status', label: '状态', type: 'select', options: billStatusOptions, inFilter: true },
       { prop: 'sourceType', label: '来源', type: 'select', options: billSourceTypeOptions },
-    ],
-    fields: [
-      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
-      { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
-      { prop: 'standardId', label: '收费标准', type: 'feeStandard' },
-      { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions },
-      { prop: 'objectId', label: '收费对象', type: 'billObject', required: true },
-      { prop: 'billPeriod', label: '账期', required: true },
-      { prop: 'receivableAmount', label: '应收金额', type: 'number', required: true },
-      { prop: 'discountAmount', label: '减免金额', type: 'number' },
-      { prop: 'dueDate', label: '到期日', type: 'date' },
     ],
   },
   {
