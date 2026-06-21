@@ -37,6 +37,8 @@ export interface FieldConfig {
     | 'plateNo'
     | 'feeItem'
     | 'feeStandard'
+    | 'billObject'
+    | 'billObjectMulti'
     | 'vehicleBrandId'
     | 'vehicleBrand'
     | 'vehicleModel'
@@ -740,7 +742,7 @@ const billingPages: PageConfig[] = [
       { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
       { prop: 'standardId', label: '收费标准', type: 'feeStandard' },
       { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions },
-      { prop: 'objectId', label: '对象ID', type: 'number', required: true },
+      { prop: 'objectId', label: '收费对象', type: 'billObject', required: true },
       { prop: 'billPeriod', label: '账期', required: true },
       { prop: 'receivableAmount', label: '应收金额', type: 'number', required: true },
       { prop: 'discountAmount', label: '减免金额', type: 'number' },
@@ -863,7 +865,7 @@ const billingExtraPages: PageConfig[] = [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'standardId', label: '收费标准', type: 'feeStandard', required: true },
       { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions },
-      { prop: 'objectId', label: '对象ID', type: 'number', required: true },
+      { prop: 'objectId', label: '绑定对象', type: 'billObject', required: true },
       { prop: 'effectiveDate', label: '生效日期', type: 'date', required: true },
       { prop: 'expireDate', label: '失效日期', type: 'date' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },

@@ -313,6 +313,7 @@
             v-model="actionForm[field.prop]"
             clearable
             filterable
+            :multiple="field.type === 'billObjectMulti'"
             class="form-control"
             :placeholder="field.label"
             @change="handleActionFieldChange(field)"
@@ -391,8 +392,8 @@ const total = ref(0)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const filters = reactive<Record<string, string | number>>({})
-const form = reactive<Record<string, string | number | undefined | null>>({})
-const actionForm = reactive<Record<string, string | number | undefined | null>>({})
+const form = reactive<Record<string, unknown>>({})
+const actionForm = reactive<Record<string, unknown>>({})
 const dialogVisible = ref(false)
 const actionDialogVisible = ref(false)
 const bulkBuildingDialogVisible = ref(false)
@@ -462,6 +463,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   spaceId: [],
   itemId: [],
   standardId: [],
+  objectId: [],
   brandId: [],
 })
 
@@ -486,7 +488,7 @@ const businessActions: Record<string, BusinessAction[]> = {
           { label: '车位', value: 'SPACE' },
           { label: '合同', value: 'CONTRACT' },
         ] },
-        { prop: 'objectIds', label: '对象ID列表', help: '多个 ID 用英文逗号分隔；留空表示按收费绑定生成' },
+        { prop: 'objectIds', label: '收费对象', type: 'billObjectMulti', help: '可按对象类型多选；留空表示按收费绑定生成全部账单。' },
         { prop: 'dueDate', label: '到期日', type: 'date' },
       ],
       buildPayload: (_row, formData = {}) => ({
@@ -1208,6 +1210,8 @@ function isSelectField(field: FieldConfig) {
     'parkingSpace',
     'feeItem',
     'feeStandard',
+    'billObject',
+    'billObjectMulti',
     'vehicleBrandId',
   ].includes(field.type ?? '')
 }
@@ -1236,6 +1240,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'feeStandard') {
     return remoteOptions.standardId
+  }
+  if (field.type === 'billObject' || field.type === 'billObjectMulti') {
+    return remoteOptions.objectId
   }
   if (field.type === 'vehicleBrandId') {
     return remoteOptions.brandId
@@ -1285,6 +1292,10 @@ function handleFieldChange(field: FieldConfig) {
     form.standardId = undefined
     loadFeeStandards()
   }
+  if (field.prop === 'objectType') {
+    form.objectId = undefined
+    loadBillObjects()
+  }
   if (field.type === 'building') {
     form.unitId = undefined
     form.houseId = undefined
@@ -1320,6 +1331,10 @@ function handleActionFieldChange(field: FieldConfig) {
     actionForm.standardId = undefined
     loadFeeStandardsForAction()
   }
+  if (field.type === 'project' || field.prop === 'objectType') {
+    actionForm.objectIds = []
+    loadBillObjectsForAction()
+  }
 }
 
 function displayCell(row: Record<string, unknown>, field: FieldConfig) {
@@ -1348,6 +1363,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'feeStandard' && row.standardName) {
     return row.standardName
   }
+  if (field.type === 'billObject') {
+    return billObjectLabel(row.objectType, value)
+  }
   if (field.type === 'vehicleBrandId' && row.brandName) {
     return row.brandName
   }
@@ -1364,6 +1382,20 @@ function selectedParkingSpaceOption() {
     | undefined
 }
 
+function billObjectLabel(objectType: unknown, objectId: unknown) {
+  if (!objectId) return ''
+  const option = remoteOptions.objectId.find((item) => optionValue(item) === objectId)
+  if (option) return optionLabel(option)
+  const labels: Record<string, string> = {
+    HOUSE: '房屋',
+    VEHICLE: '车辆',
+    SPACE: '车位',
+    CONTRACT: '合同',
+  }
+  const prefix = typeof objectType === 'string' ? labels[objectType] : ''
+  return prefix ? `${prefix} ${objectId}` : objectId
+}
+
 function displayDetailCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = displayCell(row, field)
   return value === '' ? '-' : value
@@ -1378,6 +1410,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
   if (field.type === 'feeItem') return remoteOptions.itemId
   if (field.type === 'feeStandard') return remoteOptions.standardId
+  if (field.type === 'billObject' || field.type === 'billObjectMulti') return remoteOptions.objectId
   if (field.type === 'vehicleBrandId') return remoteOptions.brandId
   return field.options ?? []
 }
@@ -1408,6 +1441,8 @@ function needsRemoteOptions(fields: FieldConfig[]) {
     'parkingSpace',
     'feeItem',
     'feeStandard',
+    'billObject',
+    'billObjectMulti',
     'vehicleBrandId',
     'vehicleBrand',
     'vehicleModel',
@@ -1425,6 +1460,7 @@ async function loadVisibleRemoteOptions() {
   await loadParkingSpaces()
   await loadFeeItems()
   await loadFeeStandards()
+  await loadBillObjects()
   await loadVehicleBrands()
   await loadVehicleModels()
 }
@@ -1439,6 +1475,7 @@ async function loadFormRemoteOptions() {
   await loadParkingSpaces()
   await loadFeeItems()
   await loadFeeStandards()
+  await loadBillObjects()
   await loadVehicleBrands()
   await loadVehicleModels()
 }
@@ -1560,6 +1597,58 @@ async function loadFeeStandardsForAction() {
   }))
 }
 
+async function loadBillObjects() {
+  remoteOptions.objectId = await fetchBillObjectOptions(form.objectType, form.projectId ?? filters.projectId)
+}
+
+async function loadBillObjectsForAction() {
+  remoteOptions.objectId = await fetchBillObjectOptions(actionForm.objectType, actionForm.projectId)
+}
+
+async function fetchBillObjectOptions(objectType: unknown, projectIdValue: unknown): Promise<SelectOption[]> {
+  const type = String(objectType ?? '')
+  const projectId = Number(projectIdValue)
+  if (!type || !Number.isFinite(projectId) || projectId <= 0) {
+    return []
+  }
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 500, projectId }
+  if (type === 'HOUSE') {
+    const { data } = await fetchPage('/base/houses', params)
+    return toRecords(data.data).map((item) => ({
+      label: String([
+        item.projectName,
+        item.buildingName,
+        item.unitName,
+        item.houseNo,
+      ].filter(Boolean).join(' / ') || item.houseId),
+      value: Number(item.houseId),
+    }))
+  }
+  if (type === 'VEHICLE') {
+    const { data } = await fetchPage('/base/vehicles', params)
+    return toRecords(data.data).map((item) => ({
+      label: String([
+        item.plateNo,
+        item.memberName,
+        item.houseNo,
+      ].filter(Boolean).join(' / ') || item.vehicleId),
+      value: Number(item.vehicleId),
+    }))
+  }
+  if (type === 'SPACE') {
+    const { data } = await fetchPage('/base/parking-spaces', params)
+    return toRecords(data.data).map((item) => ({
+      label: String([
+        item.areaName,
+        item.spaceNo,
+        item.houseNo,
+      ].filter(Boolean).join(' / ') || item.spaceId),
+      value: Number(item.spaceId),
+    }))
+  }
+  return []
+}
+
 async function loadVehicleBrands() {
   const { data } = await fetchPage('/base/vehicle-brands', { pageNo: 1, pageSize: 200, status: 'ACTIVE' })
   remoteOptions.brandId = toRecords(data.data).map((item) => ({
@@ -1617,6 +1706,10 @@ function workOrderAction(
 }
 
 function parseIdList(value: unknown) {
+  if (Array.isArray(value)) {
+    const ids = value.map((item) => Number(item)).filter((item) => Number.isFinite(item))
+    return ids.length ? ids : undefined
+  }
   if (typeof value !== 'string' || !value.trim()) return undefined
   return value.split(',').map((item) => Number(item.trim())).filter((item) => Number.isFinite(item))
 }
@@ -1663,6 +1756,7 @@ async function loadActionRemoteOptions(fields: FieldConfig[]) {
   await loadProjects()
   await loadFeeItems()
   await loadFeeStandardsForAction()
+  await loadBillObjectsForAction()
 }
 
 async function submitAction() {
