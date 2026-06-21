@@ -50,4 +50,10 @@ public class JobController {
     public ApiResponse<JobRunResult> messageDispatch(@RequestParam(required = false) Integer limit) {
         return ApiResponse.success(service.runMessageDispatch(TenantContext.requiredTenantId(), limit));
     }
+
+    @PostMapping("/api/jobs/fee-bill-generate")
+    @RequiresPermission("job:fee:bill:generate")
+    public ApiResponse<JobRunResult> feeBillGenerate(@RequestParam(required = false) Integer limit) {
+        return ApiResponse.success(service.runFeeBillGenerate(TenantContext.requiredTenantId(), limit));
+    }
 }

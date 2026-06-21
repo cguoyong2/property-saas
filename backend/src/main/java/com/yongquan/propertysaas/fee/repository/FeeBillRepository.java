@@ -106,6 +106,55 @@ public class FeeBillRepository {
         return jdbcTemplate.query(sql.toString(), this::mapCandidate, args.toArray());
     }
 
+    public List<BillStandardCandidate> findAutoGenerateCandidates(Long tenantId, List<Long> allowedProjectIds,
+                                                                  Long projectId, LocalDate billDate, int limit) {
+        if (allowedProjectIds != null && allowedProjectIds.isEmpty()) {
+            return List.of();
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT b.project_id, s.item_id, b.standard_id, s.charge_method, s.unit_price, s.cycle, s.formula,
+                       b.object_type, b.object_id
+                FROM fee_standard_bind b
+                JOIN fee_standard s ON s.tenant_id = b.tenant_id AND s.standard_id = b.standard_id
+                JOIN fee_item i ON i.tenant_id = s.tenant_id AND i.item_id = s.item_id
+                WHERE b.tenant_id = ?
+                  AND b.deleted = 0 AND s.deleted = 0 AND i.deleted = 0
+                  AND b.status = 'ACTIVE' AND s.status = 'ACTIVE' AND i.status = 'ACTIVE'
+                  AND b.effective_date <= ? AND (b.expire_date IS NULL OR b.expire_date >= ?)
+                  AND s.effective_date <= ? AND (s.expire_date IS NULL OR s.expire_date >= ?)
+                  AND (
+                    s.cycle = 'MONTH'
+                    OR (s.cycle = 'QUARTER'
+                        AND MOD(TIMESTAMPDIFF(MONTH, DATE_FORMAT(s.effective_date, '%Y-%m-01'), ?), 3) = 0)
+                    OR (s.cycle = 'YEAR' AND MONTH(s.effective_date) = MONTH(?))
+                    OR (s.cycle = 'ONCE' AND DATE_FORMAT(s.effective_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m'))
+                  )
+                """);
+        args.add(tenantId);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        args.add(billDate);
+        if (projectId != null) {
+            sql.append(" AND b.project_id = ?");
+            args.add(projectId);
+        }
+        if (allowedProjectIds != null) {
+            sql.append(" AND b.project_id IN (");
+            sql.append("?,".repeat(allowedProjectIds.size()));
+            sql.setLength(sql.length() - 1);
+            sql.append(")");
+            args.addAll(allowedProjectIds);
+        }
+        sql.append(" ORDER BY b.project_id ASC, s.item_id ASC, b.object_type ASC, b.object_id ASC, b.bind_id ASC LIMIT ?");
+        args.add(limit);
+        return jdbcTemplate.query(sql.toString(), this::mapCandidate, args.toArray());
+    }
+
     public void insertBill(Long tenantId, Long billId, String billNo, Long userId, BillManualRequest request,
                            BigDecimal receivableAmount, BigDecimal discountAmount, BigDecimal remainingAmount,
                            String sourceType) {

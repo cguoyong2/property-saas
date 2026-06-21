@@ -70,6 +70,7 @@ property-saas:
     patrol-missed-cron: ${PROPERTY_SAAS_JOB_PATROL_MISSED_CRON:0 */15 * * * *}
     lease-expire-cron: ${PROPERTY_SAAS_JOB_LEASE_EXPIRE_CRON:0 0 9 * * *}
     message-dispatch-cron: ${PROPERTY_SAAS_JOB_MESSAGE_DISPATCH_CRON:0 */2 * * * *}
+    fee-bill-generate-cron: ${PROPERTY_SAAS_JOB_FEE_BILL_GENERATE_CRON:0 5 0 * * *}
   payment:
     wechat:
       # 本地开发保留模拟 HMAC 回调；生产 profile 默认 REAL_WECHAT_V3。

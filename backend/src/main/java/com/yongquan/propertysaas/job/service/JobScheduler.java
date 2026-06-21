@@ -54,4 +54,13 @@ public class JobScheduler {
         log.info("Run scheduled job {}", JobOrchestrationService.JOB_MESSAGE_DISPATCH);
         service.runMessageDispatchForAllTenants(properties.getDefaultLimit());
     }
+
+    @Scheduled(cron = "${property-saas.job.fee-bill-generate-cron:0 5 0 * * *}")
+    public void feeBillGenerate() {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        log.info("Run scheduled job {}", JobOrchestrationService.JOB_FEE_BILL_GENERATE);
+        service.runFeeBillGenerateForAllTenants(properties.getDefaultLimit());
+    }
 }

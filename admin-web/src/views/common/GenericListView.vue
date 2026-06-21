@@ -356,7 +356,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Bell, Download, Edit, Finished, Plus, Refresh, Search, SwitchButton, Tools, Upload } from '@element-plus/icons-vue'
+import { Bell, Download, Edit, Plus, Refresh, Search, SwitchButton, Tools, Upload } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
@@ -469,33 +469,6 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
 
 const businessActions: Record<string, BusinessAction[]> = {
   bills: [
-    {
-      key: 'bill-generate',
-      label: '自动生成账单',
-      scope: 'page',
-      method: 'POST',
-      path: '/fee/bills/generate',
-      type: 'primary',
-      icon: Finished,
-      permission: 'fee:bill:generate',
-      fields: [
-        { prop: 'projectId', label: '小区名称', type: 'project', required: true },
-        { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
-        { prop: 'billPeriod', label: '账期', required: true, help: '例如：2026-06' },
-        { prop: 'objectType', label: '对象类型', type: 'select', options: [
-          { label: '房屋', value: 'HOUSE' },
-          { label: '车辆', value: 'VEHICLE' },
-          { label: '车位', value: 'SPACE' },
-          { label: '合同', value: 'CONTRACT' },
-        ] },
-        { prop: 'objectIds', label: '收费对象', type: 'billObjectMulti', help: '可按对象类型多选；留空表示按收费绑定生成全部账单。' },
-        { prop: 'dueDate', label: '到期日', type: 'date' },
-      ],
-      buildPayload: (_row, formData = {}) => ({
-        ...formData,
-        objectIds: parseIdList(formData.objectIds),
-      }),
-    },
     {
       key: 'bill-remind',
       label: '催缴',
@@ -1703,15 +1676,6 @@ function workOrderAction(
       { prop: 'imageFileIds', label: '附件文件ID', help: '多个文件 ID 用英文逗号分隔' },
     ],
   }
-}
-
-function parseIdList(value: unknown) {
-  if (Array.isArray(value)) {
-    const ids = value.map((item) => Number(item)).filter((item) => Number.isFinite(item))
-    return ids.length ? ids : undefined
-  }
-  if (typeof value !== 'string' || !value.trim()) return undefined
-  return value.split(',').map((item) => Number(item.trim())).filter((item) => Number.isFinite(item))
 }
 
 function compactPayload(payload: Record<string, unknown>) {

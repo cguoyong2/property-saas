@@ -52,6 +52,7 @@ public class FeeBillService {
         }
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
+        autoGenerateVisibleBills(tenantId, scope, projectId, billPeriod);
         return new PageResult<>(
                 repository.findBills(tenantId, scope, projectId, status, billPeriod, offset(pageNo, pageSize), pageSize),
                 repository.countBills(tenantId, scope, projectId, status, billPeriod),
@@ -110,6 +111,11 @@ public class FeeBillService {
         repository.insertImportBatch(tenantId, request.projectId(), batchId, batchNo, null,
                 candidates.size(), success, fail, status, userId(), "BILL_GENERATE");
         return new BillGenerateResultView(batchId, batchNo, candidates.size(), success, fail, status);
+    }
+
+    @Transactional
+    public int generateDueBillsForTenant(Long tenantId, LocalDate billDate, Integer limit) {
+        return generateMissingBills(tenantId, null, null, billDate, effectiveAutoGenerateLimit(limit));
     }
 
     @Transactional
@@ -218,10 +224,15 @@ public class FeeBillService {
     }
 
     private void insertBill(Long tenantId, Long billId, String billNo, BillManualRequest request, String sourceType) {
+        insertBill(tenantId, billId, billNo, userId(), request, sourceType);
+    }
+
+    private void insertBill(Long tenantId, Long billId, String billNo, Long createdBy, BillManualRequest request,
+                            String sourceType) {
         BigDecimal receivable = money(request.receivableAmount());
         BigDecimal discount = money(request.discountAmount() == null ? BigDecimal.ZERO : request.discountAmount());
         BigDecimal remaining = receivable.subtract(discount).setScale(2, RoundingMode.HALF_UP);
-        repository.insertBill(tenantId, billId, billNo, userId(), request, receivable, discount, remaining, sourceType);
+        repository.insertBill(tenantId, billId, billNo, createdBy, request, receivable, discount, remaining, sourceType);
     }
 
     private void validateBillDuplicate(Long tenantId, BillManualRequest request) {
@@ -276,6 +287,44 @@ public class FeeBillService {
             return 12;
         }
         return 1;
+    }
+
+    private void autoGenerateVisibleBills(Long tenantId, List<Long> allowedProjectIds, Long projectId, String billPeriod) {
+        LocalDate billDate = billPeriod == null || billPeriod.isBlank() ? LocalDate.now() : parseBillDate(billPeriod);
+        generateMissingBills(tenantId, allowedProjectIds, projectId, billDate, 1000);
+    }
+
+    private int generateMissingBills(Long tenantId, List<Long> allowedProjectIds, Long projectId, LocalDate billDate,
+                                     int limit) {
+        String billPeriod = billDate.toString().substring(0, 7);
+        LocalDate dueDate = billDate.withDayOfMonth(billDate.lengthOfMonth());
+        int created = 0;
+        for (BillStandardCandidate candidate : repository.findAutoGenerateCandidates(
+                tenantId, allowedProjectIds, projectId, billDate, limit)) {
+            try {
+                if (repository.duplicateBillExists(tenantId, candidate.projectId(), candidate.objectType(),
+                        candidate.objectId(), candidate.itemId(), billPeriod)) {
+                    continue;
+                }
+                BigDecimal amount = calculateGeneratedAmount(tenantId, candidate);
+                BillObjectTarget target = repository.resolveObjectTarget(
+                        tenantId, candidate.projectId(), candidate.objectType(), candidate.objectId());
+                BillManualRequest row = new BillManualRequest(candidate.projectId(), candidate.itemId(),
+                        candidate.standardId(), candidate.objectType(), candidate.objectId(), target.memberId(),
+                        target.houseId(), billPeriod, amount, BigDecimal.ZERO, dueDate);
+                Long billId = newId();
+                insertBill(tenantId, billId, billNo("GEN", tenantId, row.projectId(), billId), null, row, "GENERATED");
+                created++;
+            } catch (RuntimeException ignored) {
+                // A bad fee rule must not block the bill list; operators can correct the underlying standard/binding.
+            }
+        }
+        return created;
+    }
+
+    private int effectiveAutoGenerateLimit(Integer limit) {
+        int value = limit == null ? 1000 : limit;
+        return Math.max(1, Math.min(value, 10000));
     }
 
     private static final class FormulaParser {
@@ -493,6 +542,10 @@ public class FeeBillService {
     }
 
     private String billNo(String prefix, Long projectId, Long billId) {
-        return prefix + "-" + tenantId() + "-" + projectId + "-" + billId;
+        return billNo(prefix, tenantId(), projectId, billId);
+    }
+
+    private String billNo(String prefix, Long tenantId, Long projectId, Long billId) {
+        return prefix + "-" + tenantId + "-" + projectId + "-" + billId;
     }
 }

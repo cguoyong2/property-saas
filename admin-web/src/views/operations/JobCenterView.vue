@@ -54,6 +54,7 @@ const result = ref('')
 
 const jobs: JobItem[] = [
   { title: '一键执行', description: '按后端预设顺序触发所有可运行定时任务。', path: '/jobs/run-all' },
+  { title: '账单自动生成', description: '按收费标准和收费绑定补齐当前账期应收账单。', path: '/jobs/fee-bill-generate', params: () => ({ limit: params.limit }) },
   { title: '工单 SLA 扫描', description: '扫描超时工单并写入超时事件与提醒。', path: '/jobs/workorder-sla', params: () => ({ limit: params.limit }) },
   { title: '巡检漏检扫描', description: '扫描漏检巡检任务并输出处理数量。', path: '/jobs/patrol-missed', params: () => ({ limit: params.limit }) },
   { title: '合同到期提醒', description: '为临近到期合同生成提醒消息。', path: '/jobs/lease-expire-remind', params: () => ({ days: params.days }) },

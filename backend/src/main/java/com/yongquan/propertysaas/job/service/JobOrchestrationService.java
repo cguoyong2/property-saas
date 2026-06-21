@@ -5,7 +5,9 @@ import com.yongquan.propertysaas.job.domain.JobRunResult;
 import com.yongquan.propertysaas.job.domain.JobRunSummary;
 import com.yongquan.propertysaas.job.repository.JobRepository;
 import com.yongquan.propertysaas.service.domain.NoticeRecipient;
+import com.yongquan.propertysaas.fee.service.FeeBillService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,14 +22,17 @@ public class JobOrchestrationService {
     public static final String JOB_PATROL_MISSED = "PATROL_MISSED";
     public static final String JOB_LEASE_EXPIRE_REMIND = "LEASE_EXPIRE_REMIND";
     public static final String JOB_MESSAGE_DISPATCH = "MESSAGE_DISPATCH";
+    public static final String JOB_FEE_BILL_GENERATE = "FEE_BILL_GENERATE";
 
     private final JobRepository repository;
     private final JobProperties properties;
+    private final FeeBillService feeBillService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
-    public JobOrchestrationService(JobRepository repository, JobProperties properties) {
+    public JobOrchestrationService(JobRepository repository, JobProperties properties, FeeBillService feeBillService) {
         this.repository = repository;
         this.properties = properties;
+        this.feeBillService = feeBillService;
     }
 
     @Transactional
@@ -84,6 +89,13 @@ public class JobOrchestrationService {
         return success(JOB_MESSAGE_DISPATCH, affected, "已派发待发送站内信", startedAt);
     }
 
+    @Transactional
+    public JobRunResult runFeeBillGenerate(Long tenantId, Integer limit) {
+        LocalDateTime startedAt = LocalDateTime.now();
+        int affected = feeBillService.generateDueBillsForTenant(tenantId, LocalDate.now(), limit);
+        return success(JOB_FEE_BILL_GENERATE, affected, "已自动生成当前账期账单", startedAt);
+    }
+
     public JobRunSummary runAllForCurrentScope(Integer limit, Integer leaseExpireDays) {
         if (TenantContext.hasTenant()) {
             return runAllForTenant(TenantContext.requiredTenantId(), limit, leaseExpireDays);
@@ -94,6 +106,7 @@ public class JobOrchestrationService {
     public JobRunSummary runAllForTenant(Long tenantId, Integer limit, Integer leaseExpireDays) {
         LocalDateTime startedAt = LocalDateTime.now();
         List<JobRunResult> results = List.of(
+                runFeeBillGenerate(tenantId, limit),
                 runWorkOrderSla(tenantId, limit),
                 runPatrolMissed(tenantId, limit),
                 runLeaseExpireRemind(tenantId, leaseExpireDays, limit),
@@ -119,11 +132,16 @@ public class JobOrchestrationService {
         return runSingleJobForAllTenants(JOB_MESSAGE_DISPATCH, tenantId -> runMessageDispatch(tenantId, limit));
     }
 
+    public JobRunSummary runFeeBillGenerateForAllTenants(Integer limit) {
+        return runSingleJobForAllTenants(JOB_FEE_BILL_GENERATE, tenantId -> runFeeBillGenerate(tenantId, limit));
+    }
+
     public JobRunSummary runAllTenants(Integer limit, Integer leaseExpireDays) {
         LocalDateTime startedAt = LocalDateTime.now();
         List<Long> tenantIds = repository.findRunnableTenantIds();
         List<JobRunResult> results = new ArrayList<>();
         for (Long tenantId : tenantIds) {
+            results.add(runFeeBillGenerate(tenantId, limit));
             results.add(runWorkOrderSla(tenantId, limit));
             results.add(runPatrolMissed(tenantId, limit));
             results.add(runLeaseExpireRemind(tenantId, leaseExpireDays, limit));
