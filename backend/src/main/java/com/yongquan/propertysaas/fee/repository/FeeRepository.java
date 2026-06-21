@@ -63,12 +63,12 @@ public class FeeRepository {
                 """, this::mapItem, tenantId, itemId);
     }
 
-    public void insertItem(Long tenantId, Long itemId, Long userId, FeeItemRequest request) {
+    public void insertItem(Long tenantId, Long itemId, Long userId, String itemCode, FeeItemRequest request) {
         jdbcTemplate.update("""
                         INSERT INTO fee_item(item_id, tenant_id, item_code, item_name, item_type, status, created_by)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
-                itemId, tenantId, request.itemCode(), request.itemName(), request.itemType(),
+                itemId, tenantId, itemCode, request.itemName(), request.itemType(),
                 text(request.status(), "ACTIVE"), userId);
     }
 

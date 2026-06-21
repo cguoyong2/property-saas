@@ -11,6 +11,7 @@ import com.yongquan.propertysaas.fee.repository.FeeRepository;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.security.access.AccessDeniedException;
@@ -51,7 +52,7 @@ public class FeeService {
     public Long createItem(FeeItemRequest request) {
         validateItem(request);
         Long itemId = newId();
-        repository.insertItem(tenantId(), itemId, userId(), request);
+        repository.insertItem(tenantId(), itemId, userId(), autoItemCode(request.itemName(), itemId), request);
         return itemId;
     }
 
@@ -127,6 +128,28 @@ public class FeeService {
             throw new IllegalArgumentException("非法收费项目类型：" + request.itemType());
         }
         validateStatus(request.status());
+    }
+
+    private String autoItemCode(String itemName, Long itemId) {
+        String prefix = itemCodePrefix(itemName);
+        return "%s_%06d".formatted(prefix, Math.abs(itemId % 1_000_000));
+    }
+
+    private String itemCodePrefix(String itemName) {
+        String name = itemName == null ? "" : itemName.trim();
+        if (name.contains("物业")) return "PROPERTY_FEE";
+        if (name.contains("停车") || name.contains("车位")) return "PARKING_FEE";
+        if (name.contains("水")) return "WATER_FEE";
+        if (name.contains("电梯")) return "ELEVATOR_FEE";
+        if (name.contains("电")) return "ELECTRICITY_FEE";
+        if (name.contains("燃气") || name.contains("天然气")) return "GAS_FEE";
+        if (name.contains("垃圾")) return "GARBAGE_FEE";
+        if (name.contains("押金")) return "DEPOSIT_FEE";
+        if (name.contains("租金") || name.contains("租赁")) return "RENT_FEE";
+        String asciiPrefix = name.toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+        return asciiPrefix.isBlank() ? "FEE_ITEM" : asciiPrefix;
     }
 
     private void validateStandard(FeeStandardRequest request) {

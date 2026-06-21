@@ -699,13 +699,12 @@ const billingPages: PageConfig[] = [
     updatePermission: 'fee:item:update',
     columns: [
       { prop: 'itemCode', label: '编码', inFilter: true },
-      { prop: 'itemName', label: '名称' },
+      { prop: 'itemName', label: '收费项目' },
       { prop: 'itemType', label: '类型', type: 'select', options: feeItemTypeOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
     fields: [
-      { prop: 'itemCode', label: '项目编码', required: true },
-      { prop: 'itemName', label: '项目名称', required: true },
+      { prop: 'itemName', label: '收费项目', required: true },
       { prop: 'itemType', label: '类型', type: 'select', options: feeItemTypeOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
