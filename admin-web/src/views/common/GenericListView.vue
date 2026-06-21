@@ -399,6 +399,8 @@ const detailRow = ref<Record<string, unknown> | null>(null)
 const chinaAreaOptions = pcaTextArr
 const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
 const plateLetterOptions = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('')
+const plateProvinceStorageKey = 'property-saas.default-plate-province'
+const plateLetterStorageKey = 'property-saas.default-plate-letter'
 const vehicleBrandStorageKey = 'property-saas.vehicle-brands'
 const vehicleBrandModelStorageKey = 'property-saas.vehicle-brand-models'
 const builtInVehicleBrandModels: Record<string, string[]> = {
@@ -765,6 +767,7 @@ function openCreate() {
   formFields.value.forEach((field) => {
     form[field.prop] = undefined
   })
+  applyDefaultPlateParts()
   loadFormRemoteOptions()
   dialogVisible.value = true
 }
@@ -933,11 +936,14 @@ function setPlatePart(parts: { province?: string; letter?: string; suffix?: stri
   const province = parts.province ?? current.slice(0, 1)
   const letter = parts.letter ?? current.slice(1, 2)
   const suffix = parts.suffix ?? current.slice(2)
+  const normalizedProvince = plateProvinceOptions.includes(province) ? province : ''
+  const normalizedLetter = normalizePlateLetter(letter)
   form.plateNo = [
-    plateProvinceOptions.includes(province) ? province : '',
-    normalizePlateLetter(letter),
+    normalizedProvince,
+    normalizedLetter,
     normalizePlateSuffix(suffix),
   ].join('')
+  rememberPlateParts(normalizedProvince, normalizedLetter)
 }
 
 function syncPlateNo() {
@@ -951,6 +957,26 @@ function normalizePlateLetter(value: string) {
 
 function normalizePlateSuffix(value: string) {
   return value.toUpperCase().replace(/[^A-Z0-9挂学警港澳领使]/g, '').slice(0, 6)
+}
+
+function applyDefaultPlateParts() {
+  if (!isVehiclePage.value) return
+  const province = localStorage.getItem(plateProvinceStorageKey) ?? ''
+  const letter = localStorage.getItem(plateLetterStorageKey) ?? ''
+  const normalizedProvince = plateProvinceOptions.includes(province) ? province : ''
+  const normalizedLetter = normalizePlateLetter(letter)
+  if (normalizedProvince || normalizedLetter) {
+    form.plateNo = `${normalizedProvince}${normalizedLetter}`
+  }
+}
+
+function rememberPlateParts(province: string, letter: string) {
+  if (province) {
+    localStorage.setItem(plateProvinceStorageKey, province)
+  }
+  if (letter) {
+    localStorage.setItem(plateLetterStorageKey, letter)
+  }
 }
 
 function handleVehicleBrandChange(value: string | number | undefined) {
