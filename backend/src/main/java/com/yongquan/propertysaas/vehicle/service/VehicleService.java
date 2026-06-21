@@ -132,15 +132,20 @@ public class VehicleService {
         validateVehicle(request, null);
         Long vehicleId = newId();
         repository.insertVehicle(tenantId(), vehicleId, userId(), request);
+        repository.updateSpaceStatus(tenantId(), request.spaceId(), userId(), "OCCUPIED");
         createSync(request.projectId(), request.plateNo(), "VEHICLE_UPSERT", Map.of("vehicleId", vehicleId, "action", "create"));
         return vehicleId;
     }
 
     @Transactional
     public void updateVehicle(Long vehicleId, VehicleRequest request) {
-        getVehicle(vehicleId);
+        VehicleView oldVehicle = getVehicle(vehicleId);
         validateVehicle(request, vehicleId);
         repository.updateVehicle(tenantId(), vehicleId, userId(), request);
+        if (oldVehicle.spaceId() != null && !oldVehicle.spaceId().equals(request.spaceId())) {
+            repository.updateSpaceStatus(tenantId(), oldVehicle.spaceId(), userId(), "AVAILABLE");
+        }
+        repository.updateSpaceStatus(tenantId(), request.spaceId(), userId(), "OCCUPIED");
         createSync(request.projectId(), request.plateNo(), "VEHICLE_UPSERT", Map.of("vehicleId", vehicleId, "action", "update"));
     }
 

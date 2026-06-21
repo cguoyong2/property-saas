@@ -435,6 +435,7 @@ const builtInVehicleBrandModels: Record<string, string[]> = {
 }
 const customVehicleBrands = ref<string[]>(loadJsonArray(vehicleBrandStorageKey))
 const customVehicleBrandModels = ref<Record<string, string[]>>(loadJsonRecord(vehicleBrandModelStorageKey))
+const remoteVehicleModels = ref<string[]>([])
 const memberSearchKeyword = ref('')
 const memberSearchResults = ref<Record<string, unknown>[]>([])
 const selectedParkingMember = ref<Record<string, unknown> | null>(null)
@@ -451,6 +452,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   houseId: [],
   areaId: [],
   spaceId: [],
+  brandId: [],
 })
 
 const businessActions: Record<string, BusinessAction[]> = {
@@ -701,10 +703,18 @@ const plateSuffix = computed({
   get: () => String(form.plateNo ?? '').slice(2),
   set: (value: string) => setPlatePart({ suffix: value }),
 })
-const vehicleBrandOptions = computed(() => uniqueTextOptions([...Object.keys(builtInVehicleBrandModels), ...customVehicleBrands.value]))
+const vehicleBrandOptions = computed(() => uniqueTextOptions([
+  ...remoteOptions.brandId.map((item) => optionLabel(item)),
+  ...Object.keys(builtInVehicleBrandModels),
+  ...customVehicleBrands.value,
+]))
 const vehicleModelOptions = computed(() => {
   const brand = String(form.vehicleBrand ?? '')
-  return uniqueTextOptions([...(builtInVehicleBrandModels[brand] ?? []), ...(customVehicleBrandModels.value[brand] ?? [])])
+  return uniqueTextOptions([
+    ...remoteVehicleModels.value,
+    ...(builtInVehicleBrandModels[brand] ?? []),
+    ...(customVehicleBrandModels.value[brand] ?? []),
+  ])
 })
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
@@ -979,13 +989,15 @@ function rememberPlateParts(province: string, letter: string) {
   }
 }
 
-function handleVehicleBrandChange(value: string | number | undefined) {
+async function handleVehicleBrandChange(value: string | number | undefined) {
   const brand = String(value ?? '').trim()
   if (!brand) {
     form.vehicleModel = undefined
+    remoteVehicleModels.value = []
     return
   }
   addCustomVehicleBrand(brand)
+  await loadVehicleModels()
   if (form.vehicleModel && !vehicleModelOptions.value.includes(String(form.vehicleModel))) {
     form.vehicleModel = undefined
   }
@@ -1148,7 +1160,7 @@ type SelectOption = string | { label: string; value: string | number }
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
-  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace'].includes(field.type ?? '')
+  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace', 'vehicleBrandId'].includes(field.type ?? '')
 }
 
 function optionsForField(field: FieldConfig): SelectOption[] {
@@ -1169,6 +1181,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'parkingSpace') {
     return remoteOptions.spaceId
+  }
+  if (field.type === 'vehicleBrandId') {
+    return remoteOptions.brandId
   }
   if (field.type === 'province') {
     return chinaAreaOptions.map(toSelectOption)
@@ -1228,6 +1243,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'parkingSpace' && row.spaceNo) {
     return row.spaceNo
   }
+  if (field.type === 'vehicleBrandId' && row.brandName) {
+    return row.brandName
+  }
   if (!isSelectField(field)) {
     return value ?? ''
   }
@@ -1247,6 +1265,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'house') return remoteOptions.houseId
   if (field.type === 'parkingArea') return remoteOptions.areaId
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
+  if (field.type === 'vehicleBrandId') return remoteOptions.brandId
   return field.options ?? []
 }
 
@@ -1267,7 +1286,7 @@ function optionValue(option: SelectOption) {
 }
 
 function needsRemoteOptions(fields: FieldConfig[]) {
-  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace'].includes(field.type ?? ''))
+  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace', 'vehicleBrandId', 'vehicleBrand', 'vehicleModel'].includes(field.type ?? ''))
 }
 
 async function loadVisibleRemoteOptions() {
@@ -1279,6 +1298,8 @@ async function loadVisibleRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadVehicleBrands()
+  await loadVehicleModels()
 }
 
 async function loadFormRemoteOptions() {
@@ -1289,6 +1310,8 @@ async function loadFormRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadVehicleBrands()
+  await loadVehicleModels()
 }
 
 async function loadProjects() {
@@ -1352,15 +1375,43 @@ async function loadParkingAreas() {
 async function loadParkingSpaces() {
   const projectId = Number(form.projectId ?? filters.projectId)
   const houseId = Number(form.houseId)
+  const currentSpaceId = Number(form.spaceId)
   const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
   if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
   const { data } = await fetchPage('/base/parking-spaces', params)
   remoteOptions.spaceId = toRecords(data.data)
     .filter((item) => !Number.isFinite(houseId) || houseId <= 0 || Number(item.houseId) === houseId)
+    .filter((item) => {
+      if (!isVehiclePage.value) return true
+      const spaceId = Number(item.spaceId)
+      return item.status === 'AVAILABLE' || (Number.isFinite(currentSpaceId) && currentSpaceId > 0 && spaceId === currentSpaceId)
+    })
     .map((item) => ({
-      label: String([item.areaName, item.spaceNo].filter(Boolean).join(' - ') || item.spaceId),
+      label: String([
+        item.areaName,
+        item.spaceNo,
+        isVehiclePage.value && item.status === 'AVAILABLE' ? '空闲' : '',
+      ].filter(Boolean).join(' - ') || item.spaceId),
       value: Number(item.spaceId),
     }))
+}
+
+async function loadVehicleBrands() {
+  const { data } = await fetchPage('/base/vehicle-brands', { pageNo: 1, pageSize: 200, status: 'ACTIVE' })
+  remoteOptions.brandId = toRecords(data.data).map((item) => ({
+    label: String(item.brandName ?? item.brandId),
+    value: Number(item.brandId),
+  }))
+}
+
+async function loadVehicleModels() {
+  const brand = String(form.vehicleBrand ?? '').trim()
+  if (!brand) {
+    remoteVehicleModels.value = []
+    return
+  }
+  const { data } = await fetchPage('/base/vehicle-models', { pageNo: 1, pageSize: 200, brandName: brand, status: 'ACTIVE' })
+  remoteVehicleModels.value = toRecords(data.data).map((item) => String(item.modelName ?? '')).filter(Boolean)
 }
 
 function toRecords(payload: unknown): Record<string, unknown>[] {

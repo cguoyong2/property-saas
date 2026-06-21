@@ -35,6 +35,7 @@ export interface FieldConfig {
     | 'parkingArea'
     | 'parkingSpace'
     | 'plateNo'
+    | 'vehicleBrandId'
     | 'vehicleBrand'
     | 'vehicleModel'
   options?: Array<string | { label: string; value: string | number }>
@@ -332,6 +333,60 @@ export const pages: PageConfig[] = [
 ]
 
 const baseArchiveExtraPages: PageConfig[] = [
+  {
+    key: 'vehicle-brands',
+    title: '车辆品牌',
+    group: '基础档案',
+    route: '/base/vehicle-brands',
+    icon: Van,
+    listPath: '/base/vehicle-brands',
+    createPath: '/base/vehicle-brands',
+    updatePath: '/base/vehicle-brands/:brandId',
+    idProp: 'brandId',
+    permission: 'base:vehicle:list',
+    createPermission: 'base:vehicle:update',
+    updatePermission: 'base:vehicle:update',
+    menuOrder: 72,
+    columns: [
+      { prop: 'brandName', label: '品牌名称', inFilter: true },
+      { prop: 'brandCode', label: '品牌编码' },
+      { prop: 'sortNo', label: '排序' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+    fields: [
+      { prop: 'brandName', label: '品牌名称', required: true },
+      { prop: 'brandCode', label: '品牌编码' },
+      { prop: 'sortNo', label: '排序', type: 'number' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+  },
+  {
+    key: 'vehicle-models',
+    title: '车辆型号',
+    group: '基础档案',
+    route: '/base/vehicle-models',
+    icon: Van,
+    listPath: '/base/vehicle-models',
+    createPath: '/base/vehicle-models',
+    updatePath: '/base/vehicle-models/:modelId',
+    idProp: 'modelId',
+    permission: 'base:vehicle:list',
+    createPermission: 'base:vehicle:update',
+    updatePermission: 'base:vehicle:update',
+    menuOrder: 74,
+    columns: [
+      { prop: 'brandId', label: '品牌名称', type: 'vehicleBrandId' },
+      { prop: 'modelName', label: '型号名称', inFilter: true },
+      { prop: 'sortNo', label: '排序' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+    fields: [
+      { prop: 'brandId', label: '品牌名称', type: 'vehicleBrandId', required: true },
+      { prop: 'modelName', label: '型号名称', required: true },
+      { prop: 'sortNo', label: '排序', type: 'number' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+    ],
+  },
   {
     key: 'buildings',
     title: '楼栋管理',

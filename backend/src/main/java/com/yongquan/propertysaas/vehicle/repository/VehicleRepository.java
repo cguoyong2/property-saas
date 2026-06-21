@@ -223,6 +223,17 @@ public class VehicleRepository {
                 request.endDate(), text(request.status(), "ACTIVE"), userId, tenantId, vehicleId);
     }
 
+    public void updateSpaceStatus(Long tenantId, Long spaceId, Long userId, String status) {
+        if (spaceId == null) {
+            return;
+        }
+        jdbcTemplate.update("""
+                        UPDATE base_parking_space
+                        SET status = ?, updated_by = ?
+                        WHERE tenant_id = ? AND space_id = ? AND deleted = 0
+                        """, status, userId, tenantId, spaceId);
+    }
+
     public void updateMonthlyRent(Long tenantId, Long vehicleId, Long userId, MonthlyRentRequest request) {
         jdbcTemplate.update("""
                         UPDATE base_vehicle
