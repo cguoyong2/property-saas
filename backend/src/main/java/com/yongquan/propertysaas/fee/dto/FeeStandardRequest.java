@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public record FeeStandardRequest(
         Long projectId,
         @NotNull Long itemId,
-        @NotBlank String standardName,
+        String standardName,
         @NotBlank String chargeMethod,
         BigDecimal unitPrice,
         String cycle,

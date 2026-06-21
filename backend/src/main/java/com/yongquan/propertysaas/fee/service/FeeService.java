@@ -89,7 +89,7 @@ public class FeeService {
     public Long createStandard(FeeStandardRequest request) {
         validateStandard(request);
         Long standardId = newId();
-        repository.insertStandard(tenantId(), standardId, userId(), request);
+        repository.insertStandard(tenantId(), standardId, userId(), standardName(request), request);
         return standardId;
     }
 
@@ -97,7 +97,7 @@ public class FeeService {
     public void updateStandard(Long standardId, FeeStandardRequest request) {
         getStandard(standardId);
         validateStandard(request);
-        repository.updateStandard(tenantId(), standardId, userId(), request);
+        repository.updateStandard(tenantId(), standardId, userId(), standardName(request), request);
     }
 
     public PageResult<FeeStandardBindView> pageBinds(Long projectId, Long standardId, String objectType,
@@ -173,6 +173,14 @@ public class FeeService {
             throw new IllegalArgumentException("公式计费必须配置公式");
         }
         validateStatus(request.status());
+    }
+
+    private String standardName(FeeStandardRequest request) {
+        String explicitName = request.standardName() == null ? "" : request.standardName().trim();
+        if (!explicitName.isBlank()) {
+            return explicitName;
+        }
+        return repository.getItem(tenantId(), request.itemId()).itemName();
     }
 
     private void validateBind(FeeStandardBindRequest request) {

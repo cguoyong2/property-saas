@@ -817,8 +817,7 @@ const billingExtraPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
-      { prop: 'standardName', label: '标准名称', inFilter: true },
-      { prop: 'itemId', label: '收费项目', type: 'feeItem' },
+      { prop: 'itemId', label: '收费项目', type: 'feeItem', inFilter: true },
       { prop: 'chargeMethod', label: '计费方式', type: 'select', options: chargeMethodOptions },
       { prop: 'unitPrice', label: '单价' },
       { prop: 'cycle', label: '周期', type: 'select', options: billingCycleOptions },
@@ -829,7 +828,6 @@ const billingExtraPages: PageConfig[] = [
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
-      { prop: 'standardName', label: '标准名称', required: true },
       { prop: 'chargeMethod', label: '计费方式', type: 'select', options: chargeMethodOptions, required: true },
       { prop: 'unitPrice', label: '单价', type: 'number', required: true },
       { prop: 'cycle', label: '周期', type: 'select', options: billingCycleOptions },

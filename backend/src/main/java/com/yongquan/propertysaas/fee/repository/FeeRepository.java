@@ -128,26 +128,26 @@ public class FeeRepository {
                 """, this::mapStandard, tenantId, standardId);
     }
 
-    public void insertStandard(Long tenantId, Long standardId, Long userId, FeeStandardRequest request) {
+    public void insertStandard(Long tenantId, Long standardId, Long userId, String standardName, FeeStandardRequest request) {
         jdbcTemplate.update("""
                         INSERT INTO fee_standard(standard_id, tenant_id, project_id, item_id, standard_name,
                                                  charge_method, unit_price, cycle, formula, effective_date,
                                                  expire_date, status, created_by)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
-                standardId, tenantId, request.projectId(), request.itemId(), request.standardName(),
+                standardId, tenantId, request.projectId(), request.itemId(), standardName,
                 request.chargeMethod(), request.unitPrice(), text(request.cycle(), "MONTH"), request.formula(),
                 request.effectiveDate(), request.expireDate(), text(request.status(), "ACTIVE"), userId);
     }
 
-    public void updateStandard(Long tenantId, Long standardId, Long userId, FeeStandardRequest request) {
+    public void updateStandard(Long tenantId, Long standardId, Long userId, String standardName, FeeStandardRequest request) {
         jdbcTemplate.update("""
                         UPDATE fee_standard
                         SET project_id = ?, item_id = ?, standard_name = ?, charge_method = ?, unit_price = ?,
                             cycle = ?, formula = ?, effective_date = ?, expire_date = ?, status = ?, updated_by = ?
                         WHERE tenant_id = ? AND standard_id = ? AND deleted = 0
                         """,
-                request.projectId(), request.itemId(), request.standardName(), request.chargeMethod(), request.unitPrice(),
+                request.projectId(), request.itemId(), standardName, request.chargeMethod(), request.unitPrice(),
                 text(request.cycle(), "MONTH"), request.formula(), request.effectiveDate(), request.expireDate(),
                 text(request.status(), "ACTIVE"), userId, tenantId, standardId);
     }
