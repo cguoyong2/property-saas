@@ -405,6 +405,7 @@ CREATE TABLE base_vehicle (
   updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   UNIQUE KEY uk_vehicle_plate (tenant_id, plate_no),
+  UNIQUE KEY uk_vehicle_space (tenant_id, space_id),
   KEY idx_vehicle_house (tenant_id, house_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='车辆表';
 

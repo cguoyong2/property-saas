@@ -204,6 +204,9 @@ public class VehicleService {
         if (!repository.spaceExists(tenantId(), request.projectId(), request.spaceId())) {
             throw new IllegalArgumentException("车位不存在或不属于项目：" + request.spaceId());
         }
+        if (repository.spaceBoundToVehicle(tenantId(), request.spaceId(), excludeVehicleId)) {
+            throw new IllegalArgumentException("该车位已关联其它车辆，请选择空闲车位");
+        }
         if (repository.plateExists(tenantId(), plateNo, excludeVehicleId)) {
             throw new IllegalArgumentException("车牌号已存在：" + plateNo);
         }

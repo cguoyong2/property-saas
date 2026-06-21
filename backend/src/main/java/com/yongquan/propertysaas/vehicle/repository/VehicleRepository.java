@@ -336,6 +336,25 @@ public class VehicleRepository {
         return count != null && count > 0;
     }
 
+    public boolean spaceBoundToVehicle(Long tenantId, Long spaceId, Long excludeVehicleId) {
+        if (spaceId == null) {
+            return false;
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*) FROM base_vehicle
+                WHERE tenant_id = ? AND space_id = ? AND deleted = 0
+                """);
+        args.add(tenantId);
+        args.add(spaceId);
+        if (excludeVehicleId != null) {
+            sql.append(" AND vehicle_id <> ?");
+            args.add(excludeVehicleId);
+        }
+        Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, args.toArray());
+        return count != null && count > 0;
+    }
+
     private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds) {
         appendProjectScope(sql, args, "project_id", allowedProjectIds);
     }
