@@ -308,9 +308,17 @@
           :label="field.label"
           :required="field.required"
         >
-          <el-select v-if="field.type === 'select'" v-model="actionForm[field.prop]" clearable class="form-control">
+          <el-select
+            v-if="isSelectField(field)"
+            v-model="actionForm[field.prop]"
+            clearable
+            filterable
+            class="form-control"
+            :placeholder="field.label"
+            @change="handleActionFieldChange(field)"
+          >
             <el-option
-              v-for="option in field.options ?? []"
+              v-for="option in optionsForActionField(field)"
               :key="String(optionValue(option))"
               :label="optionLabel(option)"
               :value="optionValue(option)"
@@ -452,6 +460,8 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   houseId: [],
   areaId: [],
   spaceId: [],
+  itemId: [],
+  standardId: [],
   brandId: [],
 })
 
@@ -467,10 +477,15 @@ const businessActions: Record<string, BusinessAction[]> = {
       icon: Finished,
       permission: 'fee:bill:generate',
       fields: [
-        { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-        { prop: 'itemId', label: '收费项目ID', type: 'number', required: true },
+        { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+        { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
         { prop: 'billPeriod', label: '账期', required: true, help: '例如：2026-06' },
-        { prop: 'objectType', label: '对象类型', type: 'select', options: ['HOUSE', 'VEHICLE', 'SPACE', 'CONTRACT'] },
+        { prop: 'objectType', label: '对象类型', type: 'select', options: [
+          { label: '房屋', value: 'HOUSE' },
+          { label: '车辆', value: 'VEHICLE' },
+          { label: '车位', value: 'SPACE' },
+          { label: '合同', value: 'CONTRACT' },
+        ] },
         { prop: 'objectIds', label: '对象ID列表', help: '多个 ID 用英文逗号分隔；留空表示按收费绑定生成' },
         { prop: 'dueDate', label: '到期日', type: 'date' },
       ],
@@ -489,7 +504,11 @@ const businessActions: Record<string, BusinessAction[]> = {
       icon: Bell,
       permission: 'fee:bill:remind',
       fields: [
-        { prop: 'channel', label: '发送渠道', type: 'select', options: ['SITE', 'SMS', 'WECHAT'] },
+        { prop: 'channel', label: '发送渠道', type: 'select', options: [
+          { label: '站内消息', value: 'SITE' },
+          { label: '短信', value: 'SMS' },
+          { label: '微信', value: 'WECHAT' },
+        ] },
         { prop: 'templateCode', label: '模板编码' },
         { prop: 'content', label: '催缴内容', type: 'textarea' },
       ],
@@ -1176,7 +1195,21 @@ type SelectOption = string | {
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
-  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace', 'vehicleBrandId'].includes(field.type ?? '')
+  return [
+    'select',
+    'province',
+    'city',
+    'district',
+    'project',
+    'building',
+    'unit',
+    'house',
+    'parkingArea',
+    'parkingSpace',
+    'feeItem',
+    'feeStandard',
+    'vehicleBrandId',
+  ].includes(field.type ?? '')
 }
 
 function optionsForField(field: FieldConfig): SelectOption[] {
@@ -1198,6 +1231,12 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   if (field.type === 'parkingSpace') {
     return remoteOptions.spaceId
   }
+  if (field.type === 'feeItem') {
+    return remoteOptions.itemId
+  }
+  if (field.type === 'feeStandard') {
+    return remoteOptions.standardId
+  }
   if (field.type === 'vehicleBrandId') {
     return remoteOptions.brandId
   }
@@ -1216,6 +1255,10 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   return field.options ?? []
 }
 
+function optionsForActionField(field: FieldConfig): SelectOption[] {
+  return isSelectField(field) ? optionsForField(field) : field.options ?? []
+}
+
 function handleFieldChange(field: FieldConfig) {
   if (field.type === 'province') {
     form.city = undefined
@@ -1230,11 +1273,17 @@ function handleFieldChange(field: FieldConfig) {
     form.houseId = undefined
     form.areaId = undefined
     form.spaceId = undefined
+    form.standardId = undefined
     loadBuildings()
     loadParkingAreas()
     loadParkingSpaces()
+    loadFeeStandards()
     remoteOptions.unitId = []
     remoteOptions.houseId = []
+  }
+  if (field.type === 'feeItem') {
+    form.standardId = undefined
+    loadFeeStandards()
   }
   if (field.type === 'building') {
     form.unitId = undefined
@@ -1266,6 +1315,13 @@ function handleFieldChange(field: FieldConfig) {
   }
 }
 
+function handleActionFieldChange(field: FieldConfig) {
+  if (field.type === 'project' || field.type === 'feeItem') {
+    actionForm.standardId = undefined
+    loadFeeStandardsForAction()
+  }
+}
+
 function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = row[field.prop]
   if (field.type === 'project' && row.projectName) {
@@ -1285,6 +1341,12 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   }
   if (field.type === 'parkingSpace' && row.spaceNo) {
     return [row.areaName, row.spaceNo].filter(Boolean).join(' - ')
+  }
+  if (field.type === 'feeItem' && row.itemName) {
+    return row.itemName
+  }
+  if (field.type === 'feeStandard' && row.standardName) {
+    return row.standardName
   }
   if (field.type === 'vehicleBrandId' && row.brandName) {
     return row.brandName
@@ -1314,6 +1376,8 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'house') return remoteOptions.houseId
   if (field.type === 'parkingArea') return remoteOptions.areaId
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
+  if (field.type === 'feeItem') return remoteOptions.itemId
+  if (field.type === 'feeStandard') return remoteOptions.standardId
   if (field.type === 'vehicleBrandId') return remoteOptions.brandId
   return field.options ?? []
 }
@@ -1335,7 +1399,19 @@ function optionValue(option: SelectOption) {
 }
 
 function needsRemoteOptions(fields: FieldConfig[]) {
-  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace', 'vehicleBrandId', 'vehicleBrand', 'vehicleModel'].includes(field.type ?? ''))
+  return fields.some((field) => [
+    'project',
+    'building',
+    'unit',
+    'house',
+    'parkingArea',
+    'parkingSpace',
+    'feeItem',
+    'feeStandard',
+    'vehicleBrandId',
+    'vehicleBrand',
+    'vehicleModel',
+  ].includes(field.type ?? ''))
 }
 
 async function loadVisibleRemoteOptions() {
@@ -1347,6 +1423,8 @@ async function loadVisibleRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadFeeItems()
+  await loadFeeStandards()
   await loadVehicleBrands()
   await loadVehicleModels()
 }
@@ -1359,6 +1437,8 @@ async function loadFormRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadFeeItems()
+  await loadFeeStandards()
   await loadVehicleBrands()
   await loadVehicleModels()
 }
@@ -1445,6 +1525,39 @@ async function loadParkingSpaces() {
       status: String(item.status ?? ''),
       monthlyRentStatus: String(item.monthlyRentStatus ?? 'NONE'),
     }))
+}
+
+async function loadFeeItems() {
+  const { data } = await fetchPage('/fee/items', { pageNo: 1, pageSize: 300, status: 'ACTIVE' })
+  remoteOptions.itemId = toRecords(data.data).map((item) => ({
+    label: String(item.itemName ?? item.itemCode ?? item.itemId),
+    value: Number(item.itemId),
+  }))
+}
+
+async function loadFeeStandards() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 300, status: 'ACTIVE' }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  if (form.itemId) params.itemId = Number(form.itemId)
+  const { data } = await fetchPage('/fee/standards', params)
+  remoteOptions.standardId = toRecords(data.data).map((item) => ({
+    label: String(item.standardName ?? item.standardId),
+    value: Number(item.standardId),
+  }))
+}
+
+async function loadFeeStandardsForAction() {
+  const projectId = Number(actionForm.projectId)
+  const itemId = Number(actionForm.itemId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 300, status: 'ACTIVE' }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  if (Number.isFinite(itemId) && itemId > 0) params.itemId = itemId
+  const { data } = await fetchPage('/fee/standards', params)
+  remoteOptions.standardId = toRecords(data.data).map((item) => ({
+    label: String(item.standardName ?? item.standardId),
+    value: Number(item.standardId),
+  }))
 }
 
 async function loadVehicleBrands() {
@@ -1534,6 +1647,7 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
   })
 
   if (action.fields?.length) {
+    await loadActionRemoteOptions(action.fields)
     actionDialogVisible.value = true
     return
   }
@@ -1542,6 +1656,13 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
     await ElMessageBox.confirm(action.confirm, action.label, { type: action.type === 'danger' ? 'warning' : 'info' })
   }
   await executeAction(action, row)
+}
+
+async function loadActionRemoteOptions(fields: FieldConfig[]) {
+  if (!needsRemoteOptions(fields)) return
+  await loadProjects()
+  await loadFeeItems()
+  await loadFeeStandardsForAction()
 }
 
 async function submitAction() {

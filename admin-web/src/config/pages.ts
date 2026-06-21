@@ -35,6 +35,8 @@ export interface FieldConfig {
     | 'parkingArea'
     | 'parkingSpace'
     | 'plateNo'
+    | 'feeItem'
+    | 'feeStandard'
     | 'vehicleBrandId'
     | 'vehicleBrand'
     | 'vehicleModel'
@@ -113,6 +115,68 @@ const vehicleSpaceStatusOptions = [
   { label: '已购买', value: 'SOLD' },
   { label: '月租到期', value: 'EXPIRED' },
   { label: '暂停', value: 'SUSPENDED' },
+]
+const feeItemTypeOptions = [
+  { label: '周期性收费', value: 'PERIODIC' },
+  { label: '一次性收费', value: 'ONCE' },
+  { label: '押金', value: 'DEPOSIT' },
+  { label: '预存款', value: 'PREPAID' },
+  { label: '代收费用', value: 'AGENCY' },
+]
+const chargeMethodOptions = [
+  { label: '固定金额', value: 'FIXED' },
+  { label: '按建筑面积', value: 'AREA' },
+  { label: '按用量', value: 'METER' },
+  { label: '自定义公式', value: 'FORMULA' },
+]
+const billingCycleOptions = [
+  { label: '月', value: 'MONTH' },
+  { label: '季度', value: 'QUARTER' },
+  { label: '年', value: 'YEAR' },
+  { label: '一次性', value: 'ONCE' },
+]
+const billObjectTypeOptions = [
+  { label: '房屋', value: 'HOUSE' },
+  { label: '车辆', value: 'VEHICLE' },
+  { label: '车位', value: 'SPACE' },
+  { label: '合同', value: 'CONTRACT' },
+]
+const billStatusOptions = [
+  { label: '未缴', value: 'UNPAID' },
+  { label: '支付中', value: 'PAYING' },
+  { label: '部分已缴', value: 'PARTIAL_PAID' },
+  { label: '已缴清', value: 'PAID' },
+  { label: '逾期', value: 'OVERDUE' },
+  { label: '已作废', value: 'VOID' },
+  { label: '已退款', value: 'REFUNDED' },
+  { label: '部分退款', value: 'PARTIAL_REFUNDED' },
+]
+const billSourceTypeOptions = [
+  { label: '手工新增', value: 'MANUAL' },
+  { label: '批量生成', value: 'GENERATED' },
+  { label: '导入', value: 'IMPORT' },
+]
+const payChannelOptions = [
+  { label: '微信支付', value: 'WECHAT' },
+  { label: '现金', value: 'CASH' },
+  { label: '银行转账', value: 'BANK_TRANSFER' },
+  { label: '线下收款', value: 'OFFLINE' },
+]
+const payOrderStatusOptions = [
+  { label: '待支付', value: 'PENDING' },
+  { label: '支付中', value: 'PAYING' },
+  { label: '已支付', value: 'PAID' },
+  { label: '已关闭', value: 'CLOSED' },
+  { label: '退款中', value: 'REFUNDING' },
+  { label: '已退款', value: 'REFUNDED' },
+  { label: '部分退款', value: 'PARTIAL_REFUNDED' },
+]
+const refundStatusOptions = [
+  { label: '待审核', value: 'PENDING' },
+  { label: '退款中', value: 'REFUNDING' },
+  { label: '已退款', value: 'REFUNDED' },
+  { label: '已拒绝', value: 'REJECTED' },
+  { label: '退款失败', value: 'FAILED' },
 ]
 
 export const pages: PageConfig[] = [
@@ -634,14 +698,14 @@ const billingPages: PageConfig[] = [
     columns: [
       { prop: 'itemCode', label: '编码', inFilter: true },
       { prop: 'itemName', label: '名称' },
-      { prop: 'itemType', label: '类型' },
-      { prop: 'status', label: '状态' },
+      { prop: 'itemType', label: '类型', type: 'select', options: feeItemTypeOptions },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
     fields: [
       { prop: 'itemCode', label: '项目编码', required: true },
       { prop: 'itemName', label: '项目名称', required: true },
-      { prop: 'itemType', label: '类型', type: 'select', options: ['PERIODIC', 'ONCE', 'DEPOSIT', 'PREPAID', 'AGENCY'] },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'itemType', label: '类型', type: 'select', options: feeItemTypeOptions },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -658,18 +722,28 @@ const billingPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'billNo', label: '账单号', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'itemId', label: '收费项目', type: 'feeItem' },
+      { prop: 'objectType', label: '收费对象', type: 'select', options: billObjectTypeOptions },
+      { prop: 'objectId', label: '对象ID' },
       { prop: 'billPeriod', label: '账期' },
       { prop: 'receivableAmount', label: '应收' },
+      { prop: 'paidAmount', label: '已收' },
+      { prop: 'refundAmount', label: '已退' },
       { prop: 'remainingAmount', label: '待收' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'dueDate', label: '到期日' },
+      { prop: 'status', label: '状态', type: 'select', options: billStatusOptions, inFilter: true },
+      { prop: 'sourceType', label: '来源', type: 'select', options: billSourceTypeOptions },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'itemId', label: '收费项目ID', type: 'number', required: true },
-      { prop: 'objectType', label: '对象类型', type: 'select', options: ['HOUSE', 'VEHICLE', 'SPACE', 'CONTRACT'] },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
+      { prop: 'standardId', label: '收费标准', type: 'feeStandard' },
+      { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions },
       { prop: 'objectId', label: '对象ID', type: 'number', required: true },
       { prop: 'billPeriod', label: '账期', required: true },
       { prop: 'receivableAmount', label: '应收金额', type: 'number', required: true },
+      { prop: 'discountAmount', label: '减免金额', type: 'number' },
       { prop: 'dueDate', label: '到期日', type: 'date' },
     ],
   },
@@ -684,10 +758,14 @@ const billingPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'orderNo', label: '订单号', inFilter: true },
-      { prop: 'payChannel', label: '渠道' },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'memberId', label: '会员ID' },
+      { prop: 'payChannel', label: '渠道', type: 'select', options: payChannelOptions },
       { prop: 'amount', label: '金额' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'subject', label: '摘要' },
+      { prop: 'status', label: '状态', type: 'select', options: payOrderStatusOptions, inFilter: true },
       { prop: 'paidAt', label: '支付时间' },
+      { prop: 'thirdTradeNo', label: '第三方流水号' },
     ],
   },
   {
@@ -704,12 +782,16 @@ const billingPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'refundNo', label: '退款单号', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'orderId', label: '订单ID' },
+      { prop: 'transactionId', label: '支付流水ID' },
       { prop: 'refundAmount', label: '金额' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: refundStatusOptions },
       { prop: 'reason', label: '原因' },
+      { prop: 'refundedAt', label: '退款时间' },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'orderId', label: '订单ID', type: 'number', required: true },
       { prop: 'refundAmount', label: '退款金额', type: 'number', required: true },
       { prop: 'reason', label: '退款原因', type: 'textarea', required: true },
@@ -733,19 +815,27 @@ const billingExtraPages: PageConfig[] = [
     updatePermission: 'fee:standard:update',
     projectScoped: true,
     columns: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'standardName', label: '标准名称', inFilter: true },
-      { prop: 'itemName', label: '收费项目' },
-      { prop: 'price', label: '单价' },
-      { prop: 'billingCycle', label: '周期' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'itemId', label: '收费项目', type: 'feeItem' },
+      { prop: 'chargeMethod', label: '计费方式', type: 'select', options: chargeMethodOptions },
+      { prop: 'unitPrice', label: '单价' },
+      { prop: 'cycle', label: '周期', type: 'select', options: billingCycleOptions },
+      { prop: 'effectiveDate', label: '生效日期' },
+      { prop: 'expireDate', label: '失效日期' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'itemId', label: '收费项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'itemId', label: '收费项目', type: 'feeItem', required: true },
       { prop: 'standardName', label: '标准名称', required: true },
-      { prop: 'price', label: '单价', type: 'number', required: true },
-      { prop: 'billingCycle', label: '周期', type: 'select', options: ['MONTH', 'QUARTER', 'YEAR', 'ONCE'] },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'chargeMethod', label: '计费方式', type: 'select', options: chargeMethodOptions, required: true },
+      { prop: 'unitPrice', label: '单价', type: 'number', required: true },
+      { prop: 'cycle', label: '周期', type: 'select', options: billingCycleOptions },
+      { prop: 'formula', label: '公式', type: 'textarea' },
+      { prop: 'effectiveDate', label: '生效日期', type: 'date', required: true },
+      { prop: 'expireDate', label: '失效日期', type: 'date' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -761,17 +851,22 @@ const billingExtraPages: PageConfig[] = [
     createPermission: 'fee:standardBind:create',
     projectScoped: true,
     columns: [
-      { prop: 'standardId', label: '标准ID' },
-      { prop: 'objectType', label: '对象类型', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'standardId', label: '收费标准', type: 'feeStandard' },
+      { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions, inFilter: true },
       { prop: 'objectId', label: '对象ID' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'effectiveDate', label: '生效日期' },
+      { prop: 'expireDate', label: '失效日期' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'standardId', label: '标准ID', type: 'number', required: true },
-      { prop: 'objectType', label: '对象类型', type: 'select', options: ['HOUSE', 'VEHICLE', 'SPACE', 'CONTRACT'] },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'standardId', label: '收费标准', type: 'feeStandard', required: true },
+      { prop: 'objectType', label: '对象类型', type: 'select', options: billObjectTypeOptions },
       { prop: 'objectId', label: '对象ID', type: 'number', required: true },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'effectiveDate', label: '生效日期', type: 'date', required: true },
+      { prop: 'expireDate', label: '失效日期', type: 'date' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -784,11 +879,13 @@ const billingExtraPages: PageConfig[] = [
     permission: 'payment:transaction:list',
     projectScoped: true,
     columns: [
-      { prop: 'transactionNo', label: '流水号', inFilter: true },
+      { prop: 'transactionId', label: '流水ID', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'orderNo', label: '订单号' },
+      { prop: 'thirdTradeNo', label: '第三方流水号' },
       { prop: 'amount', label: '金额' },
-      { prop: 'payChannel', label: '渠道' },
-      { prop: 'transactionTime', label: '交易时间' },
+      { prop: 'payChannel', label: '渠道', type: 'select', options: payChannelOptions },
+      { prop: 'paidAt', label: '支付时间' },
     ],
   },
   {
@@ -801,10 +898,12 @@ const billingExtraPages: PageConfig[] = [
     permission: 'payment:reconcile:view',
     projectScoped: true,
     columns: [
-      { prop: 'orderCount', label: '订单数' },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'paidAmount', label: '支付金额' },
       { prop: 'refundAmount', label: '退款金额' },
       { prop: 'netAmount', label: '净收款' },
+      { prop: 'orderPaidAmount', label: '订单已收' },
+      { prop: 'exceptionAmount', label: '差异金额' },
     ],
   },
 ]
