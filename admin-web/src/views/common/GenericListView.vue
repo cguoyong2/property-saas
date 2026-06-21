@@ -197,7 +197,13 @@
             class="form-control"
           />
           <el-input v-else-if="field.type === 'textarea'" v-model="form[field.prop]" type="textarea" :rows="4" />
-          <el-input v-else v-model="form[field.prop]" />
+          <el-input
+            v-else
+            v-model="form[field.prop]"
+            :maxlength="isMobileField(field) ? 11 : undefined"
+            :inputmode="isMobileField(field) ? 'numeric' : undefined"
+            @input="handleTextInput(field, $event)"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -669,6 +675,11 @@ function openDetail(row: Record<string, unknown>) {
 
 async function save() {
   if (!config.value.createPath) return
+  const invalidMobileField = formFields.value.find((field) => isMobileField(field) && !/^\d{11}$/.test(String(form[field.prop] ?? '')))
+  if (invalidMobileField) {
+    ElMessage.warning('手机号必须为11位数字')
+    return
+  }
   if (isParkingSpacePage.value && (!form.projectId || !form.buildingId || !form.unitId || !form.houseId)) {
     ElMessage.warning('请先搜索并选择业主/住户')
     return
@@ -760,6 +771,15 @@ function parseBulkBuildingContent(content: string) {
       }
     })
     .filter((row) => row.buildingName)
+}
+
+function isMobileField(field: FieldConfig) {
+  return field.prop === 'mobile'
+}
+
+function handleTextInput(field: FieldConfig, value: string) {
+  if (!isMobileField(field)) return
+  form[field.prop] = value.replace(/\D/g, '').slice(0, 11)
 }
 
 function resetParkingMemberPicker() {
