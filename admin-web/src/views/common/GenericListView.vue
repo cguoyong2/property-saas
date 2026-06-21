@@ -1565,7 +1565,7 @@ async function loadParkingSpaces() {
 }
 
 async function loadFeeItems() {
-  const { data } = await fetchPage('/fee/items', { pageNo: 1, pageSize: 300, status: 'ACTIVE' })
+  const { data } = await fetchPage('/fee/items', { pageNo: 1, pageSize: 200, status: 'ACTIVE' })
   remoteOptions.itemId = toRecords(data.data).map((item) => ({
     label: String(item.itemName ?? item.itemCode ?? item.itemId),
     value: Number(item.itemId),
@@ -1574,7 +1574,7 @@ async function loadFeeItems() {
 
 async function loadFeeStandards() {
   const projectId = Number(form.projectId ?? filters.projectId)
-  const params: Record<string, string | number> = { pageNo: 1, pageSize: 300, status: 'ACTIVE' }
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200, status: 'ACTIVE' }
   if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
   if (form.itemId) params.itemId = Number(form.itemId)
   const { data } = await fetchPage('/fee/standards', params)
@@ -1587,7 +1587,7 @@ async function loadFeeStandards() {
 async function loadFeeStandardsForAction() {
   const projectId = Number(actionForm.projectId)
   const itemId = Number(actionForm.itemId)
-  const params: Record<string, string | number> = { pageNo: 1, pageSize: 300, status: 'ACTIVE' }
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200, status: 'ACTIVE' }
   if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
   if (Number.isFinite(itemId) && itemId > 0) params.itemId = itemId
   const { data } = await fetchPage('/fee/standards', params)
@@ -1611,7 +1611,7 @@ async function fetchBillObjectOptions(objectType: unknown, projectIdValue: unkno
   if (!type || !Number.isFinite(projectId) || projectId <= 0) {
     return []
   }
-  const params: Record<string, string | number> = { pageNo: 1, pageSize: 500, projectId }
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200, projectId }
   if (type === 'HOUSE') {
     const { data } = await fetchPage('/base/houses', params)
     return toRecords(data.data).map((item) => ({
