@@ -190,6 +190,47 @@
             />
           </el-select>
           <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]" class="form-control" />
+          <div v-else-if="field.type === 'plateNo'" class="plate-input">
+            <el-select v-model="plateProvince" filterable placeholder="省" class="plate-input__province" @change="syncPlateNo">
+              <el-option v-for="item in plateProvinceOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+            <el-select v-model="plateLetter" filterable placeholder="字母" class="plate-input__letter" @change="syncPlateNo">
+              <el-option v-for="item in plateLetterOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+            <el-input
+              v-model="plateSuffix"
+              class="plate-input__suffix"
+              maxlength="6"
+              placeholder="后5/6位号码或字母"
+              @input="syncPlateNo"
+            />
+          </div>
+          <el-select
+            v-else-if="field.type === 'vehicleBrand'"
+            v-model="form[field.prop]"
+            allow-create
+            clearable
+            default-first-option
+            filterable
+            class="form-control"
+            placeholder="输入品牌首字搜索，可新增"
+            @change="handleVehicleBrandChange"
+          >
+            <el-option v-for="item in vehicleBrandOptions" :key="item" :label="item" :value="item" />
+          </el-select>
+          <el-select
+            v-else-if="field.type === 'vehicleModel'"
+            v-model="form[field.prop]"
+            allow-create
+            clearable
+            default-first-option
+            filterable
+            class="form-control"
+            placeholder="输入型号关键字搜索，可新增"
+            @change="handleVehicleModelChange"
+          >
+            <el-option v-for="item in vehicleModelOptions" :key="item" :label="item" :value="item" />
+          </el-select>
           <el-date-picker
             v-else-if="field.type === 'date'"
             v-model="form[field.prop]"
@@ -356,6 +397,42 @@ const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const detailRow = ref<Record<string, unknown> | null>(null)
 const chinaAreaOptions = pcaTextArr
+const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
+const plateLetterOptions = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('')
+const vehicleBrandStorageKey = 'property-saas.vehicle-brands'
+const vehicleBrandModelStorageKey = 'property-saas.vehicle-brand-models'
+const builtInVehicleBrandModels: Record<string, string[]> = {
+  比亚迪: ['秦PLUS', '宋PLUS', '汉', '唐', '海豚', '海豹', '元PLUS'],
+  特斯拉: ['Model 3', 'Model Y', 'Model S', 'Model X'],
+  丰田: ['卡罗拉', '凯美瑞', 'RAV4荣放', '汉兰达', '亚洲龙', '普拉多'],
+  本田: ['雅阁', '思域', 'CR-V', '皓影', '飞度', '奥德赛'],
+  大众: ['朗逸', '速腾', '迈腾', '帕萨特', '途观L', 'ID.4'],
+  奔驰: ['A级', 'C级', 'E级', 'GLA', 'GLC', 'GLE'],
+  宝马: ['1系', '3系', '5系', 'X1', 'X3', 'X5'],
+  奥迪: ['A3', 'A4L', 'A6L', 'Q3', 'Q5L', 'Q7'],
+  吉利: ['帝豪', '星瑞', '博越L', '缤越', '银河L7'],
+  长安: ['逸动', 'CS55 PLUS', 'CS75 PLUS', 'UNI-V', '深蓝SL03'],
+  长城: ['哈弗H6', '哈弗大狗', '坦克300', '魏牌摩卡', '欧拉好猫'],
+  奇瑞: ['艾瑞泽8', '瑞虎8', '瑞虎9', '风云A8', '捷途旅行者'],
+  红旗: ['H5', 'H9', 'HS5', 'HS7', 'E-QM5'],
+  蔚来: ['ET5', 'ET7', 'ES6', 'ES8', 'EC6'],
+  小鹏: ['P7', 'P7i', 'G6', 'G9', 'X9'],
+  理想: ['L6', 'L7', 'L8', 'L9', 'MEGA'],
+  问界: ['M5', 'M7', 'M9'],
+  五菱: ['宏光MINIEV', '缤果', '星光', '凯捷'],
+  别克: ['英朗', '君威', '君越', 'GL8', '昂科威'],
+  雪佛兰: ['科鲁泽', '迈锐宝XL', '探界者', '开拓者'],
+  日产: ['轩逸', '天籁', '逍客', '奇骏', '骐达'],
+  福特: ['福克斯', '蒙迪欧', '锐界', '探险者', '烈马'],
+  现代: ['伊兰特', '索纳塔', '途胜', '胜达'],
+  起亚: ['K3', 'K5', '狮铂拓界', '嘉华'],
+  沃尔沃: ['S60', 'S90', 'XC40', 'XC60', 'XC90'],
+  雷克萨斯: ['ES', 'NX', 'RX', 'UX', 'LM'],
+  保时捷: ['Macan', 'Cayenne', 'Panamera', 'Taycan', '911'],
+  路虎: ['揽胜', '揽胜运动版', '发现', '卫士', '极光'],
+}
+const customVehicleBrands = ref<string[]>(loadJsonArray(vehicleBrandStorageKey))
+const customVehicleBrandModels = ref<Record<string, string[]>>(loadJsonRecord(vehicleBrandModelStorageKey))
 const memberSearchKeyword = ref('')
 const memberSearchResults = ref<Record<string, unknown>[]>([])
 const selectedParkingMember = ref<Record<string, unknown> | null>(null)
@@ -608,6 +685,23 @@ const visibleFormFields = computed(() => {
   }
   return formFields.value
 })
+const plateProvince = computed({
+  get: () => String(form.plateNo ?? '').slice(0, 1),
+  set: (value: string) => setPlatePart({ province: value }),
+})
+const plateLetter = computed({
+  get: () => String(form.plateNo ?? '').slice(1, 2),
+  set: (value: string) => setPlatePart({ letter: value }),
+})
+const plateSuffix = computed({
+  get: () => String(form.plateNo ?? '').slice(2),
+  set: (value: string) => setPlatePart({ suffix: value }),
+})
+const vehicleBrandOptions = computed(() => uniqueTextOptions([...Object.keys(builtInVehicleBrandModels), ...customVehicleBrands.value]))
+const vehicleModelOptions = computed(() => {
+  const brand = String(form.vehicleBrand ?? '')
+  return uniqueTextOptions([...(builtInVehicleBrandModels[brand] ?? []), ...(customVehicleBrandModels.value[brand] ?? [])])
+})
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
 const availableActions = computed(() => (businessActions[config.value.key] ?? []).filter(canRunAction))
@@ -830,6 +924,85 @@ function handleTextInput(field: FieldConfig, value: string) {
 
 function normalizePlateNo(value: string) {
   return value.replace(/[\s\-·.]/g, '').toUpperCase().slice(0, 8)
+}
+
+function setPlatePart(parts: { province?: string; letter?: string; suffix?: string }) {
+  const current = normalizePlateNo(String(form.plateNo ?? ''))
+  const province = parts.province ?? current.slice(0, 1)
+  const letter = parts.letter ?? current.slice(1, 2)
+  const suffix = parts.suffix ?? current.slice(2)
+  form.plateNo = [
+    plateProvinceOptions.includes(province) ? province : '',
+    normalizePlateLetter(letter),
+    normalizePlateSuffix(suffix),
+  ].join('')
+}
+
+function syncPlateNo() {
+  setPlatePart({})
+}
+
+function normalizePlateLetter(value: string) {
+  const letter = value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1)
+  return plateLetterOptions.includes(letter) ? letter : ''
+}
+
+function normalizePlateSuffix(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9挂学警港澳领使]/g, '').slice(0, 6)
+}
+
+function handleVehicleBrandChange(value: string | number | undefined) {
+  const brand = String(value ?? '').trim()
+  if (!brand) {
+    form.vehicleModel = undefined
+    return
+  }
+  addCustomVehicleBrand(brand)
+  if (form.vehicleModel && !vehicleModelOptions.value.includes(String(form.vehicleModel))) {
+    form.vehicleModel = undefined
+  }
+}
+
+function handleVehicleModelChange(value: string | number | undefined) {
+  const brand = String(form.vehicleBrand ?? '').trim()
+  const model = String(value ?? '').trim()
+  if (!brand || !model) return
+  addCustomVehicleBrand(brand)
+  const models = uniqueTextOptions([...(customVehicleBrandModels.value[brand] ?? []), model])
+  customVehicleBrandModels.value = { ...customVehicleBrandModels.value, [brand]: models }
+  localStorage.setItem(vehicleBrandModelStorageKey, JSON.stringify(customVehicleBrandModels.value))
+}
+
+function addCustomVehicleBrand(brand: string) {
+  if (vehicleBrandOptions.value.includes(brand)) return
+  customVehicleBrands.value = uniqueTextOptions([...customVehicleBrands.value, brand])
+  localStorage.setItem(vehicleBrandStorageKey, JSON.stringify(customVehicleBrands.value))
+}
+
+function uniqueTextOptions(values: string[]) {
+  return Array.from(new Set(values.map((item) => item.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+}
+
+function loadJsonArray(key: string) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? '[]')
+    return Array.isArray(value) ? value.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+function loadJsonRecord(key: string) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? '{}')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    return Object.fromEntries(Object.entries(value).map(([brand, models]) => [
+      brand,
+      Array.isArray(models) ? models.map(String) : [],
+    ]))
+  } catch {
+    return {}
+  }
 }
 
 function resetParkingMemberPicker() {
@@ -1380,6 +1553,19 @@ onMounted(loadProjects)
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 0 0 1px #d7e4e1 inset;
+}
+
+.plate-input {
+  display: grid;
+  grid-template-columns: 88px 100px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.plate-input__province,
+.plate-input__letter,
+.plate-input__suffix {
+  width: 100%;
 }
 
 .detail-form :deep(.el-input.is-disabled .el-input__wrapper) {

@@ -34,6 +34,9 @@ export interface FieldConfig {
     | 'house'
     | 'parkingArea'
     | 'parkingSpace'
+    | 'plateNo'
+    | 'vehicleBrand'
+    | 'vehicleModel'
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
@@ -315,10 +318,10 @@ export const pages: PageConfig[] = [
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
-      { prop: 'plateNo', label: '车牌号', required: true },
+      { prop: 'plateNo', label: '车牌号', type: 'plateNo', required: true },
       { prop: 'vehicleType', label: '车辆类型', type: 'select', options: vehicleTypeOptions },
-      { prop: 'vehicleBrand', label: '车辆品牌' },
-      { prop: 'vehicleModel', label: '车辆型号' },
+      { prop: 'vehicleBrand', label: '车辆品牌', type: 'vehicleBrand' },
+      { prop: 'vehicleModel', label: '车辆型号', type: 'vehicleModel' },
       { prop: 'memberId', label: '会员ID', type: 'number' },
       { prop: 'houseId', label: '房屋ID', type: 'number' },
       { prop: 'spaceId', label: '车位', type: 'parkingSpace' },
