@@ -38,6 +38,9 @@ public class PaymentService {
     private final ObjectMapper objectMapper;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
+    private record BillAllocation(PayableBill bill, BigDecimal amount) {
+    }
+
     public PaymentService(PaymentRepository repository, WechatPayClient wechatPayClient, ObjectMapper objectMapper) {
         this.repository = repository;
         this.wechatPayClient = wechatPayClient;
@@ -121,12 +124,22 @@ public class PaymentService {
             throw new IllegalArgumentException("账单不存在或不属于项目");
         }
         Long memberId = validatePayableBills(bills);
-        BigDecimal amount = bills.stream()
+        BigDecimal dueAmount = bills.stream()
                 .map(PayableBill::remainingAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
+        if (dueAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("账单待收金额必须大于0");
+        }
+        BigDecimal amount = request.amount() == null ? dueAmount : money(request.amount());
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("收款金额必须大于0");
+        }
+        BigDecimal appliedAmount = amount.min(dueAmount);
+        BigDecimal prepaymentAmount = amount.subtract(appliedAmount).setScale(2, RoundingMode.HALF_UP);
+        List<BillAllocation> allocations = allocateBills(bills, appliedAmount);
+        if (allocations.isEmpty()) {
+            throw new IllegalArgumentException("本次收款没有可核销账单");
         }
 
         Long orderId = newId();
@@ -134,11 +147,13 @@ public class PaymentService {
         LocalDateTime paidAt = LocalDateTime.now();
         repository.insertOrder(tenantId(), orderId, orderNo, userId(), request.projectId(), memberId,
                 request.payChannel(), amount, "物业线下收款 " + orderNo, paidAt.plusMinutes(30));
-        for (PayableBill bill : bills) {
-            repository.insertOrderBill(newId(), tenantId(), request.projectId(), orderId, bill.billId(), bill.remainingAmount());
+        for (BillAllocation allocation : allocations) {
+            repository.insertOrderBill(newId(), tenantId(), request.projectId(), orderId,
+                    allocation.bill().billId(), allocation.amount());
         }
-        int marked = repository.markBillsPaying(tenantId(), request.projectId(), billIds);
-        if (marked != billIds.size()) {
+        List<Long> allocatedBillIds = allocations.stream().map(allocation -> allocation.bill().billId()).toList();
+        int marked = repository.markBillsPaying(tenantId(), request.projectId(), allocatedBillIds);
+        if (marked != allocatedBillIds.size()) {
             throw new IllegalArgumentException("账单状态已变化，收款失败");
         }
 
@@ -147,6 +162,10 @@ public class PaymentService {
                 thirdTradeNo, request.payChannel(), amount, paidAt, "{\"source\":\"PC_OFFLINE_COLLECTION\"}");
         for (PayableBill bill : repository.findOrderBills(tenantId(), orderId)) {
             repository.settleBill(tenantId(), bill.billId(), bill.remainingAmount());
+        }
+        if (prepaymentAmount.compareTo(BigDecimal.ZERO) > 0) {
+            repository.insertPrepayment(newId(), tenantId(), request.projectId(), memberId, orderId, orderNo,
+                    prepaymentAmount, userId(), "现金收款超出应收金额，自动转入预存款");
         }
         repository.markOrderPaid(tenantId(), orderId, thirdTradeNo, paidAt);
         return new PayOrderCreateResult(orderId, orderNo, amount, "PAID", thirdTradeNo, paidAt);
@@ -213,6 +232,24 @@ public class PaymentService {
         if (!PAY_CHANNELS.contains(payChannel)) {
             throw new IllegalArgumentException("非法支付渠道：" + payChannel);
         }
+    }
+
+    private List<BillAllocation> allocateBills(List<PayableBill> bills, BigDecimal amount) {
+        BigDecimal remaining = amount;
+        java.util.ArrayList<BillAllocation> allocations = new java.util.ArrayList<>();
+        for (PayableBill bill : bills) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal billAmount = money(bill.remainingAmount());
+            if (billAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal allocated = billAmount.min(remaining).setScale(2, RoundingMode.HALF_UP);
+            allocations.add(new BillAllocation(bill, allocated));
+            remaining = remaining.subtract(allocated).setScale(2, RoundingMode.HALF_UP);
+        }
+        return allocations;
     }
 
     private void validateOrderStatus(String status) {

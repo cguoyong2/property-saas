@@ -575,6 +575,17 @@ function billCollectionIds(row?: Record<string, unknown>) {
   return ids.length ? Array.from(new Set(ids)) : [Number(row.billId)]
 }
 
+function billCollectionRemainingAmount(row?: Record<string, unknown>) {
+  if (!row?.billId) return 0
+  const ids = new Set(billCollectionIds(row))
+  const amount = records.value
+    .filter((item) => ids.has(Number(item.billId)))
+    .map((item) => Number(item.remainingAmount ?? item.receivableAmount ?? 0))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .reduce((sum, value) => sum + value, 0)
+  return Math.round(amount * 100) / 100
+}
+
 const businessActions: Record<string, BusinessAction[]> = {
   bills: [
     {
@@ -585,11 +596,20 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: '/payment/offline-collections',
       type: 'success',
       permission: 'payment:order:create',
-      confirm: '确认按当前业主/房屋/账期收取当前列表中的待收账单？',
-      buildPayload: (row) => ({
+      fields: [
+        {
+          prop: 'amount',
+          label: '收款金额',
+          type: 'number',
+          required: true,
+          help: '可小于、等于或大于应收金额：少收时保留待收款，超收时超出部分转为业主/住户预存款。',
+        },
+      ],
+      buildPayload: (row, formData = {}) => ({
         projectId: Number(row?.projectId),
         billIds: billCollectionIds(row),
         payChannel: 'CASH',
+        amount: formData.amount,
       }),
     },
     {
@@ -2014,6 +2034,9 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
   ;(action.fields ?? []).forEach((field) => {
     actionForm[field.prop] = undefined
   })
+  if (action.key === 'bill-cash-collect') {
+    actionForm.amount = billCollectionRemainingAmount(row)
+  }
 
   if (action.fields?.length) {
     await loadActionRemoteOptions(action.fields)
@@ -2041,6 +2064,13 @@ async function submitAction() {
   if (missing) {
     ElMessage.warning(`请填写${missing.label}`)
     return
+  }
+  if (currentAction.value.key === 'bill-cash-collect') {
+    const amount = Number(actionForm.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      ElMessage.warning('收款金额必须大于0')
+      return
+    }
   }
   await executeAction(currentAction.value, currentActionRow.value, compactPayload(actionForm))
   actionDialogVisible.value = false
