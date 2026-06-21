@@ -34,11 +34,23 @@ public class FeeBillRepository {
                                        String billPeriod, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT bill_id, project_id, bill_no, item_id, standard_id, object_type, object_id, member_id,
-                       house_id, bill_period, receivable_amount, discount_amount, paid_amount, refund_amount,
-                       remaining_amount, due_date, status, source_type, void_reason, created_at
-                FROM fee_bill
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT b.bill_id, b.project_id, b.bill_no, b.item_id, b.standard_id, b.object_type, b.object_id,
+                       b.member_id, b.house_id, b.bill_period, b.receivable_amount, b.discount_amount,
+                       b.paid_amount, b.refund_amount, b.remaining_amount, b.due_date, b.status, b.source_type,
+                       b.void_reason, b.created_at, p.project_name, i.item_name, m.real_name AS member_name,
+                       m.mobile AS member_mobile,
+                       TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
+                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary
+                FROM fee_bill b
+                LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN fee_item i ON i.tenant_id = b.tenant_id AND i.item_id = b.item_id AND i.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = b.tenant_id AND m.member_id = b.member_id AND m.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = b.tenant_id
+                     AND h.house_id = COALESCE(b.house_id, CASE WHEN b.object_type = 'HOUSE' THEN b.object_id ELSE NULL END)
+                     AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE b.tenant_id = ? AND b.deleted = 0
                 """);
         args.add(tenantId);
         appendBillFilters(sql, args, projectId, status, billPeriod);
@@ -51,7 +63,7 @@ public class FeeBillRepository {
 
     public long countBills(Long tenantId, List<Long> allowedProjectIds, Long projectId, String status, String billPeriod) {
         List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM fee_bill WHERE tenant_id = ? AND deleted = 0");
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM fee_bill b WHERE b.tenant_id = ? AND b.deleted = 0");
         args.add(tenantId);
         appendBillFilters(sql, args, projectId, status, billPeriod);
         appendProjectScope(sql, args, allowedProjectIds);
@@ -61,11 +73,23 @@ public class FeeBillRepository {
 
     public FeeBillView getBill(Long tenantId, Long billId) {
         return jdbcTemplate.queryForObject("""
-                SELECT bill_id, project_id, bill_no, item_id, standard_id, object_type, object_id, member_id,
-                       house_id, bill_period, receivable_amount, discount_amount, paid_amount, refund_amount,
-                       remaining_amount, due_date, status, source_type, void_reason, created_at
-                FROM fee_bill
-                WHERE tenant_id = ? AND bill_id = ? AND deleted = 0
+                SELECT b.bill_id, b.project_id, b.bill_no, b.item_id, b.standard_id, b.object_type, b.object_id,
+                       b.member_id, b.house_id, b.bill_period, b.receivable_amount, b.discount_amount,
+                       b.paid_amount, b.refund_amount, b.remaining_amount, b.due_date, b.status, b.source_type,
+                       b.void_reason, b.created_at, p.project_name, i.item_name, m.real_name AS member_name,
+                       m.mobile AS member_mobile,
+                       TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
+                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary
+                FROM fee_bill b
+                LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN fee_item i ON i.tenant_id = b.tenant_id AND i.item_id = b.item_id AND i.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = b.tenant_id AND m.member_id = b.member_id AND m.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = b.tenant_id
+                     AND h.house_id = COALESCE(b.house_id, CASE WHEN b.object_type = 'HOUSE' THEN b.object_id ELSE NULL END)
+                     AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE b.tenant_id = ? AND b.bill_id = ? AND b.deleted = 0
                 """, this::mapBill, tenantId, billId);
     }
 
@@ -355,15 +379,15 @@ public class FeeBillRepository {
 
     private void appendBillFilters(StringBuilder sql, List<Object> args, Long projectId, String status, String billPeriod) {
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND b.project_id = ?");
             args.add(projectId);
         }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND b.status = ?");
             args.add(status);
         }
         if (billPeriod != null && !billPeriod.isBlank()) {
-            sql.append(" AND bill_period = ?");
+            sql.append(" AND b.bill_period = ?");
             args.add(billPeriod);
         }
     }
@@ -376,7 +400,7 @@ public class FeeBillRepository {
             sql.append(" AND 1 = 0");
             return;
         }
-        sql.append(" AND project_id IN (");
+        sql.append(" AND b.project_id IN (");
         sql.append("?,".repeat(allowedProjectIds.size()));
         sql.setLength(sql.length() - 1);
         sql.append(")");
@@ -396,7 +420,9 @@ public class FeeBillRepository {
                 rs.getBigDecimal("discount_amount"), rs.getBigDecimal("paid_amount"), rs.getBigDecimal("refund_amount"),
                 rs.getBigDecimal("remaining_amount"), rs.getObject("due_date", LocalDate.class),
                 rs.getString("status"), rs.getString("source_type"), rs.getString("void_reason"),
-                rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getTimestamp("created_at").toLocalDateTime(), rs.getString("project_name"),
+                rs.getString("item_name"), rs.getString("member_name"), rs.getString("member_mobile"),
+                rs.getString("house_no"), rs.getString("detail_summary"));
     }
 
     private BillStandardCandidate mapCandidate(ResultSet rs, int rowNum) throws SQLException {

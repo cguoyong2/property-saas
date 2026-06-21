@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private static final Set<String> PAY_CHANNELS = Set.of("WECHAT", "ALI", "OFFLINE", "POS", "CASH");
+    private static final Set<String> OFFLINE_COLLECTION_CHANNELS = Set.of("OFFLINE", "POS", "CASH");
     private static final Set<String> ORDER_STATUSES = Set.of(
             "PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED");
     private static final Set<String> PAYABLE_BILL_STATUSES = Set.of("UNPAID", "OVERDUE", "PARTIAL_PAID");
@@ -105,6 +106,50 @@ public class PaymentService {
             throw new IllegalArgumentException("账单状态已变化，创建支付订单失败");
         }
         return new PayOrderCreateResult(orderId, orderNo, amount, "PAYING", "LOCAL-" + orderNo, expireAt);
+    }
+
+    @Transactional
+    public PayOrderCreateResult collectOffline(PayOrderCreateRequest request) {
+        ensureProjectAllowed(request.projectId());
+        validatePayChannel(request.payChannel());
+        if (!OFFLINE_COLLECTION_CHANNELS.contains(request.payChannel())) {
+            throw new IllegalArgumentException("线下收款仅支持现金、POS或线下收款");
+        }
+        List<Long> billIds = distinctBillIds(request.billIds());
+        List<PayableBill> bills = repository.findPayableBills(tenantId(), request.projectId(), billIds);
+        if (bills.size() != billIds.size()) {
+            throw new IllegalArgumentException("账单不存在或不属于项目");
+        }
+        Long memberId = validatePayableBills(bills);
+        BigDecimal amount = bills.stream()
+                .map(PayableBill::remainingAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("收款金额必须大于0");
+        }
+
+        Long orderId = newId();
+        String orderNo = "PAY-" + tenantId() + "-" + request.projectId() + "-" + orderId;
+        LocalDateTime paidAt = LocalDateTime.now();
+        repository.insertOrder(tenantId(), orderId, orderNo, userId(), request.projectId(), memberId,
+                request.payChannel(), amount, "物业线下收款 " + orderNo, paidAt.plusMinutes(30));
+        for (PayableBill bill : bills) {
+            repository.insertOrderBill(newId(), tenantId(), request.projectId(), orderId, bill.billId(), bill.remainingAmount());
+        }
+        int marked = repository.markBillsPaying(tenantId(), request.projectId(), billIds);
+        if (marked != billIds.size()) {
+            throw new IllegalArgumentException("账单状态已变化，收款失败");
+        }
+
+        String thirdTradeNo = request.payChannel() + "-" + orderNo;
+        repository.insertTransactionIfAbsent(newId(), tenantId(), request.projectId(), orderId, orderNo,
+                thirdTradeNo, request.payChannel(), amount, paidAt, "{\"source\":\"PC_OFFLINE_COLLECTION\"}");
+        for (PayableBill bill : repository.findOrderBills(tenantId(), orderId)) {
+            repository.settleBill(tenantId(), bill.billId(), bill.remainingAmount());
+        }
+        repository.markOrderPaid(tenantId(), orderId, thirdTradeNo, paidAt);
+        return new PayOrderCreateResult(orderId, orderNo, amount, "PAID", thirdTradeNo, paidAt);
     }
 
     @Transactional

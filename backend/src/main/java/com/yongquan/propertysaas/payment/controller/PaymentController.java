@@ -43,6 +43,12 @@ public class PaymentController {
         return ApiResponse.success(service.createOrder(request));
     }
 
+    @PostMapping("/api/payment/offline-collections")
+    @RequiresPermission("payment:order:create")
+    public ApiResponse<PayOrderCreateResult> collectOffline(@Valid @RequestBody PayOrderCreateRequest request) {
+        return ApiResponse.success(service.collectOffline(request));
+    }
+
     @GetMapping("/api/payment/orders")
     @RequiresPermission("payment:order:list")
     public ApiResponse<PageResult<PayOrderView>> pageOrders(@RequestParam(required = false) Long projectId,

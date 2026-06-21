@@ -473,8 +473,56 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   brandId: [],
 })
 
+function billCollectionIds(row?: Record<string, unknown>) {
+  if (!row?.billId) return []
+  const payableStatuses = new Set(['UNPAID', 'OVERDUE', 'PARTIAL_PAID'])
+  const projectId = row.projectId
+  const memberId = row.memberId
+  const houseId = row.houseId
+  const billPeriod = row.billPeriod
+  const ids = records.value
+    .filter((item) => item.projectId === projectId)
+    .filter((item) => item.memberId === memberId)
+    .filter((item) => String(item.billPeriod ?? '') === String(billPeriod ?? ''))
+    .filter((item) => (houseId ? item.houseId === houseId : true))
+    .filter((item) => payableStatuses.has(String(item.status ?? '')))
+    .map((item) => Number(item.billId))
+    .filter((id) => Number.isFinite(id))
+  return ids.length ? Array.from(new Set(ids)) : [Number(row.billId)]
+}
+
 const businessActions: Record<string, BusinessAction[]> = {
   bills: [
+    {
+      key: 'bill-cash-collect',
+      label: '现金收款',
+      scope: 'row',
+      method: 'POST',
+      path: '/payment/offline-collections',
+      type: 'success',
+      permission: 'payment:order:create',
+      confirm: '确认按当前业主/房屋/账期收取当前列表中的待收账单？',
+      buildPayload: (row) => ({
+        projectId: Number(row?.projectId),
+        billIds: billCollectionIds(row),
+        payChannel: 'CASH',
+      }),
+    },
+    {
+      key: 'bill-qr-collect',
+      label: '收款码',
+      scope: 'row',
+      method: 'POST',
+      path: '/payment/orders',
+      type: 'primary',
+      permission: 'payment:order:create',
+      confirm: '确认生成当前业主/房屋/账期的收款码订单？',
+      buildPayload: (row) => ({
+        projectId: Number(row?.projectId),
+        billIds: billCollectionIds(row),
+        payChannel: 'WECHAT',
+      }),
+    },
     {
       key: 'bill-remind',
       label: '催缴',
@@ -725,7 +773,7 @@ const detailFields = computed(() => config.value.detailFields ?? config.value.co
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
   if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
-  return rowActions.value.length > 4 ? 360 : rowActions.value.length > 1 ? 260 : 140
+  return rowActions.value.length > 3 ? 360 : rowActions.value.length > 1 ? 260 : 140
 })
 
 async function load() {

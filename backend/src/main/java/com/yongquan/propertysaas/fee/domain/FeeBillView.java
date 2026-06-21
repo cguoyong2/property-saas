@@ -24,6 +24,12 @@ public record FeeBillView(
         String status,
         String sourceType,
         String voidReason,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String projectName,
+        String itemName,
+        String memberName,
+        String memberMobile,
+        String houseNo,
+        String detailSummary
 ) {
 }

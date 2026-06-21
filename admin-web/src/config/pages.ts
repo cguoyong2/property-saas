@@ -153,11 +153,6 @@ const billStatusOptions = [
   { label: '已退款', value: 'REFUNDED' },
   { label: '部分退款', value: 'PARTIAL_REFUNDED' },
 ]
-const billSourceTypeOptions = [
-  { label: '手工新增', value: 'MANUAL' },
-  { label: '批量生成', value: 'GENERATED' },
-  { label: '导入', value: 'IMPORT' },
-]
 const payChannelOptions = [
   { label: '微信支付', value: 'WECHAT' },
   { label: '现金', value: 'CASH' },
@@ -722,17 +717,16 @@ const billingPages: PageConfig[] = [
     columns: [
       { prop: 'billNo', label: '账单号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
-      { prop: 'itemId', label: '收费项目', type: 'feeItem' },
-      { prop: 'objectType', label: '收费对象', type: 'select', options: billObjectTypeOptions },
-      { prop: 'objectId', label: '对象ID' },
+      { prop: 'memberName', label: '业主/住户' },
+      { prop: 'memberMobile', label: '手机号' },
+      { prop: 'houseNo', label: '房号' },
       { prop: 'billPeriod', label: '账期' },
+      { prop: 'detailSummary', label: '应收明细' },
       { prop: 'receivableAmount', label: '应收' },
       { prop: 'paidAmount', label: '已收' },
-      { prop: 'refundAmount', label: '已退' },
       { prop: 'remainingAmount', label: '待收' },
       { prop: 'dueDate', label: '到期日' },
       { prop: 'status', label: '状态', type: 'select', options: billStatusOptions, inFilter: true },
-      { prop: 'sourceType', label: '来源', type: 'select', options: billSourceTypeOptions },
     ],
   },
   {
