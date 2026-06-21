@@ -111,10 +111,10 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑' : '新增'" width="620px" draggable>
-      <section v-if="isParkingSpacePage" class="member-picker">
+      <section v-if="needsMemberPicker" class="member-picker">
         <div class="member-picker__head">
           <span>搜索业主/住户</span>
-          <small>选择后自动带出小区、楼栋、单元和房屋</small>
+          <small>选择后自动带出业主/住户和房屋信息</small>
         </div>
         <div class="member-picker__search">
           <el-input
@@ -361,6 +361,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   unitId: [],
   houseId: [],
   areaId: [],
+  spaceId: [],
 })
 
 const businessActions: Record<string, BusinessAction[]> = {
@@ -588,9 +589,16 @@ const config = computed<PageConfig>(() => {
 const filterFields = computed(() => config.value.columns.filter((field) => field.inFilter))
 const formFields = computed(() => config.value.fields ?? [])
 const isParkingSpacePage = computed(() => config.value.key === 'parking-spaces')
+const isVehiclePage = computed(() => config.value.key === 'vehicles')
+const needsMemberPicker = computed(() => isParkingSpacePage.value || isVehiclePage.value)
 const visibleFormFields = computed(() => {
-  if (!isParkingSpacePage.value) return formFields.value
-  return formFields.value.filter((field) => !['projectId', 'buildingId', 'unitId', 'houseId'].includes(field.prop))
+  if (isParkingSpacePage.value) {
+    return formFields.value.filter((field) => !['projectId', 'buildingId', 'unitId', 'houseId'].includes(field.prop))
+  }
+  if (isVehiclePage.value) {
+    return formFields.value.filter((field) => !['projectId', 'memberId', 'houseId'].includes(field.prop))
+  }
+  return formFields.value
 })
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
@@ -681,6 +689,10 @@ async function save() {
     return
   }
   if (isParkingSpacePage.value && (!form.projectId || !form.buildingId || !form.unitId || !form.houseId)) {
+    ElMessage.warning('请先搜索并选择业主/住户')
+    return
+  }
+  if (isVehiclePage.value && (!form.projectId || !form.memberId || !form.houseId)) {
     ElMessage.warning('请先搜索并选择业主/住户')
     return
   }
@@ -789,7 +801,7 @@ function resetParkingMemberPicker() {
 }
 
 async function searchMembers() {
-  if (!isParkingSpacePage.value) return
+  if (!needsMemberPicker.value) return
   const keyword = memberSearchKeyword.value.trim()
   if (!keyword) {
     ElMessage.warning('请输入业主/住户姓名或手机号')
@@ -816,18 +828,25 @@ async function searchMembers() {
 
 async function selectParkingMember(member: Record<string, unknown>) {
   if (!member.projectId || !member.buildingId || !member.unitId || !member.houseId) {
-    ElMessage.warning('该业主/住户没有已绑定房屋，不能用于新增车位')
+    ElMessage.warning('该业主/住户没有已绑定房屋，不能用于当前新增')
     return
   }
   selectedParkingMember.value = member
   form.projectId = Number(member.projectId)
-  form.buildingId = Number(member.buildingId)
-  form.unitId = Number(member.unitId)
   form.houseId = Number(member.houseId)
-  await loadBuildings()
-  await loadUnits()
-  await loadHouses()
-  await loadParkingAreas()
+  if (isParkingSpacePage.value) {
+    form.buildingId = Number(member.buildingId)
+    form.unitId = Number(member.unitId)
+    await loadBuildings()
+    await loadUnits()
+    await loadHouses()
+    await loadParkingAreas()
+  }
+  if (isVehiclePage.value) {
+    form.memberId = Number(member.memberId)
+    form.spaceId = undefined
+    await loadParkingSpaces()
+  }
   ElMessage.success('已带出业主/住户房屋信息')
 }
 
@@ -857,7 +876,7 @@ type SelectOption = string | { label: string; value: string | number }
 type AreaOption = { label: string; value: string; children?: AreaOption[] }
 
 function isSelectField(field: FieldConfig) {
-  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea'].includes(field.type ?? '')
+  return ['select', 'province', 'city', 'district', 'project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace'].includes(field.type ?? '')
 }
 
 function optionsForField(field: FieldConfig): SelectOption[] {
@@ -875,6 +894,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'parkingArea') {
     return remoteOptions.areaId
+  }
+  if (field.type === 'parkingSpace') {
+    return remoteOptions.spaceId
   }
   if (field.type === 'province') {
     return chinaAreaOptions.map(toSelectOption)
@@ -904,8 +926,10 @@ function handleFieldChange(field: FieldConfig) {
     form.unitId = undefined
     form.houseId = undefined
     form.areaId = undefined
+    form.spaceId = undefined
     loadBuildings()
     loadParkingAreas()
+    loadParkingSpaces()
     remoteOptions.unitId = []
     remoteOptions.houseId = []
   }
@@ -929,6 +953,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'parkingArea' && row.areaName) {
     return row.areaName
   }
+  if (field.type === 'parkingSpace' && row.spaceNo) {
+    return row.spaceNo
+  }
   if (!isSelectField(field)) {
     return value ?? ''
   }
@@ -947,6 +974,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'unit') return remoteOptions.unitId
   if (field.type === 'house') return remoteOptions.houseId
   if (field.type === 'parkingArea') return remoteOptions.areaId
+  if (field.type === 'parkingSpace') return remoteOptions.spaceId
   return field.options ?? []
 }
 
@@ -967,7 +995,7 @@ function optionValue(option: SelectOption) {
 }
 
 function needsRemoteOptions(fields: FieldConfig[]) {
-  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea'].includes(field.type ?? ''))
+  return fields.some((field) => ['project', 'building', 'unit', 'house', 'parkingArea', 'parkingSpace'].includes(field.type ?? ''))
 }
 
 async function loadVisibleRemoteOptions() {
@@ -978,6 +1006,7 @@ async function loadVisibleRemoteOptions() {
   await loadUnits()
   await loadHouses()
   await loadParkingAreas()
+  await loadParkingSpaces()
 }
 
 async function loadFormRemoteOptions() {
@@ -987,6 +1016,7 @@ async function loadFormRemoteOptions() {
   await loadUnits()
   await loadHouses()
   await loadParkingAreas()
+  await loadParkingSpaces()
 }
 
 async function loadProjects() {
@@ -1045,6 +1075,20 @@ async function loadParkingAreas() {
     label: String(item.areaName ?? item.areaId),
     value: Number(item.areaId),
   }))
+}
+
+async function loadParkingSpaces() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const houseId = Number(form.houseId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  const { data } = await fetchPage('/base/parking-spaces', params)
+  remoteOptions.spaceId = toRecords(data.data)
+    .filter((item) => !Number.isFinite(houseId) || houseId <= 0 || Number(item.houseId) === houseId)
+    .map((item) => ({
+      label: String([item.areaName, item.spaceNo].filter(Boolean).join(' - ') || item.spaceId),
+      value: Number(item.spaceId),
+    }))
 }
 
 function toRecords(payload: unknown): Record<string, unknown>[] {

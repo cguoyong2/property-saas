@@ -28,7 +28,7 @@ public class VehicleService {
     private static final Set<String> SPACE_STATUSES = Set.of("AVAILABLE", "OCCUPIED", "LOCKED", "DISABLED");
     private static final Set<String> AREA_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final Set<String> VEHICLE_STATUSES = Set.of("ACTIVE", "DISABLED");
-    private static final Set<String> RENT_STATUSES = Set.of("NONE", "ACTIVE", "EXPIRED", "SUSPENDED");
+    private static final Set<String> RENT_STATUSES = Set.of("NONE", "ACTIVE", "SOLD", "EXPIRED", "SUSPENDED");
 
     private final VehicleRepository repository;
     private final ObjectMapper objectMapper;

@@ -33,6 +33,7 @@ export interface FieldConfig {
     | 'unit'
     | 'house'
     | 'parkingArea'
+    | 'parkingSpace'
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
@@ -96,6 +97,18 @@ const parkingSpaceStatusOptions = [
   { label: '已占用', value: 'OCCUPIED' },
   { label: '锁定', value: 'LOCKED' },
   { label: '停用', value: 'DISABLED' },
+]
+const vehicleTypeOptions = [
+  { label: '燃油车', value: 'CAR' },
+  { label: '新能源车', value: 'EV' },
+  { label: '摩托车', value: 'MOTORCYCLE' },
+]
+const vehicleSpaceStatusOptions = [
+  { label: '未关联车位', value: 'NONE' },
+  { label: '月租', value: 'ACTIVE' },
+  { label: '已购买', value: 'SOLD' },
+  { label: '月租到期', value: 'EXPIRED' },
+  { label: '暂停', value: 'SUSPENDED' },
 ]
 
 export const pages: PageConfig[] = [
@@ -293,18 +306,19 @@ export const pages: PageConfig[] = [
     menuOrder: 70,
     columns: [
       { prop: 'plateNo', label: '车牌', inFilter: true },
-      { prop: 'vehicleType', label: '类型' },
-      { prop: 'monthlyRentStatus', label: '月租' },
-      { prop: 'status', label: '状态' },
+      { prop: 'vehicleType', label: '车辆类型', type: 'select', options: vehicleTypeOptions },
+      { prop: 'spaceId', label: '车位', type: 'parkingSpace' },
+      { prop: 'monthlyRentStatus', label: '车位租售状态', type: 'select', options: vehicleSpaceStatusOptions },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'plateNo', label: '车牌号', required: true },
-      { prop: 'vehicleType', label: '车辆类型', type: 'select', options: ['CAR', 'EV', 'MOTORCYCLE'] },
+      { prop: 'vehicleType', label: '车辆类型', type: 'select', options: vehicleTypeOptions },
       { prop: 'memberId', label: '会员ID', type: 'number' },
       { prop: 'houseId', label: '房屋ID', type: 'number' },
-      { prop: 'spaceId', label: '车位ID', type: 'number' },
-      { prop: 'monthlyRentStatus', label: '月租状态', type: 'select', options: ['NONE', 'ACTIVE', 'EXPIRED', 'SUSPENDED'] },
+      { prop: 'spaceId', label: '车位', type: 'parkingSpace' },
+      { prop: 'monthlyRentStatus', label: '车位租售状态', type: 'select', options: vehicleSpaceStatusOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
