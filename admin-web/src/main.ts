@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { ElAlert } from 'element-plus/es/components/alert/index.mjs'
 import { ElAside, ElContainer, ElHeader, ElMain } from 'element-plus/es/components/container/index.mjs'
 import { ElButton } from 'element-plus/es/components/button/index.mjs'
+import { ElConfigProvider } from 'element-plus/es/components/config-provider/index.mjs'
 import { ElDatePicker } from 'element-plus/es/components/date-picker/index.mjs'
 import { ElDialog } from 'element-plus/es/components/dialog/index.mjs'
 import { ElEmpty } from 'element-plus/es/components/empty/index.mjs'
@@ -16,10 +17,14 @@ import { ElOption, ElSelect } from 'element-plus/es/components/select/index.mjs'
 import { ElPagination } from 'element-plus/es/components/pagination/index.mjs'
 import { ElTable, ElTableColumn } from 'element-plus/es/components/table/index.mjs'
 import { ElTooltip } from 'element-plus/es/components/tooltip/index.mjs'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import './styles/base.css'
+
+dayjs.locale('zh-cn')
 
 const app = createApp(App)
 
@@ -27,6 +32,7 @@ const app = createApp(App)
   ElAlert,
   ElAside,
   ElButton,
+  ElConfigProvider,
   ElContainer,
   ElDatePicker,
   ElDialog,
