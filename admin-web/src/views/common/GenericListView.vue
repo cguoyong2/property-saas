@@ -178,7 +178,7 @@
         </div>
       </section>
       <el-form label-position="top">
-        <el-form-item v-for="field in visibleFormFields" :key="field.prop" :label="field.label" :required="field.required">
+        <el-form-item v-for="field in visibleFormFields" :key="field.prop" :label="formFieldLabel(field)" :required="field.required">
           <el-select
             v-if="isSelectField(field)"
             v-model="form[field.prop]"
@@ -195,7 +195,12 @@
               :value="optionValue(option)"
             />
           </el-select>
-          <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]" class="form-control" />
+          <template v-else-if="field.type === 'number'">
+            <el-input-number v-model="form[field.prop]" class="form-control" />
+            <p v-if="field.prop === 'unitPrice' && config.key === 'fee-standards'" class="field-help">
+              {{ unitPriceHelpText }}
+            </p>
+          </template>
           <div v-else-if="field.type === 'plateNo'" class="plate-input">
             <el-select v-model="plateProvince" filterable placeholder="省" class="plate-input__province" @change="syncPlateNo">
               <el-option v-for="item in plateProvinceOptions" :key="item" :label="item" :value="item" />
@@ -763,6 +768,13 @@ const vehicleModelOptions = computed(() => {
     ...(builtInVehicleBrandModels[brand] ?? []),
     ...(customVehicleBrandModels.value[brand] ?? []),
   ])
+})
+const unitPriceHelpText = computed(() => {
+  if (form.chargeMethod === 'AREA') return '当前口径：每平方米每月单价。账单金额 = 建筑面积 × 单价 × 周期月数。'
+  if (form.chargeMethod === 'FIXED') return '当前口径：当前周期固定金额。周期为年时，单价就是每年总金额。'
+  if (form.chargeMethod === 'METER') return '当前口径：每个计量单位的单价。'
+  if (form.chargeMethod === 'FORMULA') return '当前口径：作为公式中的 unitPrice / price 参数使用。'
+  return '请先选择计费方式，系统会按计费方式显示单价口径。'
 })
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
@@ -1364,8 +1376,21 @@ function handleActionFieldChange(field: FieldConfig) {
   }
 }
 
+function formFieldLabel(field: FieldConfig) {
+  if (config.value.key === 'fee-standards' && field.prop === 'unitPrice') {
+    if (form.chargeMethod === 'AREA') return '单价（元/㎡/月）'
+    if (form.chargeMethod === 'FIXED') return '单价（本周期金额）'
+    if (form.chargeMethod === 'METER') return '单价（元/计量单位）'
+    if (form.chargeMethod === 'FORMULA') return '单价（公式参数）'
+  }
+  return field.label
+}
+
 function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = row[field.prop]
+  if (config.value.key === 'fee-standards' && field.prop === 'unitPrice') {
+    return formatFeeStandardUnitPrice(row)
+  }
   if (field.type === 'project' && row.projectName) {
     return row.projectName
   }
@@ -1402,6 +1427,17 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   const option = optionsForDisplay(field).find((item) => optionValue(item) === value)
   return option ? optionLabel(option) : value ?? ''
 }
+
+function formatFeeStandardUnitPrice(row: Record<string, unknown>) {
+  const value = row.unitPrice ?? ''
+  if (value === '') return ''
+  if (row.chargeMethod === 'AREA') return `${value} 元/㎡/月`
+  if (row.chargeMethod === 'FIXED') return `${value} 元/周期`
+  if (row.chargeMethod === 'METER') return `${value} 元/计量单位`
+  if (row.chargeMethod === 'FORMULA') return `${value}（公式参数）`
+  return value
+}
+
 
 function selectedParkingSpaceOption() {
   return remoteOptions.spaceId.find((item) => optionValue(item) === form.spaceId && typeof item !== 'string') as
