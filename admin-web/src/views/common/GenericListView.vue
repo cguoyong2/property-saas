@@ -139,6 +139,10 @@
               <small>{{ member.mobile || '-' }}</small>
             </span>
             <span>
+              <strong>{{ projectName(member.projectId) }}</strong>
+              <small>小区名称</small>
+            </span>
+            <span>
               <strong>{{ member.houseNo || '未绑定房屋' }}</strong>
               <small>{{ bindRoleLabel(member.bindRole) }}</small>
             </span>
@@ -152,6 +156,10 @@
           <div>
             <span>手机号</span>
             <strong>{{ selectedParkingMember?.mobile ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>小区名称</span>
+            <strong>{{ projectName(selectedParkingMember?.projectId ?? form.projectId) }}</strong>
           </div>
           <div>
             <span>房屋</span>
@@ -860,6 +868,10 @@ function bindRoleLabel(value: unknown) {
   return typeof value === 'string' ? labels[value] ?? value : '-'
 }
 
+function projectName(value: unknown) {
+  return optionText('project', value)
+}
+
 function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea', value: unknown) {
   const keyMap = {
     project: 'projectId',
@@ -1288,7 +1300,7 @@ onMounted(loadProjects)
 
 .member-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 1fr) minmax(110px, auto);
   gap: 12px;
   align-items: center;
   width: 100%;
