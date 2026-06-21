@@ -320,14 +320,13 @@ public class VehicleRepository {
                 tenantId, projectId, spaceId);
     }
 
-    public boolean plateExists(Long tenantId, Long projectId, String plateNo, Long excludeVehicleId) {
+    public boolean plateExists(Long tenantId, String plateNo, Long excludeVehicleId) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(*) FROM base_vehicle
-                WHERE tenant_id = ? AND project_id = ? AND plate_no = ? AND deleted = 0
+                WHERE tenant_id = ? AND plate_no = ? AND deleted = 0
                 """);
         args.add(tenantId);
-        args.add(projectId);
         args.add(normalizePlate(plateNo));
         if (excludeVehicleId != null) {
             sql.append(" AND vehicle_id <> ?");

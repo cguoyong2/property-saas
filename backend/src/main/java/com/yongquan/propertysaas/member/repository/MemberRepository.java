@@ -268,6 +268,25 @@ public class MemberRepository {
                 tenantId, memberId);
     }
 
+    public boolean mobileExists(Long tenantId, String mobile, Long excludeMemberId) {
+        if (mobile == null || mobile.isBlank()) {
+            return false;
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*) FROM member_user
+                WHERE tenant_id = ? AND mobile = ? AND deleted = 0
+                """);
+        args.add(tenantId);
+        args.add(mobile.trim());
+        if (excludeMemberId != null) {
+            sql.append(" AND member_id <> ?");
+            args.add(excludeMemberId);
+        }
+        Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, args.toArray());
+        return count != null && count > 0;
+    }
+
     public boolean houseExists(Long tenantId, Long projectId, Long houseId) {
         return exists("SELECT COUNT(*) FROM base_house WHERE tenant_id = ? AND project_id = ? AND house_id = ? AND deleted = 0",
                 tenantId, projectId, houseId);

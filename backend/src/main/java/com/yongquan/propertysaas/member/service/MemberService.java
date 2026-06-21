@@ -62,10 +62,12 @@ public class MemberService {
         ensureTenant(request.tenantId());
         MemberView member = repository.findMemberByOpenid(request.tenantId(), request.openid())
                 .map(existing -> {
+                    validateMobileUnique(request.tenantId(), request.mobile(), existing.memberId());
                     repository.updateMemberLogin(request.tenantId(), existing.memberId(), request);
                     return existing;
                 })
                 .orElseGet(() -> {
+                    validateMobileUnique(request.tenantId(), request.mobile(), null);
                     Long memberId = newId();
                     repository.insertMember(request.tenantId(), memberId, request);
                     return repository.findMemberByOpenid(request.tenantId(), request.openid()).orElseThrow();
@@ -102,8 +104,8 @@ public class MemberService {
 
     @Transactional
     public Long createMember(MemberRequest request) {
-        validateMember(request);
         Long tenantId = tenantId();
+        validateMember(request, null);
         Long memberId = newId();
         repository.insertBackofficeMember(tenantId, memberId, request, normalizedOpenid(tenantId, memberId, request.openid()));
         repository.replaceApprovedBinding(tenantId, memberId, newId(), userId(), request);
@@ -112,8 +114,8 @@ public class MemberService {
 
     @Transactional
     public void updateMember(Long memberId, MemberRequest request) {
-        validateMember(request);
         Long tenantId = tenantId();
+        validateMember(request, memberId);
         if (!repository.memberRecordExists(tenantId, memberId)) {
             throw new IllegalArgumentException("业主/住户不存在：" + memberId);
         }
@@ -200,7 +202,7 @@ public class MemberService {
         }
     }
 
-    private void validateMember(MemberRequest request) {
+    private void validateMember(MemberRequest request, Long excludeMemberId) {
         if (request.status() != null && !request.status().isBlank() && !MEMBER_STATUSES.contains(request.status())) {
             throw new IllegalArgumentException("非法状态：" + request.status());
         }
@@ -209,8 +211,16 @@ public class MemberService {
         }
         Long tenantId = tenantId();
         ensureProjectAllowed(request.projectId());
+        validateMobileUnique(tenantId, request.mobile(), excludeMemberId);
         if (!repository.houseHierarchyExists(tenantId, request.projectId(), request.buildingId(), request.unitId(), request.houseId())) {
             throw new IllegalArgumentException("房屋不存在或不属于所选小区、楼栋、单元");
+        }
+    }
+
+    private void validateMobileUnique(Long tenantId, String mobile, Long excludeMemberId) {
+        String value = blankToNull(mobile);
+        if (value != null && repository.mobileExists(tenantId, value, excludeMemberId)) {
+            throw new IllegalArgumentException("手机号已存在：" + value);
         }
     }
 

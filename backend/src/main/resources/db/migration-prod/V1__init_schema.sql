@@ -339,7 +339,7 @@ CREATE TABLE member_user (
   updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   UNIQUE KEY uk_tenant_openid (tenant_id, openid),
-  KEY idx_member_mobile (tenant_id, mobile)
+  UNIQUE KEY uk_member_mobile (tenant_id, mobile)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信端会员用户表';
 
 CREATE TABLE member_house_bind (
@@ -404,7 +404,7 @@ CREATE TABLE base_vehicle (
   updated_by BIGINT NULL,
   updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
-  UNIQUE KEY uk_vehicle_plate (tenant_id, project_id, plate_no),
+  UNIQUE KEY uk_vehicle_plate (tenant_id, plate_no),
   KEY idx_vehicle_house (tenant_id, house_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='车辆表';
 
