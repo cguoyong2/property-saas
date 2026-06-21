@@ -111,8 +111,60 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑' : '新增'" width="620px" draggable>
+      <section v-if="isParkingSpacePage" class="member-picker">
+        <div class="member-picker__head">
+          <span>搜索业主/住户</span>
+          <small>选择后自动带出小区、楼栋、单元和房屋</small>
+        </div>
+        <div class="member-picker__search">
+          <el-input
+            v-model="memberSearchKeyword"
+            clearable
+            placeholder="输入姓名或手机号"
+            @keyup.enter="searchMembers"
+          />
+          <el-button type="primary" :icon="Search" :loading="memberSearchLoading" @click="searchMembers">搜索</el-button>
+        </div>
+        <div v-if="memberSearchResults.length" class="member-result-list">
+          <button
+            v-for="member in memberSearchResults"
+            :key="String(member.memberId)"
+            class="member-result"
+            type="button"
+            :disabled="!member.houseId"
+            @click="selectParkingMember(member)"
+          >
+            <span>
+              <strong>{{ member.realName || '-' }}</strong>
+              <small>{{ member.mobile || '-' }}</small>
+            </span>
+            <span>
+              <strong>{{ member.houseNo || '未绑定房屋' }}</strong>
+              <small>{{ bindRoleLabel(member.bindRole) }}</small>
+            </span>
+          </button>
+        </div>
+        <div v-if="selectedParkingMember || form.houseId" class="member-card">
+          <div>
+            <span>业主/住户</span>
+            <strong>{{ selectedParkingMember?.realName ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>手机号</span>
+            <strong>{{ selectedParkingMember?.mobile ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>房屋</span>
+            <strong>{{ selectedParkingMember?.houseNo ?? optionText('house', form.houseId) }}</strong>
+          </div>
+          <div>
+            <span>住户类型</span>
+            <strong>{{ bindRoleLabel(selectedParkingMember?.bindRole) }}</strong>
+          </div>
+        </div>
+      </section>
       <el-form label-position="top">
-        <el-form-item v-for="field in formFields" :key="field.prop" :label="field.label" :required="field.required">
+        <el-form-item v-for="field in visibleFormFields" :key="field.prop" :label="field.label" :required="field.required">
           <el-select
             v-if="isSelectField(field)"
             v-model="form[field.prop]"
@@ -285,10 +337,14 @@ const detailDialogVisible = ref(false)
 const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
 const bulkBuildingSaving = ref(false)
+const memberSearchLoading = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const detailRow = ref<Record<string, unknown> | null>(null)
 const chinaAreaOptions = pcaTextArr
+const memberSearchKeyword = ref('')
+const memberSearchResults = ref<Record<string, unknown>[]>([])
+const selectedParkingMember = ref<Record<string, unknown> | null>(null)
 const bulkBuildingForm = reactive<{ projectId?: string | number; content: string }>({
   projectId: undefined,
   content: '',
@@ -525,6 +581,11 @@ const config = computed<PageConfig>(() => {
 
 const filterFields = computed(() => config.value.columns.filter((field) => field.inFilter))
 const formFields = computed(() => config.value.fields ?? [])
+const isParkingSpacePage = computed(() => config.value.key === 'parking-spaces')
+const visibleFormFields = computed(() => {
+  if (!isParkingSpacePage.value) return formFields.value
+  return formFields.value.filter((field) => !['projectId', 'buildingId', 'unitId', 'houseId'].includes(field.prop))
+})
 const canCreate = computed(() => !config.value.createPermission || auth.hasPermission(config.value.createPermission))
 const canUpdate = computed(() => !config.value.updatePermission || auth.hasPermission(config.value.updatePermission))
 const availableActions = computed(() => (businessActions[config.value.key] ?? []).filter(canRunAction))
@@ -581,6 +642,7 @@ function reset() {
 
 function openCreate() {
   editingId.value = null
+  resetParkingMemberPicker()
   Object.keys(form).forEach((key) => delete form[key])
   formFields.value.forEach((field) => {
     form[field.prop] = undefined
@@ -591,6 +653,7 @@ function openCreate() {
 
 function openEdit(row: Record<string, unknown>) {
   editingId.value = row[config.value.idProp ?? 'id'] as string | number
+  resetParkingMemberPicker()
   Object.keys(form).forEach((key) => delete form[key])
   formFields.value.forEach((field) => {
     form[field.prop] = row[field.prop] as string | number | undefined | null
@@ -606,6 +669,10 @@ function openDetail(row: Record<string, unknown>) {
 
 async function save() {
   if (!config.value.createPath) return
+  if (isParkingSpacePage.value && (!form.projectId || !form.buildingId || !form.unitId || !form.houseId)) {
+    ElMessage.warning('请先搜索并选择业主/住户')
+    return
+  }
   saving.value = true
   try {
     const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== undefined && value !== ''))
@@ -693,6 +760,77 @@ function parseBulkBuildingContent(content: string) {
       }
     })
     .filter((row) => row.buildingName)
+}
+
+function resetParkingMemberPicker() {
+  memberSearchKeyword.value = ''
+  memberSearchResults.value = []
+  selectedParkingMember.value = null
+}
+
+async function searchMembers() {
+  if (!isParkingSpacePage.value) return
+  const keyword = memberSearchKeyword.value.trim()
+  if (!keyword) {
+    ElMessage.warning('请输入业主/住户姓名或手机号')
+    return
+  }
+  memberSearchLoading.value = true
+  try {
+    const { data } = await fetchPage('/base/members', {
+      keyword,
+      status: 'ACTIVE',
+      pageNo: 1,
+      pageSize: 10,
+    })
+    memberSearchResults.value = toRecords(data.data)
+    if (!memberSearchResults.value.length) {
+      ElMessage.info('未找到匹配的业主/住户')
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '搜索业主/住户失败')
+  } finally {
+    memberSearchLoading.value = false
+  }
+}
+
+async function selectParkingMember(member: Record<string, unknown>) {
+  if (!member.projectId || !member.buildingId || !member.unitId || !member.houseId) {
+    ElMessage.warning('该业主/住户没有已绑定房屋，不能用于新增车位')
+    return
+  }
+  selectedParkingMember.value = member
+  form.projectId = Number(member.projectId)
+  form.buildingId = Number(member.buildingId)
+  form.unitId = Number(member.unitId)
+  form.houseId = Number(member.houseId)
+  await loadBuildings()
+  await loadUnits()
+  await loadHouses()
+  await loadParkingAreas()
+  ElMessage.success('已带出业主/住户房屋信息')
+}
+
+function bindRoleLabel(value: unknown) {
+  const labels: Record<string, string> = {
+    OWNER: '业主',
+    FAMILY: '家属',
+    TENANT: '租户',
+    RESIDENT: '住户',
+  }
+  return typeof value === 'string' ? labels[value] ?? value : '-'
+}
+
+function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea', value: unknown) {
+  const keyMap = {
+    project: 'projectId',
+    building: 'buildingId',
+    unit: 'unitId',
+    house: 'houseId',
+    parkingArea: 'areaId',
+  } as const
+  const option = remoteOptions[keyMap[type]].find((item) => optionValue(item) === value)
+  return option ? optionLabel(option) : value ?? '-'
 }
 
 type SelectOption = string | { label: string; value: string | number }
@@ -1043,6 +1181,99 @@ onMounted(loadProjects)
   color: #64748b;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.member-picker {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #dce8e5;
+  border-radius: 8px;
+  background: #f7fbfa;
+}
+
+.member-picker__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.member-picker__head span {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.member-picker__head small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.member-picker__search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.member-result-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.member-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7e4e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+}
+
+.member-result:hover:not(:disabled) {
+  border-color: #168276;
+  background: #f0faf8;
+}
+
+.member-result:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.member-result span,
+.member-card div {
+  display: grid;
+  gap: 2px;
+}
+
+.member-result strong,
+.member-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.member-result small,
+.member-card span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.member-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #d7e4e1 inset;
 }
 
 .detail-form :deep(.el-input.is-disabled .el-input__wrapper) {
