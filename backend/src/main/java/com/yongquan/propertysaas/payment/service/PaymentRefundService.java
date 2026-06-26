@@ -19,6 +19,7 @@ import com.yongquan.propertysaas.system.audit.service.OperationLogService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +120,33 @@ public class PaymentRefundService {
         operationLogService.record(new OperationLogWrite(tenantId(), refund.projectId(), "payment", "REFUND_AUDIT",
                 "pay_refund", refundId, Map.of("status", refund.status()),
                 Map.of("status", status, "auditResult", request.auditResult()), request.auditRemark()));
+    }
+
+    @Transactional
+    public void confirmOfflineRefund(Long refundId, RefundAuditRequest request) {
+        PayRefundView refund = repository.getRefund(tenantId(), refundId);
+        ensureProjectAllowed(refund.projectId());
+        if (!"REFUNDING".equals(refund.status())) {
+            throw new IllegalArgumentException("只有审批通过待退款的单据才能确认退款完成");
+        }
+        String thirdRefundNo = "OFFLINE-" + refund.refundNo();
+        LocalDateTime refundedAt = LocalDateTime.now();
+        String rawNotify = toJson(Map.of(
+                "source", "PC_OFFLINE_REFUND",
+                "refundNo", refund.refundNo(),
+                "auditRemark", request.auditRemark() == null ? "" : request.auditRemark()));
+        boolean inserted = repository.insertRefundTransactionIfAbsent(newId(), tenantId(), refund.projectId(),
+                refund.refundId(), refund.refundNo(), thirdRefundNo, "OFFLINE", refund.refundAmount(),
+                refundedAt, rawNotify);
+        if (inserted) {
+            allocateRefundToBills(tenantId(), refund.orderId(), refund.refundAmount());
+        }
+        repository.markRefundRefunded(tenantId(), refund.refundId(), thirdRefundNo, refundedAt, rawNotify);
+        repository.markOrderRefundStatus(tenantId(), refund.orderId());
+        operationLogService.record(new OperationLogWrite(tenantId(), refund.projectId(), "payment", "OFFLINE_REFUND_CONFIRM",
+                "pay_refund", refundId, Map.of("status", refund.status()),
+                Map.of("status", "REFUNDED", "thirdRefundNo", thirdRefundNo, "refundAmount", refund.refundAmount()),
+                request.auditRemark()));
     }
 
     @Transactional

@@ -113,6 +113,13 @@ public class PaymentController {
         return ApiResponse.success();
     }
 
+    @PostMapping("/api/payment/refunds/{refundId}/offline-confirm")
+    @RequiresPermission("payment:refund:audit")
+    public ApiResponse<Void> confirmOfflineRefund(@PathVariable Long refundId, @Valid @RequestBody RefundAuditRequest request) {
+        refundService.confirmOfflineRefund(refundId, request);
+        return ApiResponse.success();
+    }
+
     @PostMapping("/api/payment/wechat/refund-notify")
     public ApiResponse<RefundNotifyResult> wechatRefundNotify(@Valid @RequestBody WechatRefundNotifyRequest request) {
         return ApiResponse.success(refundService.handleWechatRefundNotify(request));

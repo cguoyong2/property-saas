@@ -689,6 +689,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/refunds/${row?.refundId}/audit`,
       type: 'success',
       permission: 'payment:refund:audit',
+      visible: (row) => row?.status === 'APPLYING',
       fields: [{ prop: 'auditRemark', label: '审批备注', type: 'textarea' }],
       buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
     },
@@ -700,8 +701,22 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/refunds/${row?.refundId}/audit`,
       type: 'danger',
       permission: 'payment:refund:audit',
+      visible: (row) => row?.status === 'APPLYING',
       fields: [{ prop: 'auditRemark', label: '拒绝原因', type: 'textarea', required: true }],
       buildPayload: (_row, formData = {}) => ({ auditResult: 'REJECTED', auditRemark: formData.auditRemark }),
+    },
+    {
+      key: 'refund-offline-confirm',
+      label: '确认退款',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/refunds/${row?.refundId}/offline-confirm`,
+      type: 'warning',
+      permission: 'payment:refund:audit',
+      visible: (row) => row?.status === 'REFUNDING',
+      confirm: '确认该退款已线下完成？确认后会写入退款流水并更新账单/订单退款状态。',
+      fields: [{ prop: 'auditRemark', label: '退款备注', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
     },
   ],
   'member-bindings': [
@@ -2098,6 +2113,11 @@ async function submitAction() {
       ElMessage.warning('收款金额必须大于0')
       return
     }
+  }
+  if (currentAction.value.confirm) {
+    await ElMessageBox.confirm(currentAction.value.confirm, currentAction.value.label, {
+      type: currentAction.value.type === 'danger' ? 'warning' : 'info',
+    })
   }
   await executeAction(currentAction.value, currentActionRow.value, compactPayload(actionForm))
   actionDialogVisible.value = false
