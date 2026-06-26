@@ -35,15 +35,37 @@ public class PaymentRefundRepository {
                                            String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT refund_id, project_id, refund_no, order_id, transaction_id, refund_amount, reason, status,
-                       third_refund_no, refunded_at, apply_user_id, audit_user_id, audit_at, created_at
-                FROM pay_refund
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT r.refund_id, r.project_id, r.refund_no, r.order_id, o.order_no, r.transaction_id,
+                       r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
+                       r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
+                       o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
+                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
+                FROM pay_refund r
+                LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) hs ON hs.tenant_id = r.tenant_id AND hs.order_id = r.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, refund_id, SUM(refund_amount) AS refunded_transaction_amount
+                    FROM pay_refund_transaction
+                    GROUP BY tenant_id, refund_id
+                ) rt ON rt.tenant_id = r.tenant_id AND rt.refund_id = r.refund_id
+                WHERE r.tenant_id = ? AND r.deleted = 0
                 """);
         args.add(tenantId);
-        appendRefundFilters(sql, args, projectId, status);
-        appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY created_at DESC, refund_id DESC LIMIT ? OFFSET ?");
+        appendRefundFilters(sql, args, projectId, status, "r.project_id", "r.status");
+        appendProjectScope(sql, args, allowedProjectIds, "r.project_id");
+        sql.append(" ORDER BY r.created_at DESC, r.refund_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapRefund, args.toArray());
@@ -61,19 +83,63 @@ public class PaymentRefundRepository {
 
     public PayRefundView getRefund(Long tenantId, Long refundId) {
         return jdbcTemplate.queryForObject("""
-                SELECT refund_id, project_id, refund_no, order_id, transaction_id, refund_amount, reason, status,
-                       third_refund_no, refunded_at, apply_user_id, audit_user_id, audit_at, created_at
-                FROM pay_refund
-                WHERE tenant_id = ? AND refund_id = ? AND deleted = 0
+                SELECT r.refund_id, r.project_id, r.refund_no, r.order_id, o.order_no, r.transaction_id,
+                       r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
+                       r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
+                       o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
+                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
+                FROM pay_refund r
+                LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) hs ON hs.tenant_id = r.tenant_id AND hs.order_id = r.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, refund_id, SUM(refund_amount) AS refunded_transaction_amount
+                    FROM pay_refund_transaction
+                    GROUP BY tenant_id, refund_id
+                ) rt ON rt.tenant_id = r.tenant_id AND rt.refund_id = r.refund_id
+                WHERE r.tenant_id = ? AND r.refund_id = ? AND r.deleted = 0
                 """, this::mapRefund, tenantId, refundId);
     }
 
     public PayRefundView getRefundByNo(String refundNo) {
         return jdbcTemplate.queryForObject("""
-                SELECT refund_id, project_id, refund_no, order_id, transaction_id, refund_amount, reason, status,
-                       third_refund_no, refunded_at, apply_user_id, audit_user_id, audit_at, created_at
-                FROM pay_refund
-                WHERE refund_no = ? AND deleted = 0
+                SELECT r.refund_id, r.project_id, r.refund_no, r.order_id, o.order_no, r.transaction_id,
+                       r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
+                       r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
+                       o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
+                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
+                FROM pay_refund r
+                LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) hs ON hs.tenant_id = r.tenant_id AND hs.order_id = r.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, refund_id, SUM(refund_amount) AS refunded_transaction_amount
+                    FROM pay_refund_transaction
+                    GROUP BY tenant_id, refund_id
+                ) rt ON rt.tenant_id = r.tenant_id AND rt.refund_id = r.refund_id
+                WHERE r.refund_no = ? AND r.deleted = 0
                 """, this::mapRefund, refundNo);
     }
 
@@ -297,12 +363,17 @@ public class PaymentRefundRepository {
     }
 
     private void appendRefundFilters(StringBuilder sql, List<Object> args, Long projectId, String status) {
+        appendRefundFilters(sql, args, projectId, status, "project_id", "status");
+    }
+
+    private void appendRefundFilters(StringBuilder sql, List<Object> args, Long projectId, String status,
+                                     String projectColumn, String statusColumn) {
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND ").append(projectColumn).append(" = ?");
             args.add(projectId);
         }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND ").append(statusColumn).append(" = ?");
             args.add(status);
         }
     }
@@ -351,11 +422,14 @@ public class PaymentRefundRepository {
 
     private PayRefundView mapRefund(ResultSet rs, int rowNum) throws SQLException {
         return new PayRefundView(rs.getLong("refund_id"), rs.getLong("project_id"), rs.getString("refund_no"),
-                rs.getLong("order_id"), (Long) rs.getObject("transaction_id"), rs.getBigDecimal("refund_amount"),
+                rs.getLong("order_id"), rs.getString("order_no"), (Long) rs.getObject("transaction_id"), rs.getBigDecimal("refund_amount"),
                 rs.getString("reason"), rs.getString("status"), rs.getString("third_refund_no"),
                 toLocalDateTime(rs, "refunded_at"), (Long) rs.getObject("apply_user_id"),
                 (Long) rs.getObject("audit_user_id"), toLocalDateTime(rs, "audit_at"),
-                rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getTimestamp("created_at").toLocalDateTime(), (Long) rs.getObject("member_id"),
+                rs.getString("member_name"), rs.getString("member_mobile"), rs.getString("house_no"),
+                rs.getString("pay_channel"), rs.getBigDecimal("order_amount"),
+                rs.getBigDecimal("refunded_transaction_amount"));
     }
 
     private PayOrderView mapOrder(ResultSet rs, int rowNum) throws SQLException {

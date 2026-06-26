@@ -8,6 +8,7 @@ public record PayRefundView(
         Long projectId,
         String refundNo,
         Long orderId,
+        String orderNo,
         Long transactionId,
         BigDecimal refundAmount,
         String reason,
@@ -17,6 +18,13 @@ public record PayRefundView(
         Long applyUserId,
         Long auditUserId,
         LocalDateTime auditAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long memberId,
+        String memberName,
+        String memberMobile,
+        String houseNo,
+        String payChannel,
+        BigDecimal orderAmount,
+        BigDecimal refundedTransactionAmount
 ) {
 }
