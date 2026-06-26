@@ -603,6 +603,32 @@ function billCollectionRemainingAmount(row?: Record<string, unknown>) {
 }
 
 const businessActions: Record<string, BusinessAction[]> = {
+  'payment-orders': [
+    {
+      key: 'payment-orders-export',
+      label: '导出订单',
+      scope: 'page',
+      method: 'DOWNLOAD',
+      path: () => `/payment/orders.csv${tableExportQuery()}`,
+      type: 'primary',
+      icon: Download,
+      permission: 'payment:order:list',
+      filename: () => `收款订单-${dateStamp()}.csv`,
+    },
+  ],
+  'payment-transactions': [
+    {
+      key: 'payment-transactions-export',
+      label: '导出流水',
+      scope: 'page',
+      method: 'DOWNLOAD',
+      path: () => `/payment/transactions.csv${tableExportQuery()}`,
+      type: 'primary',
+      icon: Download,
+      permission: 'payment:transaction:list',
+      filename: () => `支付流水-${dateStamp()}.csv`,
+    },
+  ],
   bills: [
     {
       key: 'bill-cash-collect',
@@ -689,6 +715,17 @@ const businessActions: Record<string, BusinessAction[]> = {
     },
   ],
   refunds: [
+    {
+      key: 'refunds-export',
+      label: '导出退款',
+      scope: 'page',
+      method: 'DOWNLOAD',
+      path: () => `/payment/refunds.csv${tableExportQuery()}`,
+      type: 'primary',
+      icon: Download,
+      permission: 'payment:refund:list',
+      filename: () => `退款管理-${dateStamp()}.csv`,
+    },
     {
       key: 'refund-approve',
       label: '通过',
@@ -2086,6 +2123,14 @@ function toQuery(data: Record<string, unknown>) {
   })
   const query = params.toString()
   return query ? `?${query}` : ''
+}
+
+function tableExportQuery() {
+  return toQuery(filters)
+}
+
+function dateStamp() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 function resolvePath(action: BusinessAction, row?: Record<string, unknown>, formData: Record<string, unknown> = {}) {

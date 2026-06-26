@@ -32,7 +32,8 @@ public class PaymentRepository {
     }
 
     public List<PayOrderView> findOrders(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                         String orderNo, String memberName, String status, long offset, long pageSize) {
+                                         String orderNo, String memberName, String payChannel, String status,
+                                         long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT o.order_id, o.tenant_id, o.project_id, o.order_no, o.member_id, o.pay_channel, o.amount,
@@ -86,6 +87,7 @@ public class PaymentRepository {
         args.add(tenantId);
         appendOrderFilters(sql, args, projectId, orderNo, memberName, status, "o.project_id", "o.order_no",
                 "m.real_name", "m.mobile", "o.status");
+        appendPayChannelFilter(sql, args, payChannel, "o.pay_channel");
         appendProjectScope(sql, args, allowedProjectIds, "o.project_id");
         sql.append(" ORDER BY o.created_at DESC, o.order_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
@@ -94,7 +96,7 @@ public class PaymentRepository {
     }
 
     public long countOrders(Long tenantId, List<Long> allowedProjectIds, Long projectId, String orderNo,
-                            String memberName, String status) {
+                            String memberName, String payChannel, String status) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(*)
@@ -105,6 +107,7 @@ public class PaymentRepository {
         args.add(tenantId);
         appendOrderFilters(sql, args, projectId, orderNo, memberName, status, "o.project_id", "o.order_no",
                 "m.real_name", "m.mobile", "o.status");
+        appendPayChannelFilter(sql, args, payChannel, "o.pay_channel");
         appendProjectScope(sql, args, allowedProjectIds, "o.project_id");
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
@@ -117,11 +120,27 @@ public class PaymentRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT t.transaction_id, t.project_id, t.order_id, t.order_no, t.third_trade_no, t.pay_channel,
                        t.amount, t.paid_at, t.created_at, o.member_id, m.real_name AS member_name,
-                       m.mobile AS member_mobile, o.status AS order_status, o.amount AS order_amount,
+                       m.mobile AS member_mobile, ob.house_no, ob.bill_summary,
+                       o.status AS order_status, o.amount AS order_amount,
+                       COALESCE(ob.bill_applied_amount, 0) AS bill_applied_amount,
                        COALESCE(pp.prepayment_amount, 0) AS prepayment_amount
                 FROM pay_transaction t
                 LEFT JOIN pay_order o ON o.tenant_id = t.tenant_id AND o.order_id = t.order_id AND o.deleted = 0
                 LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id, SUM(ob.amount) AS bill_applied_amount,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) ob ON ob.tenant_id = t.tenant_id AND ob.order_id = t.order_id
                 LEFT JOIN (
                     SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount
                     FROM member_prepayment
@@ -447,13 +466,17 @@ public class PaymentRepository {
             args.add(keyword);
             args.add(keyword);
         }
-        if (payChannel != null && !payChannel.isBlank()) {
-            sql.append(" AND t.pay_channel = ?");
-            args.add(payChannel);
-        }
+        appendPayChannelFilter(sql, args, payChannel, "t.pay_channel");
         if (orderStatus != null && !orderStatus.isBlank()) {
             sql.append(" AND o.status = ?");
             args.add(orderStatus);
+        }
+    }
+
+    private void appendPayChannelFilter(StringBuilder sql, List<Object> args, String payChannel, String column) {
+        if (payChannel != null && !payChannel.isBlank()) {
+            sql.append(" AND ").append(column).append(" = ?");
+            args.add(payChannel);
         }
     }
 
@@ -516,8 +539,10 @@ public class PaymentRepository {
                 rs.getString("order_no"), rs.getString("third_trade_no"), rs.getString("pay_channel"),
                 rs.getBigDecimal("amount"), rs.getTimestamp("paid_at").toLocalDateTime(),
                 rs.getTimestamp("created_at").toLocalDateTime(), (Long) rs.getObject("member_id"),
-                rs.getString("member_name"), rs.getString("member_mobile"), rs.getString("order_status"),
-                rs.getBigDecimal("order_amount"), rs.getBigDecimal("prepayment_amount"));
+                rs.getString("member_name"), rs.getString("member_mobile"), rs.getString("house_no"),
+                rs.getString("bill_summary"), rs.getString("order_status"),
+                rs.getBigDecimal("order_amount"), rs.getBigDecimal("bill_applied_amount"),
+                rs.getBigDecimal("prepayment_amount"));
     }
 
     private MemberPrepaymentView mapPrepayment(ResultSet rs, int rowNum) throws SQLException {

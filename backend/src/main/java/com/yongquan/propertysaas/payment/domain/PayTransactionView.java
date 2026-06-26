@@ -16,8 +16,11 @@ public record PayTransactionView(
         Long memberId,
         String memberName,
         String memberMobile,
+        String houseNo,
+        String billSummary,
         String orderStatus,
         BigDecimal orderAmount,
+        BigDecimal billAppliedAmount,
         BigDecimal prepaymentAmount
 ) {
 }

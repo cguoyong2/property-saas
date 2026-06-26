@@ -53,9 +53,12 @@ public class PaymentService {
         this.objectMapper = objectMapper;
     }
 
-    public PageResult<PayOrderView> pageOrders(Long projectId, String orderNo, String memberName, String status,
-                                               long pageNo, long pageSize) {
+    public PageResult<PayOrderView> pageOrders(Long projectId, String orderNo, String memberName,
+                                               String payChannel, String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
+        if (payChannel != null && !payChannel.isBlank()) {
+            validatePayChannel(payChannel);
+        }
         validateOrderStatus(status);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
@@ -64,9 +67,9 @@ public class PaymentService {
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
                 repository.findOrders(tenantId, scope, projectId, normalize(orderNo), normalize(memberName),
-                        normalize(status), offset(pageNo, pageSize), pageSize),
+                        normalize(payChannel), normalize(status), offset(pageNo, pageSize), pageSize),
                 repository.countOrders(tenantId, scope, projectId, normalize(orderNo), normalize(memberName),
-                        normalize(status)),
+                        normalize(payChannel), normalize(status)),
                 pageNo,
                 pageSize);
     }
