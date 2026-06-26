@@ -199,6 +199,7 @@ public class PaymentRefundService {
     }
 
     public PageResult<ReconcileExceptionView> pageReconcileExceptions(Long projectId, String exceptionType,
+                                                                       String businessNo, String memberName,
                                                                        String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (projectId != null) {
@@ -211,8 +212,9 @@ public class PaymentRefundService {
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
                 repository.findReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
-                        normalize(status), offset(pageNo, pageSize), pageSize),
-                repository.countReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType), normalize(status)),
+                        normalize(businessNo), normalize(memberName), normalize(status), offset(pageNo, pageSize), pageSize),
+                repository.countReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
+                        normalize(businessNo), normalize(memberName), normalize(status)),
                 pageNo,
                 pageSize);
     }

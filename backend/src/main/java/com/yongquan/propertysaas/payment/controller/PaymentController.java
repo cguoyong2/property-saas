@@ -71,9 +71,12 @@ public class PaymentController {
                                                                         @RequestParam(required = false) String transactionId,
                                                                         @RequestParam(required = false) String orderNo,
                                                                         @RequestParam(required = false) String memberName,
+                                                                        @RequestParam(required = false) String payChannel,
+                                                                        @RequestParam(required = false) String orderStatus,
                                                                         @RequestParam(defaultValue = "1") long pageNo,
                                                                         @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.pageTransactions(projectId, transactionId, orderNo, memberName, pageNo, pageSize));
+        return ApiResponse.success(service.pageTransactions(projectId, transactionId, orderNo, memberName,
+                payChannel, orderStatus, pageNo, pageSize));
     }
 
     @GetMapping("/api/payment/prepayments")
@@ -149,10 +152,13 @@ public class PaymentController {
     @RequiresPermission("payment:reconcile:view")
     public ApiResponse<PageResult<ReconcileExceptionView>> reconcileExceptions(@RequestParam(required = false) Long projectId,
                                                                                @RequestParam(required = false) String exceptionType,
+                                                                               @RequestParam(required = false) String businessNo,
+                                                                               @RequestParam(required = false) String memberName,
                                                                                @RequestParam(required = false) String status,
                                                                                @RequestParam(defaultValue = "1") long pageNo,
                                                                                @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, status, pageNo, pageSize));
+        return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, businessNo,
+                memberName, status, pageNo, pageSize));
     }
 
     @PostMapping("/api/payment/reconcile/exceptions/{exceptionKey}/handle")

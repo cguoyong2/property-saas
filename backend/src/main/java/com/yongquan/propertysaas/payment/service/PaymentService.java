@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PaymentService {
 
-    private static final Set<String> PAY_CHANNELS = Set.of("WECHAT", "ALI", "OFFLINE", "POS", "CASH");
+    private static final Set<String> PAY_CHANNELS = Set.of("WECHAT", "ALI", "OFFLINE", "POS", "CASH", "BANK_TRANSFER");
     private static final Set<String> OFFLINE_COLLECTION_CHANNELS = Set.of("OFFLINE", "POS", "CASH");
     private static final Set<String> ORDER_STATUSES = Set.of(
             "PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED");
@@ -72,8 +72,13 @@ public class PaymentService {
     }
 
     public PageResult<PayTransactionView> pageTransactions(Long projectId, String transactionId, String orderNo,
-                                                           String memberName, long pageNo, long pageSize) {
+                                                           String memberName, String payChannel, String orderStatus,
+                                                           long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
+        if (payChannel != null && !payChannel.isBlank()) {
+            validatePayChannel(payChannel);
+        }
+        validateOrderStatus(orderStatus);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
         }
@@ -81,9 +86,10 @@ public class PaymentService {
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
                 repository.findTransactions(tenantId, scope, projectId, normalize(transactionId),
-                        normalize(orderNo), normalize(memberName), offset(pageNo, pageSize), pageSize),
+                        normalize(orderNo), normalize(memberName), normalize(payChannel), normalize(orderStatus),
+                        offset(pageNo, pageSize), pageSize),
                 repository.countTransactions(tenantId, scope, projectId, normalize(transactionId),
-                        normalize(orderNo), normalize(memberName)),
+                        normalize(orderNo), normalize(memberName), normalize(payChannel), normalize(orderStatus)),
                 pageNo,
                 pageSize);
     }

@@ -112,7 +112,7 @@ public class PaymentRepository {
 
     public List<PayTransactionView> findTransactions(Long tenantId, List<Long> allowedProjectIds, Long projectId,
                                                      String transactionId, String orderNo, String memberName,
-                                                     long offset, long pageSize) {
+                                                     String payChannel, String orderStatus, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT t.transaction_id, t.project_id, t.order_id, t.order_no, t.third_trade_no, t.pay_channel,
@@ -135,7 +135,7 @@ public class PaymentRepository {
             sql.append(" AND t.project_id = ?");
             args.add(projectId);
         }
-        appendTransactionFilters(sql, args, transactionId, orderNo, memberName);
+        appendTransactionFilters(sql, args, transactionId, orderNo, memberName, payChannel, orderStatus);
         appendProjectScope(sql, args, allowedProjectIds, "t.project_id");
         sql.append(" ORDER BY t.paid_at DESC, t.transaction_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
@@ -144,7 +144,8 @@ public class PaymentRepository {
     }
 
     public long countTransactions(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                  String transactionId, String orderNo, String memberName) {
+                                  String transactionId, String orderNo, String memberName,
+                                  String payChannel, String orderStatus) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(*)
@@ -158,7 +159,7 @@ public class PaymentRepository {
             sql.append(" AND t.project_id = ?");
             args.add(projectId);
         }
-        appendTransactionFilters(sql, args, transactionId, orderNo, memberName);
+        appendTransactionFilters(sql, args, transactionId, orderNo, memberName, payChannel, orderStatus);
         appendProjectScope(sql, args, allowedProjectIds, "t.project_id");
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
@@ -431,7 +432,7 @@ public class PaymentRepository {
     }
 
     private void appendTransactionFilters(StringBuilder sql, List<Object> args, String transactionId,
-                                          String orderNo, String memberName) {
+                                          String orderNo, String memberName, String payChannel, String orderStatus) {
         if (transactionId != null && !transactionId.isBlank()) {
             sql.append(" AND CAST(t.transaction_id AS CHAR) LIKE ?");
             args.add("%" + transactionId.trim() + "%");
@@ -445,6 +446,14 @@ public class PaymentRepository {
             String keyword = "%" + memberName.trim() + "%";
             args.add(keyword);
             args.add(keyword);
+        }
+        if (payChannel != null && !payChannel.isBlank()) {
+            sql.append(" AND t.pay_channel = ?");
+            args.add(payChannel);
+        }
+        if (orderStatus != null && !orderStatus.isBlank()) {
+            sql.append(" AND o.status = ?");
+            args.add(orderStatus);
         }
     }
 
