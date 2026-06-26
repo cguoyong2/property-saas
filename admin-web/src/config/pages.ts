@@ -732,6 +732,7 @@ const billingPages: PageConfig[] = [
       { prop: 'billPeriod', label: '账期' },
       { prop: 'detailSummary', label: '应收明细' },
       { prop: 'receivableAmount', label: '应收' },
+      { prop: 'prepaymentAppliedAmount', label: '预存抵扣' },
       { prop: 'paidAmount', label: '已收' },
       { prop: 'remainingAmount', label: '待收' },
       { prop: 'dueDate', label: '到期日' },

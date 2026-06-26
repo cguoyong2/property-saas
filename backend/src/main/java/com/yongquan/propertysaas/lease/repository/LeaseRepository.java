@@ -371,7 +371,7 @@ public class LeaseRepository {
                 rs.getBigDecimal("paid_amount"), rs.getBigDecimal("refund_amount"), rs.getBigDecimal("remaining_amount"),
                 rs.getObject("due_date", LocalDate.class), rs.getString("status"), rs.getString("source_type"),
                 rs.getString("void_reason"), rs.getTimestamp("created_at").toLocalDateTime(),
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, BigDecimal.ZERO, null);
     }
 
     private NoticeRecipient mapRecipient(ResultSet rs, int rowNum) throws SQLException {

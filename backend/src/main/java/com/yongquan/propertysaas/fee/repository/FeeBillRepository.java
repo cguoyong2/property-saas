@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.fee.repository;
 import com.yongquan.propertysaas.fee.domain.BillObjectTarget;
 import com.yongquan.propertysaas.fee.domain.BillStandardCandidate;
 import com.yongquan.propertysaas.fee.domain.FeeBillView;
+import com.yongquan.propertysaas.fee.domain.MemberPrepaymentBalance;
 import com.yongquan.propertysaas.fee.dto.BillManualRequest;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -40,7 +41,9 @@ public class FeeBillRepository {
                        b.void_reason, b.created_at, p.project_name, i.item_name, m.real_name AS member_name,
                        m.mobile AS member_mobile,
                        TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
-                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary
+                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary,
+                       COALESCE(pu.prepayment_applied_amount, 0.00) AS prepayment_applied_amount,
+                       pu.prepayment_usage_summary
                 FROM fee_bill b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
                 LEFT JOIN fee_item i ON i.tenant_id = b.tenant_id AND i.item_id = b.item_id AND i.deleted = 0
@@ -50,6 +53,14 @@ public class FeeBillRepository {
                      AND h.deleted = 0
                 LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                 LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, bill_id, SUM(amount) AS prepayment_applied_amount,
+                           GROUP_CONCAT(CONCAT('预存款抵扣：', CAST(amount AS CHAR), '元') ORDER BY created_at SEPARATOR '；')
+                               AS prepayment_usage_summary
+                    FROM member_prepayment_usage
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, bill_id
+                ) pu ON pu.tenant_id = b.tenant_id AND pu.bill_id = b.bill_id
                 WHERE b.tenant_id = ? AND b.deleted = 0
                 """);
         args.add(tenantId);
@@ -79,7 +90,9 @@ public class FeeBillRepository {
                        b.void_reason, b.created_at, p.project_name, i.item_name, m.real_name AS member_name,
                        m.mobile AS member_mobile,
                        TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
-                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary
+                       CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary,
+                       COALESCE(pu.prepayment_applied_amount, 0.00) AS prepayment_applied_amount,
+                       pu.prepayment_usage_summary
                 FROM fee_bill b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
                 LEFT JOIN fee_item i ON i.tenant_id = b.tenant_id AND i.item_id = b.item_id AND i.deleted = 0
@@ -89,6 +102,14 @@ public class FeeBillRepository {
                      AND h.deleted = 0
                 LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                 LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, bill_id, SUM(amount) AS prepayment_applied_amount,
+                           GROUP_CONCAT(CONCAT('预存款抵扣：', CAST(amount AS CHAR), '元') ORDER BY created_at SEPARATOR '；')
+                               AS prepayment_usage_summary
+                    FROM member_prepayment_usage
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, bill_id
+                ) pu ON pu.tenant_id = b.tenant_id AND pu.bill_id = b.bill_id
                 WHERE b.tenant_id = ? AND b.bill_id = ? AND b.deleted = 0
                 """, this::mapBill, tenantId, billId);
     }
@@ -246,6 +267,55 @@ public class FeeBillRepository {
                 billId, tenantId, request.projectId(), billNo, request.itemId(), request.standardId(),
                 request.objectType(), request.objectId(), request.memberId(), request.houseId(), request.billPeriod(),
                 receivableAmount, discountAmount, remainingAmount, request.dueDate(), sourceType, userId);
+    }
+
+    public List<MemberPrepaymentBalance> findAvailablePrepayments(Long tenantId, Long projectId, Long memberId) {
+        return jdbcTemplate.query("""
+                        SELECT prepayment_id, remaining_amount
+                        FROM member_prepayment
+                        WHERE tenant_id = ? AND project_id = ? AND member_id = ? AND deleted = 0
+                          AND remaining_amount > 0
+                        ORDER BY created_at ASC, prepayment_id ASC
+                        """,
+                (rs, rowNum) -> new MemberPrepaymentBalance(
+                        rs.getLong("prepayment_id"),
+                        rs.getBigDecimal("remaining_amount")),
+                tenantId, projectId, memberId);
+    }
+
+    public int deductPrepayment(Long tenantId, Long prepaymentId, BigDecimal amount) {
+        return jdbcTemplate.update("""
+                        UPDATE member_prepayment
+                        SET remaining_amount = remaining_amount - ?
+                        WHERE tenant_id = ? AND prepayment_id = ? AND deleted = 0 AND remaining_amount >= ?
+                        """, amount, tenantId, prepaymentId, amount);
+    }
+
+    public int applyPrepaymentToBill(Long tenantId, Long billId, BigDecimal amount, Long userId) {
+        return jdbcTemplate.update("""
+                        UPDATE fee_bill
+                        SET paid_amount = paid_amount + ?,
+                            remaining_amount = GREATEST(remaining_amount - ?, 0),
+                            status = CASE
+                                WHEN GREATEST(remaining_amount - ?, 0) = 0 THEN 'PAID'
+                                ELSE 'PARTIAL_PAID'
+                            END,
+                            updated_by = ?
+                        WHERE tenant_id = ? AND bill_id = ? AND deleted = 0
+                          AND status IN ('UNPAID', 'OVERDUE', 'PARTIAL_PAID')
+                          AND remaining_amount >= ?
+                        """, amount, amount, amount, userId, tenantId, billId, amount);
+    }
+
+    public void insertPrepaymentUsage(Long tenantId, Long projectId, Long usageId, Long prepaymentId, Long memberId,
+                                      Long billId, String billNo, BigDecimal amount, String usageType,
+                                      String remark, Long userId) {
+        jdbcTemplate.update("""
+                        INSERT INTO member_prepayment_usage(usage_id, tenant_id, project_id, prepayment_id, member_id,
+                                                            bill_id, bill_no, amount, usage_type, remark, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, usageId, tenantId, projectId, prepaymentId, memberId, billId, billNo, amount,
+                usageType, remark, userId);
     }
 
     public int voidBill(Long tenantId, Long billId, Long userId, String reason) {
@@ -422,7 +492,8 @@ public class FeeBillRepository {
                 rs.getString("status"), rs.getString("source_type"), rs.getString("void_reason"),
                 rs.getTimestamp("created_at").toLocalDateTime(), rs.getString("project_name"),
                 rs.getString("item_name"), rs.getString("member_name"), rs.getString("member_mobile"),
-                rs.getString("house_no"), rs.getString("detail_summary"));
+                rs.getString("house_no"), rs.getString("detail_summary"),
+                rs.getBigDecimal("prepayment_applied_amount"), rs.getString("prepayment_usage_summary"));
     }
 
     private BillStandardCandidate mapCandidate(ResultSet rs, int rowNum) throws SQLException {

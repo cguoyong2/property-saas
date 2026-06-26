@@ -5,6 +5,7 @@ import com.yongquan.propertysaas.fee.domain.BillGenerateResultView;
 import com.yongquan.propertysaas.fee.domain.BillObjectTarget;
 import com.yongquan.propertysaas.fee.domain.BillStandardCandidate;
 import com.yongquan.propertysaas.fee.domain.FeeBillView;
+import com.yongquan.propertysaas.fee.domain.MemberPrepaymentBalance;
 import com.yongquan.propertysaas.fee.dto.BillGenerateRequest;
 import com.yongquan.propertysaas.fee.dto.BillImportRequest;
 import com.yongquan.propertysaas.fee.dto.BillManualRequest;
@@ -44,6 +45,7 @@ public class FeeBillService {
         this.operationLogService = operationLogService;
     }
 
+    @Transactional
     public PageResult<FeeBillView> pageBills(Long projectId, String status, String billPeriod, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         validateBillStatus(status);
@@ -233,6 +235,37 @@ public class FeeBillService {
         BigDecimal discount = money(request.discountAmount() == null ? BigDecimal.ZERO : request.discountAmount());
         BigDecimal remaining = receivable.subtract(discount).setScale(2, RoundingMode.HALF_UP);
         repository.insertBill(tenantId, billId, billNo, createdBy, request, receivable, discount, remaining, sourceType);
+        applyAvailablePrepayment(tenantId, billId, billNo, request, remaining, createdBy);
+    }
+
+    private void applyAvailablePrepayment(Long tenantId, Long billId, String billNo, BillManualRequest request,
+                                          BigDecimal remainingAmount, Long userId) {
+        if (request.memberId() == null || remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        BigDecimal need = money(remainingAmount);
+        for (MemberPrepaymentBalance prepayment : repository.findAvailablePrepayments(
+                tenantId, request.projectId(), request.memberId())) {
+            if (need.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal available = money(prepayment.remainingAmount());
+            if (available.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal amount = available.compareTo(need) > 0 ? need : available;
+            if (repository.deductPrepayment(tenantId, prepayment.prepaymentId(), amount) == 0) {
+                continue;
+            }
+            int billUpdated = repository.applyPrepaymentToBill(tenantId, billId, amount, userId);
+            if (billUpdated == 0) {
+                throw new IllegalStateException("预存款抵扣失败，账单状态已变化：" + billNo);
+            }
+            repository.insertPrepaymentUsage(tenantId, request.projectId(), newId(), prepayment.prepaymentId(),
+                    request.memberId(), billId, billNo, amount, "AUTO_BILL_OFFSET",
+                    "账单生成后自动抵扣预存款", userId);
+            need = need.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        }
     }
 
     private void validateBillDuplicate(Long tenantId, BillManualRequest request) {

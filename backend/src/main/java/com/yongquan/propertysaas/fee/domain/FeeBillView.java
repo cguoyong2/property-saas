@@ -30,6 +30,8 @@ public record FeeBillView(
         String memberName,
         String memberMobile,
         String houseNo,
-        String detailSummary
+        String detailSummary,
+        BigDecimal prepaymentAppliedAmount,
+        String prepaymentUsageSummary
 ) {
 }
