@@ -520,8 +520,9 @@ public class PaymentRefundRepository {
                 rs.getString("order_no"), (Long) rs.getObject("member_id"), rs.getString("pay_channel"),
                 rs.getBigDecimal("amount"), rs.getString("subject"), rs.getString("status"), toLocalDateTime(rs, "expire_at"),
                 toLocalDateTime(rs, "paid_at"), rs.getString("third_trade_no"),
-                rs.getTimestamp("created_at").toLocalDateTime(), null, null, 0L,
-                java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+                rs.getTimestamp("created_at").toLocalDateTime(), null, null, null, null, 0L,
+                java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
     }
 
     private RefundableOrderView mapRefundableOrder(ResultSet rs, int rowNum) throws SQLException {

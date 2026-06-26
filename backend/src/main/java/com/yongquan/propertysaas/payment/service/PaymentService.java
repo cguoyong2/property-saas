@@ -53,7 +53,8 @@ public class PaymentService {
         this.objectMapper = objectMapper;
     }
 
-    public PageResult<PayOrderView> pageOrders(Long projectId, String status, long pageNo, long pageSize) {
+    public PageResult<PayOrderView> pageOrders(Long projectId, String orderNo, String memberName, String status,
+                                               long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         validateOrderStatus(status);
         if (projectId != null) {
@@ -62,13 +63,16 @@ public class PaymentService {
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
-                repository.findOrders(tenantId, scope, projectId, status, offset(pageNo, pageSize), pageSize),
-                repository.countOrders(tenantId, scope, projectId, status),
+                repository.findOrders(tenantId, scope, projectId, normalize(orderNo), normalize(memberName),
+                        normalize(status), offset(pageNo, pageSize), pageSize),
+                repository.countOrders(tenantId, scope, projectId, normalize(orderNo), normalize(memberName),
+                        normalize(status)),
                 pageNo,
                 pageSize);
     }
 
-    public PageResult<PayTransactionView> pageTransactions(Long projectId, long pageNo, long pageSize) {
+    public PageResult<PayTransactionView> pageTransactions(Long projectId, String transactionId, String orderNo,
+                                                           String memberName, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
@@ -76,8 +80,10 @@ public class PaymentService {
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
-                repository.findTransactions(tenantId, scope, projectId, offset(pageNo, pageSize), pageSize),
-                repository.countTransactions(tenantId, scope, projectId),
+                repository.findTransactions(tenantId, scope, projectId, normalize(transactionId),
+                        normalize(orderNo), normalize(memberName), offset(pageNo, pageSize), pageSize),
+                repository.countTransactions(tenantId, scope, projectId, normalize(transactionId),
+                        normalize(orderNo), normalize(memberName)),
                 pageNo,
                 pageSize);
     }
@@ -328,6 +334,10 @@ public class PaymentService {
 
     private long offset(long pageNo, long pageSize) {
         return (pageNo - 1) * pageSize;
+    }
+
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private Long newId() {

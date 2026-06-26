@@ -57,18 +57,23 @@ public class PaymentController {
     @GetMapping("/api/payment/orders")
     @RequiresPermission("payment:order:list")
     public ApiResponse<PageResult<PayOrderView>> pageOrders(@RequestParam(required = false) Long projectId,
+                                                            @RequestParam(required = false) String orderNo,
+                                                            @RequestParam(required = false) String memberName,
                                                             @RequestParam(required = false) String status,
                                                             @RequestParam(defaultValue = "1") long pageNo,
                                                             @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.pageOrders(projectId, status, pageNo, pageSize));
+        return ApiResponse.success(service.pageOrders(projectId, orderNo, memberName, status, pageNo, pageSize));
     }
 
     @GetMapping("/api/payment/transactions")
     @RequiresPermission("payment:transaction:list")
     public ApiResponse<PageResult<PayTransactionView>> pageTransactions(@RequestParam(required = false) Long projectId,
+                                                                        @RequestParam(required = false) String transactionId,
+                                                                        @RequestParam(required = false) String orderNo,
+                                                                        @RequestParam(required = false) String memberName,
                                                                         @RequestParam(defaultValue = "1") long pageNo,
                                                                         @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.pageTransactions(projectId, pageNo, pageSize));
+        return ApiResponse.success(service.pageTransactions(projectId, transactionId, orderNo, memberName, pageNo, pageSize));
     }
 
     @GetMapping("/api/payment/prepayments")
