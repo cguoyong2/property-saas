@@ -431,6 +431,14 @@
           <el-input v-else v-model="actionForm[field.prop]" />
           <p v-if="field.help" class="field-help">{{ field.help }}</p>
         </el-form-item>
+        <el-alert
+          v-if="collectionActionSummary"
+          class="collection-summary"
+          :title="collectionActionSummary"
+          type="info"
+          show-icon
+          :closable="false"
+        />
       </el-form>
       <template #footer>
         <el-button @click="actionDialogVisible = false">取消</el-button>
@@ -935,6 +943,16 @@ const hasOperationColumn = computed(() => Boolean((config.value.updatePath && ca
 const operationWidth = computed(() => {
   if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
   return rowActions.value.length > 3 ? 360 : rowActions.value.length > 1 ? 260 : 140
+})
+const collectionActionSummary = computed(() => {
+  if (currentAction.value?.key !== 'bill-cash-collect' && currentAction.value?.key !== 'bill-qr-collect') return ''
+  const amount = Number(actionForm.amount)
+  const receivable = billCollectionRemainingAmount(currentActionRow.value)
+  if (!Number.isFinite(amount) || amount <= 0 || receivable <= 0) return ''
+  const diff = Math.round((amount - receivable) * 100) / 100
+  if (diff < 0) return `本次少收 ${moneyText(Math.abs(diff))}，收款后账单会保留待收款。`
+  if (diff > 0) return `本次超收 ${moneyText(diff)}，收款成功后超出部分会转为业主/住户预存款。`
+  return '本次收款等于当前待收金额，收款成功后账单将结清。'
 })
 
 async function load() {

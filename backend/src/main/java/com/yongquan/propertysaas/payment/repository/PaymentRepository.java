@@ -1,6 +1,7 @@
 package com.yongquan.propertysaas.payment.repository;
 
 import com.yongquan.propertysaas.payment.domain.MemberPrepaymentView;
+import com.yongquan.propertysaas.payment.domain.OrderBillSettlement;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
@@ -259,6 +260,16 @@ public class PaymentRepository {
                 """, this::mapPayableBill, tenantId, orderId);
     }
 
+    public List<OrderBillSettlement> findOrderBillSettlements(Long tenantId, Long orderId) {
+        return jdbcTemplate.query("""
+                SELECT b.bill_id, b.member_id, ob.amount AS allocated_amount, b.remaining_amount AS current_remaining_amount
+                FROM pay_order_bill ob
+                JOIN fee_bill b ON b.tenant_id = ob.tenant_id AND b.bill_id = ob.bill_id
+                WHERE ob.tenant_id = ? AND ob.order_id = ? AND b.deleted = 0
+                ORDER BY ob.id ASC
+                """, this::mapOrderBillSettlement, tenantId, orderId);
+    }
+
     public boolean transactionExists(Long tenantId, String payChannel, String thirdTradeNo) {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM pay_transaction
@@ -300,8 +311,8 @@ public class PaymentRepository {
                         """, paidAt, thirdTradeNo, tenantId, orderId);
     }
 
-    public void settleBill(Long tenantId, Long billId, BigDecimal amount) {
-        jdbcTemplate.update("""
+    public int settleBill(Long tenantId, Long billId, BigDecimal amount) {
+        return jdbcTemplate.update("""
                         UPDATE fee_bill
                         SET paid_amount = paid_amount + ?,
                             remaining_amount = GREATEST(remaining_amount - ?, 0),
@@ -309,8 +320,8 @@ public class PaymentRepository {
                                 WHEN GREATEST(remaining_amount - ?, 0) = 0 THEN 'PAID'
                                 ELSE 'PARTIAL_PAID'
                             END
-                        WHERE tenant_id = ? AND bill_id = ? AND deleted = 0
-                        """, amount, amount, amount, tenantId, billId);
+                        WHERE tenant_id = ? AND bill_id = ? AND deleted = 0 AND remaining_amount >= ?
+                        """, amount, amount, amount, tenantId, billId, amount);
     }
 
     public boolean projectExists(Long tenantId, Long projectId) {
@@ -416,6 +427,11 @@ public class PaymentRepository {
     private PayableBill mapPayableBill(ResultSet rs, int rowNum) throws SQLException {
         return new PayableBill(rs.getLong("bill_id"), rs.getLong("project_id"), rs.getString("bill_no"),
                 (Long) rs.getObject("member_id"), rs.getBigDecimal("remaining_amount"), rs.getString("status"));
+    }
+
+    private OrderBillSettlement mapOrderBillSettlement(ResultSet rs, int rowNum) throws SQLException {
+        return new OrderBillSettlement(rs.getLong("bill_id"), (Long) rs.getObject("member_id"),
+                rs.getBigDecimal("allocated_amount"), rs.getBigDecimal("current_remaining_amount"));
     }
 
     private LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {

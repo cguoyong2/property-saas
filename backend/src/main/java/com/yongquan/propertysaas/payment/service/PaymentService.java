@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.payment.domain.MemberPrepaymentView;
+import com.yongquan.propertysaas.payment.domain.OrderBillSettlement;
 import com.yongquan.propertysaas.payment.domain.PayOrderCreateResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
@@ -113,11 +114,6 @@ public class PaymentService {
             repository.insertOrderBill(newId(), tenantId(), request.projectId(), orderId,
                     allocation.bill().billId(), allocation.amount());
         }
-        List<Long> allocatedBillIds = payment.allocations().stream().map(allocation -> allocation.bill().billId()).toList();
-        int marked = repository.markBillsPaying(tenantId(), request.projectId(), allocatedBillIds);
-        if (marked != allocatedBillIds.size()) {
-            throw new IllegalArgumentException("账单状态已变化，创建支付订单失败");
-        }
         return new PayOrderCreateResult(orderId, orderNo, payment.amount(), "PAYING", "LOCAL-" + orderNo, expireAt);
     }
 
@@ -139,22 +135,12 @@ public class PaymentService {
             repository.insertOrderBill(newId(), tenantId(), request.projectId(), orderId,
                     allocation.bill().billId(), allocation.amount());
         }
-        List<Long> allocatedBillIds = payment.allocations().stream().map(allocation -> allocation.bill().billId()).toList();
-        int marked = repository.markBillsPaying(tenantId(), request.projectId(), allocatedBillIds);
-        if (marked != allocatedBillIds.size()) {
-            throw new IllegalArgumentException("账单状态已变化，收款失败");
-        }
 
         String thirdTradeNo = request.payChannel() + "-" + orderNo;
         repository.insertTransactionIfAbsent(newId(), tenantId(), request.projectId(), orderId, orderNo,
                 thirdTradeNo, request.payChannel(), payment.amount(), paidAt, "{\"source\":\"PC_OFFLINE_COLLECTION\"}");
-        for (PayableBill bill : repository.findOrderBills(tenantId(), orderId)) {
-            repository.settleBill(tenantId(), bill.billId(), bill.remainingAmount());
-        }
-        if (payment.prepaymentAmount().compareTo(BigDecimal.ZERO) > 0) {
-            repository.insertPrepayment(newId(), tenantId(), request.projectId(), payment.memberId(), orderId, orderNo,
-                    payment.prepaymentAmount(), userId(), "现金收款超出应收金额，自动转入预存款");
-        }
+        settlePaidOrder(tenantId(), request.projectId(), orderId, orderNo, payment.memberId(), payment.amount(),
+                "现金收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId(), orderId, thirdTradeNo, paidAt);
         return new PayOrderCreateResult(orderId, orderNo, payment.amount(), "PAID", thirdTradeNo, paidAt);
     }
@@ -184,19 +170,38 @@ public class PaymentService {
             repository.markOrderPaid(tenantId, order.orderId(), request.thirdTradeNo(), request.paidAt());
             return new PaymentNotifyResult(order.orderNo(), "PAID", true);
         }
-        BigDecimal appliedAmount = BigDecimal.ZERO;
-        List<PayableBill> orderBills = repository.findOrderBills(tenantId, order.orderId());
-        for (PayableBill bill : orderBills) {
-            repository.settleBill(tenantId, bill.billId(), bill.remainingAmount());
-            appliedAmount = appliedAmount.add(bill.remainingAmount());
-        }
-        BigDecimal prepaymentAmount = notifyAmount.subtract(appliedAmount).setScale(2, RoundingMode.HALF_UP);
-        if (prepaymentAmount.compareTo(BigDecimal.ZERO) > 0) {
-            repository.insertPrepayment(newId(), tenantId, order.projectId(), order.memberId(), order.orderId(),
-                    order.orderNo(), prepaymentAmount, null, "收款码收款超出应收金额，自动转入预存款");
-        }
+        settlePaidOrder(tenantId, order.projectId(), order.orderId(), order.orderNo(), order.memberId(), notifyAmount,
+                "收款码收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId, order.orderId(), request.thirdTradeNo(), request.paidAt());
         return new PaymentNotifyResult(order.orderNo(), "PAID", false);
+    }
+
+    private void settlePaidOrder(Long tenantId, Long projectId, Long orderId, String orderNo, Long memberId,
+                                 BigDecimal paidAmount, String prepaymentRemark) {
+        BigDecimal unappliedAmount = money(paidAmount);
+        BigDecimal appliedAmount = BigDecimal.ZERO;
+        for (OrderBillSettlement bill : repository.findOrderBillSettlements(tenantId, orderId)) {
+            if (unappliedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal allocated = money(bill.allocatedAmount());
+            BigDecimal currentRemaining = money(bill.currentRemainingAmount());
+            BigDecimal amount = allocated.min(currentRemaining).min(unappliedAmount).setScale(2, RoundingMode.HALF_UP);
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            int updated = repository.settleBill(tenantId, bill.billId(), amount);
+            if (updated == 0) {
+                continue;
+            }
+            appliedAmount = appliedAmount.add(amount).setScale(2, RoundingMode.HALF_UP);
+            unappliedAmount = unappliedAmount.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal prepaymentAmount = paidAmount.subtract(appliedAmount).setScale(2, RoundingMode.HALF_UP);
+        if (prepaymentAmount.compareTo(BigDecimal.ZERO) > 0) {
+            repository.insertPrepayment(newId(), tenantId, projectId, memberId, orderId, orderNo,
+                    prepaymentAmount, userId(), prepaymentRemark);
+        }
     }
 
     private Long validatePayableBills(List<PayableBill> bills) {
