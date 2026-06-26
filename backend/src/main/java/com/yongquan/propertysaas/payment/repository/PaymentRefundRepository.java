@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.payment.repository;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import java.math.BigDecimal;
@@ -323,28 +324,110 @@ public class PaymentRefundRepository {
                         """, tenantId, orderId);
     }
 
-    public ReconcileSummaryView reconcile(Long tenantId, List<Long> allowedProjectIds, Long projectId) {
-        String projectFilter = projectId == null ? "" : " AND project_id = ?";
+    public ReconcileSummaryView reconcile(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                          String startDate, String endDate, String payChannel, String orderStatus) {
+        SummaryNumber tx = summary("""
+                SELECT COALESCE(SUM(t.amount), 0) AS amount, COUNT(*) AS total
+                FROM pay_transaction t
+                LEFT JOIN pay_order o ON o.tenant_id = t.tenant_id AND o.order_id = t.order_id AND o.deleted = 0
+                WHERE t.tenant_id = ?
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, payChannel, orderStatus,
+                "t.project_id", "t.paid_at", "t.pay_channel", "o.status");
+        SummaryNumber refund = summary("""
+                SELECT COALESCE(SUM(rt.refund_amount), 0) AS amount, COUNT(*) AS total
+                FROM pay_refund_transaction rt
+                LEFT JOIN pay_refund r ON r.tenant_id = rt.tenant_id AND r.refund_id = rt.refund_id AND r.deleted = 0
+                LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                WHERE rt.tenant_id = ?
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, payChannel, orderStatus,
+                "rt.project_id", "rt.refunded_at", "rt.pay_channel", "o.status");
+        SummaryNumber order = summary("""
+                SELECT COALESCE(SUM(o.amount), 0) AS amount, COUNT(*) AS total
+                FROM pay_order o
+                WHERE o.tenant_id = ? AND o.deleted = 0
+                  AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, payChannel, orderStatus,
+                "o.project_id", "o.paid_at", "o.pay_channel", "o.status");
+        SummaryNumber billApplied = summary("""
+                SELECT COALESCE(SUM(ob.amount), 0) AS amount, COUNT(*) AS total
+                FROM pay_order_bill ob
+                JOIN pay_order o ON o.tenant_id = ob.tenant_id AND o.order_id = ob.order_id AND o.deleted = 0
+                WHERE ob.tenant_id = ?
+                  AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, payChannel, orderStatus,
+                "ob.project_id", "o.paid_at", "o.pay_channel", "o.status");
+        SummaryNumber prepayment = summary("""
+                SELECT COALESCE(SUM(p.amount), 0) AS amount, COUNT(*) AS total
+                FROM member_prepayment p
+                LEFT JOIN pay_order o ON o.tenant_id = p.tenant_id AND o.order_id = p.order_id AND o.deleted = 0
+                WHERE p.tenant_id = ? AND p.deleted = 0
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, payChannel, orderStatus,
+                "p.project_id", "p.created_at", "o.pay_channel", "o.status");
+        SummaryNumber prepaymentUsed = summary("""
+                SELECT COALESCE(SUM(u.amount), 0) AS amount, COUNT(*) AS total
+                FROM member_prepayment_usage u
+                WHERE u.tenant_id = ? AND u.deleted = 0
+                """, tenantId, allowedProjectIds, projectId, startDate, endDate, null, null,
+                "u.project_id", "u.created_at", null, null);
+        long exceptionCount = countReconcileExceptions(tenantId, allowedProjectIds, projectId, null, "OPEN");
+        BigDecimal exceptionAmount = sumReconcileExceptionAmount(tenantId, allowedProjectIds, projectId, null, "OPEN");
+        return new ReconcileSummaryView(projectId, tx.total(), refund.total(), order.total(), tx.amount(),
+                refund.amount(), prepayment.amount(), prepaymentUsed.amount(), billApplied.amount(),
+                tx.amount().subtract(refund.amount()), order.amount(), exceptionAmount, exceptionCount);
+    }
+
+    public List<ReconcileExceptionView> findReconcileExceptions(Long tenantId, List<Long> allowedProjectIds,
+                                                                 Long projectId, String exceptionType, String status,
+                                                                 long offset, long pageSize) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, status);
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(exceptionSql(allowedProjectIds) + """
+                ORDER BY created_at DESC, exception_key DESC
+                LIMIT ? OFFSET ?
+                """, this::mapReconcileException, args.toArray());
+    }
+
+    public long countReconcileExceptions(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                         String exceptionType, String status) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, status);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + exceptionSql(allowedProjectIds) + ") e",
+                Long.class, args.toArray());
+        return value(count);
+    }
+
+    public BigDecimal sumReconcileExceptionAmount(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                                  String exceptionType, String status) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, status);
+        BigDecimal amount = jdbcTemplate.queryForObject("SELECT COALESCE(SUM(amount), 0) FROM (" + exceptionSql(allowedProjectIds) + ") e",
+                BigDecimal.class, args.toArray());
+        return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    public ReconcileExceptionView getReconcileException(Long tenantId, List<Long> allowedProjectIds, String exceptionKey) {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
-        if (projectId != null) {
-            args.add(projectId);
-        }
-        BigDecimal paidAmount = jdbcTemplate.queryForObject("SELECT COALESCE(SUM(amount), 0) FROM pay_transaction WHERE tenant_id = ?"
-                + projectFilter + projectScopeSql(allowedProjectIds), BigDecimal.class, scopedArgs(args, allowedProjectIds));
-        BigDecimal refundAmount = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(refund_amount), 0)
-                FROM pay_refund_transaction
-                WHERE tenant_id = ?
-                """ + projectFilter + projectScopeSql(allowedProjectIds), BigDecimal.class, scopedArgs(args, allowedProjectIds));
-        BigDecimal orderPaidAmount = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(amount), 0)
-                FROM pay_order
-                WHERE tenant_id = ? AND deleted = 0 AND status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
-                """ + projectFilter + projectScopeSql(allowedProjectIds), BigDecimal.class, scopedArgs(args, allowedProjectIds));
-        BigDecimal netAmount = paidAmount.subtract(refundAmount);
-        BigDecimal exceptionAmount = orderPaidAmount.subtract(paidAmount).abs();
-        return new ReconcileSummaryView(projectId, paidAmount, refundAmount, netAmount, orderPaidAmount, exceptionAmount);
+        addExceptionSqlArgs(args, allowedProjectIds, null, null, null);
+        args.add(exceptionKey);
+        return jdbcTemplate.queryForObject("SELECT * FROM (" + exceptionSql(allowedProjectIds) + ") e WHERE e.exception_key = ?",
+                this::mapReconcileException, args.toArray());
+    }
+
+    public void upsertReconcileExceptionHandle(Long handleId, Long tenantId, Long projectId, String exceptionKey,
+                                               String exceptionType, String businessType, Long businessId,
+                                               Long userId, String remark) {
+        jdbcTemplate.update("""
+                        INSERT INTO payment_reconcile_exception_handle(handle_id, tenant_id, project_id, exception_key,
+                                                                       exception_type, business_type, business_id,
+                                                                       status, handle_remark, handled_by, handled_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'HANDLED', ?, ?, NOW())
+                        ON DUPLICATE KEY UPDATE status = 'HANDLED',
+                                                handle_remark = VALUES(handle_remark),
+                                                handled_by = VALUES(handled_by),
+                                                handled_at = NOW(),
+                                                deleted = 0
+                        """, handleId, tenantId, projectId, exceptionKey, exceptionType, businessType,
+                businessId, remark, userId);
     }
 
     public boolean projectExists(Long tenantId, Long projectId) {
@@ -460,5 +543,220 @@ public class PaymentRefundRepository {
 
     private long value(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private record SummaryNumber(BigDecimal amount, long total) {
+    }
+
+    private SummaryNumber summary(String baseSql, Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                  String startDate, String endDate, String payChannel, String orderStatus,
+                                  String projectColumn, String dateColumn, String payChannelColumn,
+                                  String orderStatusColumn) {
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        StringBuilder sql = new StringBuilder(baseSql);
+        appendReconcileFilters(sql, args, allowedProjectIds, projectId, startDate, endDate, payChannel,
+                orderStatus, projectColumn, dateColumn, payChannelColumn, orderStatusColumn);
+        return jdbcTemplate.queryForObject(sql.toString(), (rs, rowNum) ->
+                new SummaryNumber(rs.getBigDecimal("amount"), rs.getLong("total")), args.toArray());
+    }
+
+    private void appendReconcileFilters(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds,
+                                        Long projectId, String startDate, String endDate, String payChannel,
+                                        String orderStatus, String projectColumn, String dateColumn,
+                                        String payChannelColumn, String orderStatusColumn) {
+        if (projectId != null) {
+            sql.append(" AND ").append(projectColumn).append(" = ?");
+            args.add(projectId);
+        }
+        if (startDate != null && !startDate.isBlank() && dateColumn != null) {
+            sql.append(" AND ").append(dateColumn).append(" >= ?");
+            args.add(startDate + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isBlank() && dateColumn != null) {
+            sql.append(" AND ").append(dateColumn).append(" <= ?");
+            args.add(endDate + " 23:59:59");
+        }
+        if (payChannel != null && !payChannel.isBlank() && payChannelColumn != null) {
+            sql.append(" AND ").append(payChannelColumn).append(" = ?");
+            args.add(payChannel);
+        }
+        if (orderStatus != null && !orderStatus.isBlank() && orderStatusColumn != null) {
+            sql.append(" AND ").append(orderStatusColumn).append(" = ?");
+            args.add(orderStatus);
+        }
+        appendProjectScope(sql, args, allowedProjectIds, projectColumn);
+    }
+
+    private String exceptionSql(List<Long> allowedProjectIds) {
+        String scope = allowedProjectIds == null ? "" : allowedProjectIds.isEmpty()
+                ? " AND 1 = 0"
+                : " AND e.project_id IN (" + "?,".repeat(allowedProjectIds.size()).replaceFirst(",$", "") + ")";
+        return """
+                SELECT e.*, COALESCE(h.status, 'OPEN') AS handle_status, h.handled_at, h.handled_by, h.handle_remark
+                FROM (
+                    SELECT CONCAT('ORDER_PAID_WITHOUT_TRANSACTION:', o.order_id) AS exception_key,
+                           o.project_id,
+                           '订单缺少支付流水' AS exception_type,
+                           '高' AS exception_level,
+                           '支付订单' AS business_type,
+                           o.order_id AS business_id,
+                           o.order_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           o.amount,
+                           '订单已支付/退款，但没有对应支付流水，账实可能不一致' AS reason,
+                           o.created_at
+                    FROM pay_order o
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS paid_amount
+                        FROM pay_transaction
+                        GROUP BY tenant_id, order_id
+                    ) tx ON tx.tenant_id = o.tenant_id AND tx.order_id = o.order_id
+                    WHERE o.tenant_id = ? AND o.deleted = 0
+                      AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                      AND COALESCE(tx.paid_amount, 0) = 0
+                    UNION ALL
+                    SELECT CONCAT('TRANSACTION_WITH_INVALID_ORDER:', t.transaction_id) AS exception_key,
+                           t.project_id,
+                           '支付流水订单异常' AS exception_type,
+                           '高' AS exception_level,
+                           '支付流水' AS business_type,
+                           t.transaction_id AS business_id,
+                           t.order_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           t.amount,
+                           '支付流水找不到有效已支付订单，需核对订单状态或重复流水' AS reason,
+                           t.created_at
+                    FROM pay_transaction t
+                    LEFT JOIN pay_order o ON o.tenant_id = t.tenant_id AND o.order_id = t.order_id AND o.deleted = 0
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    WHERE t.tenant_id = ?
+                      AND (o.order_id IS NULL OR o.status NOT IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED'))
+                    UNION ALL
+                    SELECT CONCAT('REFUND_WITHOUT_TRANSACTION:', r.refund_id) AS exception_key,
+                           r.project_id,
+                           '退款缺少退款流水' AS exception_type,
+                           '高' AS exception_level,
+                           '退款单' AS business_type,
+                           r.refund_id AS business_id,
+                           r.refund_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           r.refund_amount AS amount,
+                           '退款单已退款，但没有对应退款流水' AS reason,
+                           r.created_at
+                    FROM pay_refund r
+                    LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, refund_id, SUM(refund_amount) AS refund_tx_amount
+                        FROM pay_refund_transaction
+                        GROUP BY tenant_id, refund_id
+                    ) rt ON rt.tenant_id = r.tenant_id AND rt.refund_id = r.refund_id
+                    WHERE r.tenant_id = ? AND r.deleted = 0
+                      AND r.status = 'REFUNDED'
+                      AND COALESCE(rt.refund_tx_amount, 0) = 0
+                    UNION ALL
+                    SELECT CONCAT('ORDER_AMOUNT_MISMATCH:', o.order_id) AS exception_key,
+                           o.project_id,
+                           '订单金额不一致' AS exception_type,
+                           '中' AS exception_level,
+                           '支付订单' AS business_type,
+                           o.order_id AS business_id,
+                           o.order_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           ABS(o.amount - (COALESCE(ob.bill_amount, 0) + COALESCE(pp.prepayment_amount, 0))) AS amount,
+                           '订单金额与账单核销金额加预存款金额不一致' AS reason,
+                           o.created_at
+                    FROM pay_order o
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS bill_amount
+                        FROM pay_order_bill
+                        GROUP BY tenant_id, order_id
+                    ) ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount
+                        FROM member_prepayment
+                        WHERE deleted = 0
+                        GROUP BY tenant_id, order_id
+                    ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                    WHERE o.tenant_id = ? AND o.deleted = 0
+                      AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                      AND ABS(o.amount - (COALESCE(ob.bill_amount, 0) + COALESCE(pp.prepayment_amount, 0))) >= 0.01
+                    UNION ALL
+                    SELECT CONCAT('BILL_AMOUNT_STATUS_MISMATCH:', b.bill_id) AS exception_key,
+                           b.project_id,
+                           '账单金额状态异常' AS exception_type,
+                           '中' AS exception_level,
+                           '收费账单' AS business_type,
+                           b.bill_id AS business_id,
+                           b.bill_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           b.remaining_amount AS amount,
+                           '账单状态与待收金额不匹配，需核对收款/退款/作废记录' AS reason,
+                           b.created_at
+                    FROM fee_bill b
+                    LEFT JOIN member_user m ON m.tenant_id = b.tenant_id AND m.member_id = b.member_id AND m.deleted = 0
+                    WHERE b.tenant_id = ? AND b.deleted = 0
+                      AND ((b.status = 'PAID' AND b.remaining_amount <> 0)
+                           OR (b.status IN ('UNPAID', 'OVERDUE', 'PARTIAL_PAID') AND b.remaining_amount <= 0))
+                ) e
+                LEFT JOIN payment_reconcile_exception_handle h
+                  ON h.tenant_id = ? AND h.exception_key = e.exception_key AND h.deleted = 0
+                WHERE 1 = 1
+                """ + scope + """
+                AND (? IS NULL OR e.project_id = ?)
+                AND (? IS NULL OR e.exception_type = ?)
+                AND (? IS NULL OR COALESCE(h.status, 'OPEN') = ?)
+                """;
+    }
+
+    private List<Object> exceptionArgs(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                       String exceptionType, String status) {
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        addExceptionSqlArgs(args, allowedProjectIds, projectId, normalizeBlank(exceptionType), normalizeBlank(status));
+        return args;
+    }
+
+    private void addExceptionSqlArgs(List<Object> args, List<Long> allowedProjectIds, Long projectId,
+                                     String exceptionType, String status) {
+        args.add(args.get(0));
+        args.add(args.get(0));
+        args.add(args.get(0));
+        args.add(args.get(0));
+        args.add(args.get(0));
+        if (allowedProjectIds != null && !allowedProjectIds.isEmpty()) {
+            args.addAll(allowedProjectIds);
+        }
+        if (projectId != null) {
+            args.add(projectId);
+        } else {
+            args.add(null);
+        }
+        args.add(projectId);
+        args.add(exceptionType);
+        args.add(exceptionType);
+        args.add(status);
+        args.add(status);
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private ReconcileExceptionView mapReconcileException(ResultSet rs, int rowNum) throws SQLException {
+        return new ReconcileExceptionView(rs.getString("exception_key"), rs.getLong("project_id"),
+                rs.getString("exception_type"), rs.getString("exception_level"), rs.getString("business_type"),
+                (Long) rs.getObject("business_id"), rs.getString("business_no"), rs.getString("member_name"),
+                rs.getString("member_mobile"), rs.getBigDecimal("amount"), rs.getString("reason"),
+                rs.getString("handle_status"), toLocalDateTime(rs, "handled_at"), (Long) rs.getObject("handled_by"),
+                rs.getString("handle_remark"), rs.getTimestamp("created_at").toLocalDateTime());
     }
 }

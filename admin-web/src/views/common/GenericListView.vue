@@ -67,6 +67,14 @@
             :value="optionValue(option)"
           />
         </el-select>
+        <el-date-picker
+          v-else-if="field.type === 'date'"
+          v-model="filters[field.prop]"
+          type="date"
+          value-format="YYYY-MM-DD"
+          class="form-control"
+          :placeholder="field.label"
+        />
         <el-input v-else v-model="filters[field.prop]" clearable :placeholder="field.label" />
       </el-form-item>
       <el-form-item>
@@ -86,7 +94,7 @@
 
     <el-table v-loading="loading" :data="records" border class="data-table">
       <el-table-column
-        v-for="column in config.columns"
+        v-for="column in tableColumns"
         :key="column.prop"
         :prop="column.prop"
         :label="column.label"
@@ -719,6 +727,20 @@ const businessActions: Record<string, BusinessAction[]> = {
       buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
     },
   ],
+  'payment-reconcile-exceptions': [
+    {
+      key: 'reconcile-exception-handle',
+      label: '标记已处理',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/handle`,
+      type: 'success',
+      permission: 'payment:reconcile:view',
+      visible: (row) => row?.status !== 'HANDLED',
+      fields: [{ prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ handleRemark: formData.handleRemark }),
+    },
+  ],
   'member-bindings': [
     {
       key: 'member-binding-approve',
@@ -899,6 +921,7 @@ const config = computed<PageConfig>(() => {
 })
 
 const filterFields = computed(() => config.value.columns.filter((field) => field.inFilter))
+const tableColumns = computed(() => config.value.columns.filter((field) => !field.tableHidden))
 const formFields = computed(() => config.value.fields ?? [])
 const isParkingSpacePage = computed(() => config.value.key === 'parking-spaces')
 const isVehiclePage = computed(() => config.value.key === 'vehicles')

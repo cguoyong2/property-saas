@@ -45,6 +45,7 @@ export interface FieldConfig {
   options?: Array<string | { label: string; value: string | number }>
   required?: boolean
   inFilter?: boolean
+  tableHidden?: boolean
 }
 
 export interface PageConfig {
@@ -183,6 +184,17 @@ const refundStatusOptions = [
 ]
 const prepaymentSourceOptions = [
   { label: '超额收款', value: 'OFFLINE_OVERPAY' },
+]
+const reconcileExceptionStatusOptions = [
+  { label: '未处理', value: 'OPEN' },
+  { label: '已处理', value: 'HANDLED' },
+]
+const reconcileExceptionTypeOptions = [
+  { label: '订单缺少支付流水', value: '订单缺少支付流水' },
+  { label: '支付流水订单异常', value: '支付流水订单异常' },
+  { label: '退款缺少退款流水', value: '退款缺少退款流水' },
+  { label: '订单金额不一致', value: '订单金额不一致' },
+  { label: '账单金额状态异常', value: '账单金额状态异常' },
 ]
 
 export const pages: PageConfig[] = [
@@ -989,11 +1001,65 @@ const billingExtraPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'startDate', label: '开始日期', type: 'date', inFilter: true, tableHidden: true },
+      { prop: 'endDate', label: '结束日期', type: 'date', inFilter: true, tableHidden: true },
+      { prop: 'payChannel', label: '渠道', type: 'select', options: payChannelOptions, inFilter: true, tableHidden: true },
+      { prop: 'orderStatus', label: '订单状态', type: 'select', options: payOrderStatusOptions, inFilter: true, tableHidden: true },
+      { prop: 'transactionCount', label: '支付流水数' },
+      { prop: 'refundCount', label: '退款流水数' },
+      { prop: 'orderCount', label: '已收订单数' },
       { prop: 'paidAmount', label: '支付金额' },
       { prop: 'refundAmount', label: '退款金额' },
+      { prop: 'prepaymentAmount', label: '预存款产生' },
+      { prop: 'prepaymentUsedAmount', label: '预存款抵扣' },
+      { prop: 'billAppliedAmount', label: '账单核销' },
       { prop: 'netAmount', label: '净收款' },
       { prop: 'orderPaidAmount', label: '订单已收' },
       { prop: 'exceptionAmount', label: '差异金额' },
+      { prop: 'exceptionCount', label: '异常数量' },
+    ],
+  },
+  {
+    key: 'payment-reconcile-exceptions',
+    title: '账务异常',
+    group: '收费账务',
+    route: '/payment/reconcile/exceptions',
+    icon: DataAnalysis,
+    listPath: '/payment/reconcile/exceptions',
+    permission: 'payment:reconcile:view',
+    projectScoped: true,
+    showDetails: true,
+    columns: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'exceptionType', label: '异常类型', type: 'select', options: reconcileExceptionTypeOptions, inFilter: true },
+      { prop: 'exceptionLevel', label: '级别' },
+      { prop: 'businessType', label: '业务类型' },
+      { prop: 'businessNo', label: '业务单号' },
+      { prop: 'memberName', label: '业主/住户' },
+      { prop: 'memberMobile', label: '手机号' },
+      { prop: 'amount', label: '差异金额' },
+      { prop: 'reason', label: '异常原因' },
+      { prop: 'status', label: '处理状态', type: 'select', options: reconcileExceptionStatusOptions, inFilter: true },
+      { prop: 'handledAt', label: '处理时间' },
+      { prop: 'handleRemark', label: '处理备注' },
+      { prop: 'createdAt', label: '发现时间' },
+    ],
+    detailFields: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'exceptionType', label: '异常类型' },
+      { prop: 'exceptionLevel', label: '级别' },
+      { prop: 'businessType', label: '业务类型' },
+      { prop: 'businessId', label: '业务ID' },
+      { prop: 'businessNo', label: '业务单号' },
+      { prop: 'memberName', label: '业主/住户' },
+      { prop: 'memberMobile', label: '手机号' },
+      { prop: 'amount', label: '差异金额' },
+      { prop: 'reason', label: '异常原因' },
+      { prop: 'status', label: '处理状态', type: 'select', options: reconcileExceptionStatusOptions },
+      { prop: 'handledAt', label: '处理时间' },
+      { prop: 'handledBy', label: '处理人ID' },
+      { prop: 'handleRemark', label: '处理备注' },
+      { prop: 'createdAt', label: '发现时间' },
     ],
   },
 ]

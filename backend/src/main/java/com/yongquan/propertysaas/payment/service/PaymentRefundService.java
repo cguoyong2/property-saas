@@ -6,8 +6,10 @@ import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
+import com.yongquan.propertysaas.payment.dto.ReconcileExceptionHandleRequest;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
 import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
@@ -182,11 +184,45 @@ public class PaymentRefundService {
         return new RefundNotifyResult(refund.refundNo(), "REFUNDED", false);
     }
 
-    public ReconcileSummaryView reconcile(Long projectId) {
+    public ReconcileSummaryView reconcile(Long projectId, String startDate, String endDate,
+                                          String payChannel, String orderStatus) {
         if (projectId != null) {
             ensureProjectAllowed(projectId);
         }
-        return repository.reconcile(tenantId(), projectScope(tenantId()), projectId);
+        validatePayChannel(payChannel);
+        validateOrderStatus(orderStatus);
+        return repository.reconcile(tenantId(), projectScope(tenantId()), projectId,
+                normalize(startDate), normalize(endDate), normalize(payChannel), normalize(orderStatus));
+    }
+
+    public PageResult<ReconcileExceptionView> pageReconcileExceptions(Long projectId, String exceptionType,
+                                                                       String status, long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        if (status != null && !status.isBlank() && !Set.of("OPEN", "HANDLED").contains(status)) {
+            throw new IllegalArgumentException("非法处理状态：" + status);
+        }
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        return new PageResult<>(
+                repository.findReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
+                        normalize(status), offset(pageNo, pageSize), pageSize),
+                repository.countReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType), normalize(status)),
+                pageNo,
+                pageSize);
+    }
+
+    @Transactional
+    public void handleReconcileException(String exceptionKey, ReconcileExceptionHandleRequest request) {
+        ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
+        ensureProjectAllowed(exception.projectId());
+        repository.upsertReconcileExceptionHandle(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
+                exception.exceptionType(), exception.businessType(), exception.businessId(), userId(), request.handleRemark());
+        operationLogService.record(new OperationLogWrite(tenantId(), exception.projectId(), "payment", "RECONCILE_EXCEPTION_HANDLE",
+                exception.businessType(), exception.businessId(), Map.of("status", exception.status()),
+                Map.of("status", "HANDLED", "exceptionKey", exception.exceptionKey()), request.handleRemark()));
     }
 
     private void allocateRefundToBills(Long tenantId, Long orderId, BigDecimal refundAmount) {
@@ -209,6 +245,20 @@ public class PaymentRefundService {
     private void validateRefundStatus(String status) {
         if (status != null && !status.isBlank() && !REFUND_STATUSES.contains(status)) {
             throw new IllegalArgumentException("非法退款状态：" + status);
+        }
+    }
+
+    private void validatePayChannel(String payChannel) {
+        if (payChannel != null && !payChannel.isBlank()
+                && !Set.of("WECHAT", "ALI", "OFFLINE", "POS", "CASH", "BANK_TRANSFER").contains(payChannel)) {
+            throw new IllegalArgumentException("非法支付渠道：" + payChannel);
+        }
+    }
+
+    private void validateOrderStatus(String status) {
+        if (status != null && !status.isBlank()
+                && !Set.of("PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED").contains(status)) {
+            throw new IllegalArgumentException("非法订单状态：" + status);
         }
     }
 
@@ -258,6 +308,10 @@ public class PaymentRefundService {
         if (pageNo < 1 || pageSize < 1 || pageSize > 200) {
             throw new IllegalArgumentException("分页参数错误");
         }
+    }
+
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private long offset(long pageNo, long pageSize) {

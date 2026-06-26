@@ -8,10 +8,12 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
+import com.yongquan.propertysaas.payment.dto.ReconcileExceptionHandleRequest;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
 import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
 import com.yongquan.propertysaas.payment.dto.WechatRefundNotifyRequest;
@@ -127,7 +129,29 @@ public class PaymentController {
 
     @GetMapping("/api/payment/reconcile")
     @RequiresPermission("payment:reconcile:view")
-    public ApiResponse<ReconcileSummaryView> reconcile(@RequestParam(required = false) Long projectId) {
-        return ApiResponse.success(refundService.reconcile(projectId));
+    public ApiResponse<ReconcileSummaryView> reconcile(@RequestParam(required = false) Long projectId,
+                                                       @RequestParam(required = false) String startDate,
+                                                       @RequestParam(required = false) String endDate,
+                                                       @RequestParam(required = false) String payChannel,
+                                                       @RequestParam(required = false) String orderStatus) {
+        return ApiResponse.success(refundService.reconcile(projectId, startDate, endDate, payChannel, orderStatus));
+    }
+
+    @GetMapping("/api/payment/reconcile/exceptions")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<PageResult<ReconcileExceptionView>> reconcileExceptions(@RequestParam(required = false) Long projectId,
+                                                                               @RequestParam(required = false) String exceptionType,
+                                                                               @RequestParam(required = false) String status,
+                                                                               @RequestParam(defaultValue = "1") long pageNo,
+                                                                               @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, status, pageNo, pageSize));
+    }
+
+    @PostMapping("/api/payment/reconcile/exceptions/{exceptionKey}/handle")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<Void> handleReconcileException(@PathVariable String exceptionKey,
+                                                      @Valid @RequestBody ReconcileExceptionHandleRequest request) {
+        refundService.handleReconcileException(exceptionKey, request);
+        return ApiResponse.success();
     }
 }
