@@ -1,5 +1,6 @@
 package com.yongquan.propertysaas.payment.repository;
 
+import com.yongquan.propertysaas.payment.domain.MemberPrepaymentView;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
@@ -87,6 +88,47 @@ public class PaymentRepository {
             args.add(projectId);
         }
         appendProjectScope(sql, args, allowedProjectIds);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return value(count);
+    }
+
+    public List<MemberPrepaymentView> findPrepayments(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                                      String memberName, String orderNo, long offset, long pageSize) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT p.prepayment_id, p.project_id, bp.project_name, p.member_id,
+                       m.real_name AS member_name, m.mobile, p.order_id, p.order_no, p.amount,
+                       p.amount - p.remaining_amount AS used_amount, p.remaining_amount,
+                       p.source, p.remark, p.created_at
+                FROM member_prepayment p
+                LEFT JOIN base_project bp ON bp.tenant_id = p.tenant_id
+                    AND bp.project_id = p.project_id AND bp.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = p.tenant_id
+                    AND m.member_id = p.member_id AND m.deleted = 0
+                WHERE p.tenant_id = ? AND p.deleted = 0
+                """);
+        args.add(tenantId);
+        appendPrepaymentFilters(sql, args, projectId, memberName, orderNo);
+        appendProjectScope(sql, args, allowedProjectIds, "p.project_id");
+        sql.append(" ORDER BY p.created_at DESC, p.prepayment_id DESC LIMIT ? OFFSET ?");
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(sql.toString(), this::mapPrepayment, args.toArray());
+    }
+
+    public long countPrepayments(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                 String memberName, String orderNo) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM member_prepayment p
+                LEFT JOIN member_user m ON m.tenant_id = p.tenant_id
+                    AND m.member_id = p.member_id AND m.deleted = 0
+                WHERE p.tenant_id = ? AND p.deleted = 0
+                """);
+        args.add(tenantId);
+        appendPrepaymentFilters(sql, args, projectId, memberName, orderNo);
+        appendProjectScope(sql, args, allowedProjectIds, "p.project_id");
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
     }
@@ -239,7 +281,28 @@ public class PaymentRepository {
         }
     }
 
+    private void appendPrepaymentFilters(StringBuilder sql, List<Object> args, Long projectId, String memberName, String orderNo) {
+        if (projectId != null) {
+            sql.append(" AND p.project_id = ?");
+            args.add(projectId);
+        }
+        if (memberName != null && !memberName.isBlank()) {
+            sql.append(" AND (m.real_name LIKE ? OR m.mobile LIKE ?)");
+            String keyword = "%" + memberName.trim() + "%";
+            args.add(keyword);
+            args.add(keyword);
+        }
+        if (orderNo != null && !orderNo.isBlank()) {
+            sql.append(" AND p.order_no LIKE ?");
+            args.add("%" + orderNo.trim() + "%");
+        }
+    }
+
     private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds) {
+        appendProjectScope(sql, args, allowedProjectIds, "project_id");
+    }
+
+    private void appendProjectScope(StringBuilder sql, List<Object> args, List<Long> allowedProjectIds, String column) {
         if (allowedProjectIds == null) {
             return;
         }
@@ -247,7 +310,7 @@ public class PaymentRepository {
             sql.append(" AND 1 = 0");
             return;
         }
-        sql.append(" AND project_id IN (");
+        sql.append(" AND ").append(column).append(" IN (");
         sql.append("?,".repeat(allowedProjectIds.size()));
         sql.setLength(sql.length() - 1);
         sql.append(")");
@@ -272,6 +335,14 @@ public class PaymentRepository {
                 rs.getString("order_no"), rs.getString("third_trade_no"), rs.getString("pay_channel"),
                 rs.getBigDecimal("amount"), rs.getTimestamp("paid_at").toLocalDateTime(),
                 rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private MemberPrepaymentView mapPrepayment(ResultSet rs, int rowNum) throws SQLException {
+        return new MemberPrepaymentView(rs.getLong("prepayment_id"), rs.getLong("project_id"),
+                rs.getString("project_name"), (Long) rs.getObject("member_id"), rs.getString("member_name"),
+                rs.getString("mobile"), (Long) rs.getObject("order_id"), rs.getString("order_no"),
+                rs.getBigDecimal("amount"), rs.getBigDecimal("used_amount"), rs.getBigDecimal("remaining_amount"),
+                rs.getString("source"), rs.getString("remark"), rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     private PayableBill mapPayableBill(ResultSet rs, int rowNum) throws SQLException {

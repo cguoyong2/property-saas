@@ -2,6 +2,7 @@ package com.yongquan.propertysaas.payment.controller;
 
 import com.yongquan.propertysaas.common.api.ApiResponse;
 import com.yongquan.propertysaas.common.api.PageResult;
+import com.yongquan.propertysaas.payment.domain.MemberPrepaymentView;
 import com.yongquan.propertysaas.payment.domain.PayOrderCreateResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
@@ -66,6 +67,16 @@ public class PaymentController {
                                                                         @RequestParam(defaultValue = "1") long pageNo,
                                                                         @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(service.pageTransactions(projectId, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/payment/prepayments")
+    @RequiresPermission("payment:prepayment:list")
+    public ApiResponse<PageResult<MemberPrepaymentView>> pagePrepayments(@RequestParam(required = false) Long projectId,
+                                                                         @RequestParam(required = false) String memberName,
+                                                                         @RequestParam(required = false) String orderNo,
+                                                                         @RequestParam(defaultValue = "1") long pageNo,
+                                                                         @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.pagePrepayments(projectId, memberName, orderNo, pageNo, pageSize));
     }
 
     @PostMapping("/api/payment/wechat/notify")

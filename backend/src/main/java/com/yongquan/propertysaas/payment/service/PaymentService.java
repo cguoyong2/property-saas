@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.payment.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yongquan.propertysaas.common.api.PageResult;
+import com.yongquan.propertysaas.payment.domain.MemberPrepaymentView;
 import com.yongquan.propertysaas.payment.domain.PayOrderCreateResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
@@ -76,6 +77,21 @@ public class PaymentService {
         return new PageResult<>(
                 repository.findTransactions(tenantId, scope, projectId, offset(pageNo, pageSize), pageSize),
                 repository.countTransactions(tenantId, scope, projectId),
+                pageNo,
+                pageSize);
+    }
+
+    public PageResult<MemberPrepaymentView> pagePrepayments(Long projectId, String memberName, String orderNo,
+                                                            long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        return new PageResult<>(
+                repository.findPrepayments(tenantId, scope, projectId, memberName, orderNo, offset(pageNo, pageSize), pageSize),
+                repository.countPrepayments(tenantId, scope, projectId, memberName, orderNo),
                 pageNo,
                 pageSize);
     }

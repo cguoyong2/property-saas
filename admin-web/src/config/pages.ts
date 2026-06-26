@@ -181,6 +181,9 @@ const refundStatusOptions = [
   { label: '已拒绝', value: 'REJECTED' },
   { label: '退款失败', value: 'FAILED' },
 ]
+const prepaymentSourceOptions = [
+  { label: '超额收款', value: 'OFFLINE_OVERPAY' },
+]
 
 export const pages: PageConfig[] = [
   {
@@ -872,6 +875,28 @@ const billingExtraPages: PageConfig[] = [
       { prop: 'amount', label: '金额' },
       { prop: 'payChannel', label: '渠道', type: 'select', options: payChannelOptions },
       { prop: 'paidAt', label: '支付时间' },
+    ],
+  },
+  {
+    key: 'payment-prepayments',
+    title: '预存款管理',
+    group: '收费账务',
+    route: '/payment/prepayments',
+    icon: Coin,
+    listPath: '/payment/prepayments',
+    permission: 'payment:prepayment:list',
+    projectScoped: true,
+    columns: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'memberName', label: '业主/住户', inFilter: true },
+      { prop: 'mobile', label: '手机号' },
+      { prop: 'orderNo', label: '来源订单', inFilter: true },
+      { prop: 'amount', label: '预存金额' },
+      { prop: 'usedAmount', label: '已抵扣' },
+      { prop: 'remainingAmount', label: '可用余额' },
+      { prop: 'source', label: '来源', type: 'select', options: prepaymentSourceOptions },
+      { prop: 'remark', label: '备注' },
+      { prop: 'createdAt', label: '产生时间' },
     ],
   },
   {
