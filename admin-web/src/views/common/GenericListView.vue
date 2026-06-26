@@ -367,6 +367,77 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="receiptDialogVisible" title="收款凭证" width="760px" draggable>
+      <section v-if="receiptRow" class="receipt-print-area">
+        <div class="receipt-title">
+          <h2>智慧物业收费凭证</h2>
+          <p>用于核对物业收款记录，正式发票以财务开票系统为准</p>
+        </div>
+        <div class="receipt-grid">
+          <div>
+            <span>凭证编号</span>
+            <strong>{{ receiptNo }}</strong>
+          </div>
+          <div>
+            <span>订单号</span>
+            <strong>{{ receiptRow.orderNo ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>小区名称</span>
+            <strong>{{ projectName(receiptRow.projectId) }}</strong>
+          </div>
+          <div>
+            <span>业主/住户</span>
+            <strong>{{ receiptRow.memberName ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>手机号</span>
+            <strong>{{ receiptRow.memberMobile ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>房号</span>
+            <strong>{{ receiptRow.houseNo ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>支付方式</span>
+            <strong>{{ payChannelText(receiptRow.payChannel) }}</strong>
+          </div>
+          <div>
+            <span>收款状态</span>
+            <strong>{{ payOrderStatusText(receiptRow.status) }}</strong>
+          </div>
+          <div>
+            <span>订单金额</span>
+            <strong>{{ moneyText(receiptRow.amount) }} 元</strong>
+          </div>
+          <div>
+            <span>实收金额</span>
+            <strong>{{ moneyText(receiptRow.transactionAmount) }} 元</strong>
+          </div>
+          <div>
+            <span>已退金额</span>
+            <strong>{{ moneyText(receiptRow.refundedAmount) }} 元</strong>
+          </div>
+          <div>
+            <span>收款时间</span>
+            <strong>{{ receiptRow.paidAt ?? '-' }}</strong>
+          </div>
+        </div>
+        <div class="receipt-summary">
+          <span>费用明细</span>
+          <p>{{ receiptRow.billSummary ?? '-' }}</p>
+        </div>
+        <div class="receipt-footer">
+          <span>经办人：{{ auth.realName || '-' }}</span>
+          <span>打印时间：{{ printTime }}</span>
+        </div>
+      </section>
+      <template #footer>
+        <el-button @click="receiptDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="printReceipt">打印凭证</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="bulkBuildingDialogVisible" title="批量新增楼栋/单元" width="720px" draggable>
       <el-form label-position="top">
         <el-form-item label="小区名称" required>
@@ -468,7 +539,7 @@ import { allPages, type FieldConfig, type PageConfig } from '@/config/pages'
 import { useAuthStore } from '@/store/auth'
 
 type ActionScope = 'page' | 'row'
-type ActionMethod = 'POST' | 'PUT' | 'DOWNLOAD'
+type ActionMethod = 'POST' | 'PUT' | 'DOWNLOAD' | 'CUSTOM'
 
 interface BusinessAction {
   key: string
@@ -502,6 +573,7 @@ const dialogVisible = ref(false)
 const actionDialogVisible = ref(false)
 const bulkBuildingDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
+const receiptDialogVisible = ref(false)
 const editingId = ref<string | number | null>(null)
 const actionSaving = ref(false)
 const bulkBuildingSaving = ref(false)
@@ -509,6 +581,7 @@ const memberSearchLoading = ref(false)
 const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const detailRow = ref<Record<string, unknown> | null>(null)
+const receiptRow = ref<Record<string, unknown> | null>(null)
 const chinaAreaOptions = pcaTextArr
 const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
 const plateLetterOptions = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('')
@@ -604,6 +677,16 @@ function billCollectionRemainingAmount(row?: Record<string, unknown>) {
 
 const businessActions: Record<string, BusinessAction[]> = {
   'payment-orders': [
+    {
+      key: 'payment-order-receipt',
+      label: '收款凭证',
+      scope: 'row',
+      method: 'CUSTOM',
+      path: '',
+      type: 'success',
+      permission: 'payment:order:list',
+      visible: (row) => ['PAID', 'REFUNDING', 'PARTIAL_REFUNDED', 'REFUNDED'].includes(String(row?.status ?? '')),
+    },
     {
       key: 'payment-orders-export',
       label: '导出订单',
@@ -1029,6 +1112,8 @@ const collectionActionSummary = computed(() => {
   if (diff > 0) return `本次超收 ${moneyText(diff)}，收款成功后超出部分会转为业主/住户预存款。`
   return '本次收款等于当前待收金额，收款成功后账单将结清。'
 })
+const receiptNo = computed(() => `RCPT-${receiptRow.value?.orderNo ?? '-'}`)
+const printTime = computed(() => new Date().toLocaleString('zh-CN', { hour12: false }))
 
 async function load() {
   loading.value = true
@@ -1539,6 +1624,36 @@ function moneyText(value: unknown) {
   const amount = Number(value ?? 0)
   if (!Number.isFinite(amount)) return '0.00'
   return amount.toFixed(2)
+}
+
+function payChannelText(value: unknown) {
+  const labels: Record<string, string> = {
+    WECHAT: '微信支付',
+    ALI: '支付宝',
+    CASH: '现金',
+    POS: 'POS刷卡',
+    BANK_TRANSFER: '银行转账',
+    OFFLINE: '线下收款',
+  }
+  return typeof value === 'string' ? labels[value] ?? value : '-'
+}
+
+function payOrderStatusText(value: unknown) {
+  const labels: Record<string, string> = {
+    PENDING: '待支付',
+    PAYING: '支付中',
+    PAID: '已支付',
+    CLOSED: '已关闭',
+    FAILED: '支付失败',
+    REFUNDING: '退款中',
+    REFUNDED: '已退款',
+    PARTIAL_REFUNDED: '部分退款',
+  }
+  return typeof value === 'string' ? labels[value] ?? value : '-'
+}
+
+function printReceipt() {
+  window.print()
 }
 
 function bindRoleLabel(value: unknown) {
@@ -2138,6 +2253,10 @@ function resolvePath(action: BusinessAction, row?: Record<string, unknown>, form
 }
 
 async function runAction(action: BusinessAction, row?: Record<string, unknown>) {
+  if (action.method === 'CUSTOM') {
+    runCustomAction(action, row)
+    return
+  }
   currentAction.value = action
   currentActionRow.value = row
   Object.keys(actionForm).forEach((key) => delete actionForm[key])
@@ -2158,6 +2277,13 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
     await ElMessageBox.confirm(action.confirm, action.label, { type: action.type === 'danger' ? 'warning' : 'info' })
   }
   await executeAction(action, row)
+}
+
+function runCustomAction(action: BusinessAction, row?: Record<string, unknown>) {
+  if (action.key === 'payment-order-receipt' && row) {
+    receiptRow.value = row
+    receiptDialogVisible.value = true
+  }
 }
 
 async function loadActionRemoteOptions(fields: FieldConfig[]) {
@@ -2438,5 +2564,110 @@ onMounted(loadProjects)
 .detail-form :deep(.el-input.is-disabled .el-input__inner) {
   color: #303133;
   -webkit-text-fill-color: #303133;
+}
+
+.receipt-print-area {
+  padding: 24px;
+  border: 1px solid #d8e4e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+}
+
+.receipt-title {
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #0f766e;
+  text-align: center;
+}
+
+.receipt-title h2 {
+  margin: 0;
+  color: #0f766e;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.receipt-title p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid #d8e4e1;
+  border-left: 1px solid #d8e4e1;
+}
+
+.receipt-grid div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  min-height: 44px;
+  border-right: 1px solid #d8e4e1;
+  border-bottom: 1px solid #d8e4e1;
+}
+
+.receipt-grid span,
+.receipt-summary span {
+  padding: 12px;
+  background: #f6faf9;
+  color: #526274;
+  font-weight: 700;
+}
+
+.receipt-grid strong {
+  padding: 12px;
+  color: #111827;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.receipt-summary {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  min-height: 82px;
+  border-right: 1px solid #d8e4e1;
+  border-bottom: 1px solid #d8e4e1;
+  border-left: 1px solid #d8e4e1;
+}
+
+.receipt-summary p {
+  margin: 0;
+  padding: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.receipt-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  color: #334155;
+  font-size: 14px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible;
+  }
+
+  .receipt-print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 18mm;
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+  }
 }
 </style>
