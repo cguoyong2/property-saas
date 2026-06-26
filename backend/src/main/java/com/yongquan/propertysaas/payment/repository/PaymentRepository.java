@@ -34,15 +34,39 @@ public class PaymentRepository {
                                          String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT order_id, tenant_id, project_id, order_no, member_id, pay_channel, amount, subject, status,
-                       expire_at, paid_at, third_trade_no, created_at
-                FROM pay_order
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT o.order_id, o.tenant_id, o.project_id, o.order_no, o.member_id, o.pay_channel, o.amount,
+                       o.subject, o.status, o.expire_at, o.paid_at, o.third_trade_no, o.created_at,
+                       m.real_name AS member_name, m.mobile AS member_mobile,
+                       COALESCE(ob.bill_count, 0) AS bill_count,
+                       COALESCE(ob.bill_applied_amount, 0) AS bill_applied_amount,
+                       COALESCE(tx.transaction_amount, 0) AS transaction_amount,
+                       COALESCE(pp.prepayment_amount, 0) AS prepayment_amount,
+                       COALESCE(pp.prepayment_remaining_amount, 0) AS prepayment_remaining_amount
+                FROM pay_order o
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COUNT(*) AS bill_count, SUM(amount) AS bill_applied_amount
+                    FROM pay_order_bill
+                    GROUP BY tenant_id, order_id
+                ) ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS transaction_amount
+                    FROM pay_transaction
+                    GROUP BY tenant_id, order_id
+                ) tx ON tx.tenant_id = o.tenant_id AND tx.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount,
+                           SUM(remaining_amount) AS prepayment_remaining_amount
+                    FROM member_prepayment
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, order_id
+                ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                WHERE o.tenant_id = ? AND o.deleted = 0
                 """);
         args.add(tenantId);
-        appendOrderFilters(sql, args, projectId, status);
-        appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY created_at DESC, order_id DESC LIMIT ? OFFSET ?");
+        appendOrderFilters(sql, args, projectId, status, "o.project_id", "o.status");
+        appendProjectScope(sql, args, allowedProjectIds, "o.project_id");
+        sql.append(" ORDER BY o.created_at DESC, o.order_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapOrder, args.toArray());
@@ -62,18 +86,28 @@ public class PaymentRepository {
                                                      long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT transaction_id, project_id, order_id, order_no, third_trade_no, pay_channel, amount,
-                       paid_at, created_at
-                FROM pay_transaction
-                WHERE tenant_id = ?
+                SELECT t.transaction_id, t.project_id, t.order_id, t.order_no, t.third_trade_no, t.pay_channel,
+                       t.amount, t.paid_at, t.created_at, o.member_id, m.real_name AS member_name,
+                       m.mobile AS member_mobile, o.status AS order_status, o.amount AS order_amount,
+                       COALESCE(pp.prepayment_amount, 0) AS prepayment_amount
+                FROM pay_transaction t
+                LEFT JOIN pay_order o ON o.tenant_id = t.tenant_id AND o.order_id = t.order_id AND o.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount
+                    FROM member_prepayment
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, order_id
+                ) pp ON pp.tenant_id = t.tenant_id AND pp.order_id = t.order_id
+                WHERE t.tenant_id = ?
                 """);
         args.add(tenantId);
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND t.project_id = ?");
             args.add(projectId);
         }
-        appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY paid_at DESC, transaction_id DESC LIMIT ? OFFSET ?");
+        appendProjectScope(sql, args, allowedProjectIds, "t.project_id");
+        sql.append(" ORDER BY t.paid_at DESC, t.transaction_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapTransaction, args.toArray());
@@ -135,10 +169,34 @@ public class PaymentRepository {
 
     public PayOrderView getOrderByNo(String orderNo) {
         return jdbcTemplate.queryForObject("""
-                SELECT order_id, tenant_id, project_id, order_no, member_id, pay_channel, amount, subject, status,
-                       expire_at, paid_at, third_trade_no, created_at
-                FROM pay_order
-                WHERE order_no = ? AND deleted = 0
+                SELECT o.order_id, o.tenant_id, o.project_id, o.order_no, o.member_id, o.pay_channel, o.amount,
+                       o.subject, o.status, o.expire_at, o.paid_at, o.third_trade_no, o.created_at,
+                       m.real_name AS member_name, m.mobile AS member_mobile,
+                       COALESCE(ob.bill_count, 0) AS bill_count,
+                       COALESCE(ob.bill_applied_amount, 0) AS bill_applied_amount,
+                       COALESCE(tx.transaction_amount, 0) AS transaction_amount,
+                       COALESCE(pp.prepayment_amount, 0) AS prepayment_amount,
+                       COALESCE(pp.prepayment_remaining_amount, 0) AS prepayment_remaining_amount
+                FROM pay_order o
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COUNT(*) AS bill_count, SUM(amount) AS bill_applied_amount
+                    FROM pay_order_bill
+                    GROUP BY tenant_id, order_id
+                ) ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS transaction_amount
+                    FROM pay_transaction
+                    GROUP BY tenant_id, order_id
+                ) tx ON tx.tenant_id = o.tenant_id AND tx.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount,
+                           SUM(remaining_amount) AS prepayment_remaining_amount
+                    FROM member_prepayment
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, order_id
+                ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                WHERE o.order_no = ? AND o.deleted = 0
                 """, this::mapOrder, orderNo);
     }
 
@@ -271,12 +329,17 @@ public class PaymentRepository {
     }
 
     private void appendOrderFilters(StringBuilder sql, List<Object> args, Long projectId, String status) {
+        appendOrderFilters(sql, args, projectId, status, "project_id", "status");
+    }
+
+    private void appendOrderFilters(StringBuilder sql, List<Object> args, Long projectId, String status,
+                                    String projectColumn, String statusColumn) {
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND ").append(projectColumn).append(" = ?");
             args.add(projectId);
         }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND ").append(statusColumn).append(" = ?");
             args.add(status);
         }
     }
@@ -327,14 +390,19 @@ public class PaymentRepository {
                 rs.getString("order_no"), (Long) rs.getObject("member_id"), rs.getString("pay_channel"),
                 rs.getBigDecimal("amount"), rs.getString("subject"), rs.getString("status"), toLocalDateTime(rs, "expire_at"),
                 toLocalDateTime(rs, "paid_at"), rs.getString("third_trade_no"),
-                rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getTimestamp("created_at").toLocalDateTime(), rs.getString("member_name"),
+                rs.getString("member_mobile"), (Long) rs.getObject("bill_count"), rs.getBigDecimal("bill_applied_amount"),
+                rs.getBigDecimal("transaction_amount"), rs.getBigDecimal("prepayment_amount"),
+                rs.getBigDecimal("prepayment_remaining_amount"));
     }
 
     private PayTransactionView mapTransaction(ResultSet rs, int rowNum) throws SQLException {
         return new PayTransactionView(rs.getLong("transaction_id"), rs.getLong("project_id"), rs.getLong("order_id"),
                 rs.getString("order_no"), rs.getString("third_trade_no"), rs.getString("pay_channel"),
                 rs.getBigDecimal("amount"), rs.getTimestamp("paid_at").toLocalDateTime(),
-                rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getTimestamp("created_at").toLocalDateTime(), (Long) rs.getObject("member_id"),
+                rs.getString("member_name"), rs.getString("member_mobile"), rs.getString("order_status"),
+                rs.getBigDecimal("order_amount"), rs.getBigDecimal("prepayment_amount"));
     }
 
     private MemberPrepaymentView mapPrepayment(ResultSet rs, int rowNum) throws SQLException {

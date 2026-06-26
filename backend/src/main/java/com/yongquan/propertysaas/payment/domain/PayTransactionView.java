@@ -12,6 +12,12 @@ public record PayTransactionView(
         String payChannel,
         BigDecimal amount,
         LocalDateTime paidAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long memberId,
+        String memberName,
+        String memberMobile,
+        String orderStatus,
+        BigDecimal orderAmount,
+        BigDecimal prepaymentAmount
 ) {
 }

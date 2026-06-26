@@ -348,7 +348,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailDialogVisible" title="小区详情" width="620px" draggable>
+    <el-dialog v-model="detailDialogVisible" :title="`${config.title}详情`" width="620px" draggable>
       <el-form v-if="detailRow" label-position="top" class="detail-form">
         <el-form-item v-for="field in detailFields" :key="field.prop" :label="field.label">
           <el-input :model-value="displayDetailCell(detailRow, field)" disabled />
