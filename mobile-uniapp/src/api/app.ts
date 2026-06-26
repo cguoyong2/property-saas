@@ -66,6 +66,13 @@ export function createPayOrder(data: Record<string, unknown>) {
   })
 }
 
+export function confirmDemoPayOrder(orderNo: string) {
+  return request<Record<string, unknown>>({
+    url: `/app/pay/orders/${orderNo}/demo-confirm`,
+    method: 'POST',
+  })
+}
+
 export function fetchNotices(params: Record<string, unknown>) {
   return request<PageResult<Record<string, unknown>>>({
     url: '/app/notices',

@@ -3,14 +3,18 @@
     <view class="screen-title">
       <view>
         <text class="page-title">账单缴费</text>
-        <text class="page-sub">待缴优先处理</text>
+        <text class="page-sub">房屋、车位费用统一核对</text>
       </view>
       <text class="pill" @click="goHouse">{{ member.currentHouseNo || '选房屋' }}</text>
     </view>
 
     <view class="bill-total">
-      <text class="total-label">{{ member.currentHouseNo || '当前未选择房屋' }} 当前待缴</text>
+      <text class="total-label">{{ member.currentHouseNo || '当前未选择房屋' }} 待缴合计</text>
       <text class="total-amount">¥{{ unpaidTotal }}</text>
+      <view class="total-meta">
+        <text>待缴 {{ payableCount }} 笔</text>
+        <text>已缴 {{ paidCount }} 笔</text>
+      </view>
       <view class="total-actions">
         <button class="accent" @click="payFirst">立即缴费</button>
         <button class="light" @click="statusFilter = 'PAID'; load()">历史账单</button>
@@ -36,20 +40,37 @@
 
     <view v-else class="section">
       <view class="section-head">
-        <text>{{ statusFilter === 'PAID' ? '缴费记录' : '待缴账单' }}</text>
+        <text>{{ statusFilter === 'PAID' ? '历史缴费' : '账单明细' }}</text>
         <text>{{ bills.length }} 笔</text>
       </view>
       <view v-if="bills.length" class="row-list">
-        <button v-for="bill in bills" :key="String(bill.billId)" class="row" @click="detail(bill)">
-          <view>
-            <text class="row-title">{{ bill.feeItemName || bill.billNo }}</text>
-            <text class="row-sub">账期：{{ bill.billPeriod || '-' }}</text>
-          </view>
-          <view class="right">
-            <text class="amount">¥{{ bill.remainingAmount ?? bill.receivableAmount ?? 0 }}</text>
+        <view v-for="bill in bills" :key="String(bill.billId)" class="bill-card" @click="detail(bill)">
+          <view class="bill-main">
+            <view>
+              <text class="row-title">{{ bill.feeItemName || bill.billNo }}</text>
+              <text class="row-sub">{{ bill.houseNo || member.currentHouseNo || '-' }} · {{ bill.billPeriod || '-' }}</text>
+            </view>
             <text class="status" :class="String(bill.status).toLowerCase()">{{ statusText(bill.status) }}</text>
           </view>
-        </button>
+          <view class="amount-grid">
+            <view>
+              <text class="amount-label">应收</text>
+              <text class="amount-value">¥{{ money(bill.receivableAmount) }}</text>
+            </view>
+            <view>
+              <text class="amount-label">已收</text>
+              <text class="amount-value paid">¥{{ money(bill.paidAmount) }}</text>
+            </view>
+            <view>
+              <text class="amount-label">待收</text>
+              <text class="amount-value due">¥{{ money(bill.remainingAmount) }}</text>
+            </view>
+          </view>
+          <view class="card-foot">
+            <text>{{ bill.paymentSummary ? '已有支付记录' : '暂无支付记录' }}</text>
+            <button v-if="canPay(bill)" @click.stop="pay(bill)">缴费</button>
+          </view>
+        </view>
       </view>
       <view v-else-if="!loading" class="empty-card compact">
         <text class="empty-title">暂无账单</text>
@@ -60,7 +81,7 @@
     <view class="section">
       <view class="tip-card">
         <text class="tip-title">缴费说明</text>
-        <text class="tip-copy">正式上线后接入微信支付；当前演示环境保留模拟支付流程，用于验证账单、订单和支付状态闭环。</text>
+        <text class="tip-copy">当前演示环境使用模拟支付完成闭环；正式接入微信支付后，支付结果会由微信回调自动同步。</text>
       </view>
     </view>
     <AppTabBar active="service" />
@@ -76,33 +97,45 @@ import { useMemberStore } from '@/store/member'
 
 const member = useMemberStore()
 const bills = ref<Record<string, unknown>[]>([])
+const summaryBills = ref<Record<string, unknown>[]>([])
 const loading = ref(false)
 const statusFilter = ref('ALL')
 const tabs = [
   { label: '全部', value: 'ALL' },
   { label: '待缴', value: 'UNPAID' },
+  { label: '部分缴', value: 'PARTIAL_PAID' },
   { label: '已缴', value: 'PAID' },
 ]
 
 const unpaidTotal = computed(() => {
-  const total = bills.value
+  const total = summaryBills.value
     .filter((bill) => canPay(bill))
-    .reduce((sum, bill) => sum + Number(bill.remainingAmount ?? bill.receivableAmount ?? 0), 0)
-  return total.toFixed(2)
+    .reduce((sum, bill) => sum + Number(bill.remainingAmount ?? 0), 0)
+  return money(total)
 })
+
+const payableCount = computed(() => summaryBills.value.filter((bill) => canPay(bill)).length)
+const paidCount = computed(() => summaryBills.value.filter((bill) => String(bill.status) === 'PAID').length)
 
 onShow(load)
 
 async function load() {
   if (!member.currentHouseId) {
     bills.value = []
+    summaryBills.value = []
     return
   }
   loading.value = true
   try {
-    const params: Record<string, unknown> = { houseId: member.currentHouseId, pageNo: 1, pageSize: 50 }
-    if (statusFilter.value !== 'ALL') params.status = statusFilter.value
-    bills.value = (await fetchBills(params)).records
+    const baseParams: Record<string, unknown> = { houseId: member.currentHouseId, pageNo: 1, pageSize: 100 }
+    const listParams: Record<string, unknown> = { ...baseParams }
+    if (statusFilter.value !== 'ALL') listParams.status = statusFilter.value
+    const [list, summary] = await Promise.all([
+      fetchBills(listParams),
+      fetchBills(baseParams),
+    ])
+    bills.value = list.records
+    summaryBills.value = summary.records
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '账单加载失败', icon: 'none' })
   } finally {
@@ -127,7 +160,7 @@ function canPay(bill: Record<string, unknown>) {
 }
 
 function payFirst() {
-  const bill = bills.value.find(canPay)
+  const bill = summaryBills.value.find(canPay)
   if (!bill) {
     uni.showToast({ title: '暂无待缴账单', icon: 'none' })
     return
@@ -145,6 +178,10 @@ function detail(bill: Record<string, unknown>) {
 
 function goHouse() {
   uni.navigateTo({ url: '/pages/house/switch' })
+}
+
+function money(value: unknown) {
+  return Number(value ?? 0).toFixed(2)
 }
 </script>
 
@@ -217,6 +254,15 @@ function goHouse() {
   line-height: 1.1;
 }
 
+.total-meta {
+  display: flex;
+  gap: 22rpx;
+  margin-top: 12rpx;
+  color: #d7f7ef;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
 .total-actions {
   display: flex;
   gap: 16rpx;
@@ -284,7 +330,13 @@ function goHouse() {
   font-weight: 800;
 }
 
-.row-list,
+.row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.bill-card,
 .tip-card,
 .empty-card {
   background: rgba(255, 255, 255, .96);
@@ -293,30 +345,23 @@ function goHouse() {
   box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, .055);
 }
 
-.row-list {
-  padding: 8rpx 28rpx;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.bill-card {
   width: 100%;
-  min-height: 120rpx;
-  padding: 0;
-  background: transparent;
-  border-bottom: 1rpx solid #eef2f3;
+  padding: 26rpx;
   text-align: left;
 }
 
-.row:last-child {
-  border-bottom: 0;
+.bill-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 
 .row-title {
   display: block;
   color: #172033;
-  font-size: 28rpx;
+  font-size: 29rpx;
   font-weight: 900;
 }
 
@@ -327,22 +372,9 @@ function goHouse() {
   font-size: 22rpx;
 }
 
-.right {
-  flex: none;
-  text-align: right;
-}
-
-.amount {
-  display: block;
-  color: #dc2626;
-  font-size: 32rpx;
-  font-weight: 950;
-}
-
 .status {
-  display: inline-flex;
-  margin-top: 8rpx;
-  padding: 6rpx 14rpx;
+  flex: none;
+  padding: 8rpx 16rpx;
   color: #334155;
   background: #e2e8f0;
   border-radius: 999rpx;
@@ -360,6 +392,61 @@ function goHouse() {
 .status.paid {
   color: #0b5f59;
   background: #dff5ef;
+}
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+  margin-top: 24rpx;
+  padding: 22rpx 0;
+  border-top: 1rpx solid #edf2f3;
+  border-bottom: 1rpx solid #edf2f3;
+}
+
+.amount-label {
+  display: block;
+  color: #64748b;
+  font-size: 21rpx;
+}
+
+.amount-value {
+  display: block;
+  margin-top: 8rpx;
+  color: #172033;
+  font-size: 27rpx;
+  font-weight: 950;
+}
+
+.amount-value.paid {
+  color: #0f766e;
+}
+
+.amount-value.due {
+  color: #dc2626;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.card-foot text {
+  color: #64748b;
+  font-size: 22rpx;
+}
+
+.card-foot button {
+  width: 142rpx;
+  height: 58rpx;
+  color: #fff;
+  background: #0f766e;
+  border-radius: 999rpx;
+  font-size: 23rpx;
+  font-weight: 900;
 }
 
 .tip-card {

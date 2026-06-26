@@ -4,6 +4,7 @@ import com.yongquan.propertysaas.app.service.AppService;
 import com.yongquan.propertysaas.common.api.ApiResponse;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderCreateResult;
+import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
 import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
 import com.yongquan.propertysaas.security.permission.RequiresPermission;
 import jakarta.validation.Valid;
@@ -39,9 +40,10 @@ public class AppController {
     @GetMapping("/api/app/bills")
     @RequiresPermission("app:bill:list")
     public ApiResponse<PageResult<Map<String, Object>>> bills(@RequestParam Long houseId,
+                                                              @RequestParam(required = false) String status,
                                                               @RequestParam(defaultValue = "1") long pageNo,
                                                               @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.bills(houseId, pageNo, pageSize));
+        return ApiResponse.success(service.bills(houseId, status, pageNo, pageSize));
     }
 
     @GetMapping("/api/app/bills/{billId}")
@@ -54,6 +56,12 @@ public class AppController {
     @RequiresPermission("app:pay:create")
     public ApiResponse<PayOrderCreateResult> createPayOrder(@Valid @RequestBody PayOrderCreateRequest request) {
         return ApiResponse.success(service.createPayOrder(request));
+    }
+
+    @PostMapping("/api/app/pay/orders/{orderNo}/demo-confirm")
+    @RequiresPermission("app:pay:create")
+    public ApiResponse<PaymentNotifyResult> confirmDemoPayOrder(@PathVariable String orderNo) {
+        return ApiResponse.success(service.confirmDemoPayOrder(orderNo));
     }
 
     @GetMapping("/api/app/vehicles")

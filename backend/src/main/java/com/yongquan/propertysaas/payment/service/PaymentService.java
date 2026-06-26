@@ -191,6 +191,41 @@ public class PaymentService {
         return new PaymentNotifyResult(order.orderNo(), "PAID", false);
     }
 
+    @Transactional
+    public PaymentNotifyResult confirmDemoAppPayment(String orderNo) {
+        PayOrderView order = repository.getOrderByNo(orderNo);
+        if (!tenantId().equals(order.tenantId())) {
+            throw new AccessDeniedException("无权操作该支付订单");
+        }
+        if (order.memberId() == null || !order.memberId().equals(userId())) {
+            throw new AccessDeniedException("无权操作该支付订单");
+        }
+        if (!"WECHAT".equals(order.payChannel())) {
+            throw new IllegalArgumentException("业主端演示支付仅支持微信支付订单");
+        }
+        if ("PAID".equals(order.status())) {
+            return new PaymentNotifyResult(order.orderNo(), "PAID", true);
+        }
+        if (!Set.of("PENDING", "PAYING").contains(order.status())) {
+            throw new IllegalArgumentException("当前订单状态不可支付：" + order.status());
+        }
+        LocalDateTime paidAt = LocalDateTime.now();
+        String thirdTradeNo = "APP-DEMO-" + order.orderNo();
+        if (repository.transactionExists(order.tenantId(), "WECHAT", thirdTradeNo)) {
+            repository.markOrderPaid(order.tenantId(), order.orderId(), thirdTradeNo, paidAt);
+            return new PaymentNotifyResult(order.orderNo(), "PAID", true);
+        }
+        boolean inserted = repository.insertTransactionIfAbsent(newId(), order.tenantId(), order.projectId(),
+                order.orderId(), order.orderNo(), thirdTradeNo, "WECHAT", order.amount(), paidAt,
+                "{\"source\":\"APP_DEMO_PAYMENT\"}");
+        if (inserted) {
+            settlePaidOrder(order.tenantId(), order.projectId(), order.orderId(), order.orderNo(), order.memberId(),
+                    order.amount(), "业主端模拟支付超出应收金额，自动转入预存款");
+        }
+        repository.markOrderPaid(order.tenantId(), order.orderId(), thirdTradeNo, paidAt);
+        return new PaymentNotifyResult(order.orderNo(), "PAID", !inserted);
+    }
+
     private void settlePaidOrder(Long tenantId, Long projectId, Long orderId, String orderNo, Long memberId,
                                  BigDecimal paidAmount, String prepaymentRemark) {
         BigDecimal unappliedAmount = money(paidAmount);

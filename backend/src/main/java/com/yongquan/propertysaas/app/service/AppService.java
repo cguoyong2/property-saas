@@ -3,14 +3,18 @@ package com.yongquan.propertysaas.app.service;
 import com.yongquan.propertysaas.app.repository.AppRepository;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.payment.domain.PayOrderCreateResult;
+import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
 import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
 import com.yongquan.propertysaas.payment.service.PaymentService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AppService {
+
+    private static final Set<String> BILL_STATUSES = Set.of("ALL", "UNPAID", "OVERDUE", "PARTIAL_PAID", "PAID", "VOIDED");
 
     private final AppRepository repository;
     private final PaymentService paymentService;
@@ -35,12 +39,13 @@ public class AppService {
         return new PageResult<>(records, records.size(), 1, Math.max(records.size(), 1));
     }
 
-    public PageResult<Map<String, Object>> bills(Long houseId, long pageNo, long pageSize) {
+    public PageResult<Map<String, Object>> bills(Long houseId, String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         ensureApprovedHouse(houseId);
+        String normalizedStatus = normalizeBillStatus(status);
         return new PageResult<>(
-                repository.findBills(tenantId(), memberId(), houseId, offset(pageNo, pageSize), pageSize),
-                repository.countBills(tenantId(), memberId(), houseId),
+                repository.findBills(tenantId(), memberId(), houseId, normalizedStatus, offset(pageNo, pageSize), pageSize),
+                repository.countBills(tenantId(), memberId(), houseId, normalizedStatus),
                 pageNo,
                 pageSize);
     }
@@ -50,7 +55,15 @@ public class AppService {
     }
 
     public PayOrderCreateResult createPayOrder(PayOrderCreateRequest request) {
+        if (repository.countAccessiblePayableBills(tenantId(), memberId(), request.projectId(), request.billIds())
+                != request.billIds().stream().distinct().count()) {
+            throw new IllegalArgumentException("账单不存在、未绑定房屋或状态不可支付");
+        }
         return paymentService.createOrder(request);
+    }
+
+    public PaymentNotifyResult confirmDemoPayOrder(String orderNo) {
+        return paymentService.confirmDemoAppPayment(orderNo);
     }
 
     public PageResult<Map<String, Object>> vehicles(long pageNo, long pageSize) {
@@ -80,6 +93,17 @@ public class AppService {
         if (pageNo < 1 || pageSize < 1 || pageSize > 200) {
             throw new IllegalArgumentException("分页参数错误");
         }
+    }
+
+    private String normalizeBillStatus(String status) {
+        if (status == null || status.isBlank() || "ALL".equals(status)) {
+            return null;
+        }
+        String normalized = status.trim().toUpperCase();
+        if (!BILL_STATUSES.contains(normalized)) {
+            throw new IllegalArgumentException("非法账单状态：" + status);
+        }
+        return normalized;
     }
 
     private long offset(long pageNo, long pageSize) {
