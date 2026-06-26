@@ -50,7 +50,8 @@ public class PaymentRefundService {
         this.objectMapper = objectMapper;
     }
 
-    public PageResult<PayRefundView> pageRefunds(Long projectId, String status, long pageNo, long pageSize) {
+    public PageResult<PayRefundView> pageRefunds(Long projectId, String refundNo, String orderNo,
+                                                  String memberName, String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         validateRefundStatus(status);
         if (projectId != null) {
@@ -59,8 +60,10 @@ public class PaymentRefundService {
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
-                repository.findRefunds(tenantId, scope, projectId, status, offset(pageNo, pageSize), pageSize),
-                repository.countRefunds(tenantId, scope, projectId, status),
+                repository.findRefunds(tenantId, scope, projectId, normalize(refundNo), normalize(orderNo),
+                        normalize(memberName), normalize(status), offset(pageNo, pageSize), pageSize),
+                repository.countRefunds(tenantId, scope, projectId, normalize(refundNo), normalize(orderNo),
+                        normalize(memberName), normalize(status)),
                 pageNo,
                 pageSize);
     }

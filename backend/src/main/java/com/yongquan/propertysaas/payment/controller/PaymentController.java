@@ -94,10 +94,13 @@ public class PaymentController {
     @GetMapping("/api/payment/refunds")
     @RequiresPermission("payment:refund:list")
     public ApiResponse<PageResult<PayRefundView>> pageRefunds(@RequestParam(required = false) Long projectId,
+                                                              @RequestParam(required = false) String refundNo,
+                                                              @RequestParam(required = false) String orderNo,
+                                                              @RequestParam(required = false) String memberName,
                                                               @RequestParam(required = false) String status,
                                                               @RequestParam(defaultValue = "1") long pageNo,
                                                               @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(refundService.pageRefunds(projectId, status, pageNo, pageSize));
+        return ApiResponse.success(refundService.pageRefunds(projectId, refundNo, orderNo, memberName, status, pageNo, pageSize));
     }
 
     @GetMapping("/api/payment/refundable-orders")

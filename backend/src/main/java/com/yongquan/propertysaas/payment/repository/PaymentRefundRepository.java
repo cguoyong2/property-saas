@@ -33,7 +33,8 @@ public class PaymentRefundRepository {
     }
 
     public List<PayRefundView> findRefunds(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                           String status, long offset, long pageSize) {
+                                           String refundNo, String orderNo, String memberName, String status,
+                                           long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT r.refund_id, r.project_id, r.refund_no, r.order_id, o.order_no, r.transaction_id,
@@ -64,7 +65,7 @@ public class PaymentRefundRepository {
                 WHERE r.tenant_id = ? AND r.deleted = 0
                 """);
         args.add(tenantId);
-        appendRefundFilters(sql, args, projectId, status, "r.project_id", "r.status");
+        appendRefundFilters(sql, args, projectId, refundNo, orderNo, memberName, status);
         appendProjectScope(sql, args, allowedProjectIds, "r.project_id");
         sql.append(" ORDER BY r.created_at DESC, r.refund_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
@@ -72,12 +73,19 @@ public class PaymentRefundRepository {
         return jdbcTemplate.query(sql.toString(), this::mapRefund, args.toArray());
     }
 
-    public long countRefunds(Long tenantId, List<Long> allowedProjectIds, Long projectId, String status) {
+    public long countRefunds(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                             String refundNo, String orderNo, String memberName, String status) {
         List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM pay_refund WHERE tenant_id = ? AND deleted = 0");
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM pay_refund r
+                LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                WHERE r.tenant_id = ? AND r.deleted = 0
+                """);
         args.add(tenantId);
-        appendRefundFilters(sql, args, projectId, status);
-        appendProjectScope(sql, args, allowedProjectIds);
+        appendRefundFilters(sql, args, projectId, refundNo, orderNo, memberName, status);
+        appendProjectScope(sql, args, allowedProjectIds, "r.project_id");
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
     }
@@ -445,18 +453,27 @@ public class PaymentRefundRepository {
                 """, String.class, tenantId, payChannel, projectId);
     }
 
-    private void appendRefundFilters(StringBuilder sql, List<Object> args, Long projectId, String status) {
-        appendRefundFilters(sql, args, projectId, status, "project_id", "status");
-    }
-
-    private void appendRefundFilters(StringBuilder sql, List<Object> args, Long projectId, String status,
-                                     String projectColumn, String statusColumn) {
+    private void appendRefundFilters(StringBuilder sql, List<Object> args, Long projectId, String refundNo,
+                                     String orderNo, String memberName, String status) {
         if (projectId != null) {
-            sql.append(" AND ").append(projectColumn).append(" = ?");
+            sql.append(" AND r.project_id = ?");
             args.add(projectId);
         }
+        if (refundNo != null && !refundNo.isBlank()) {
+            sql.append(" AND r.refund_no LIKE ?");
+            args.add("%" + refundNo + "%");
+        }
+        if (orderNo != null && !orderNo.isBlank()) {
+            sql.append(" AND o.order_no LIKE ?");
+            args.add("%" + orderNo + "%");
+        }
+        if (memberName != null && !memberName.isBlank()) {
+            sql.append(" AND (m.real_name LIKE ? OR m.mobile LIKE ?)");
+            args.add("%" + memberName + "%");
+            args.add("%" + memberName + "%");
+        }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND ").append(statusColumn).append(" = ?");
+            sql.append(" AND r.status = ?");
             args.add(status);
         }
     }
