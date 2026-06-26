@@ -96,6 +96,95 @@ public class AppRepository {
         return count == null ? 0 : count;
     }
 
+    public List<Map<String, Object>> findPayOrders(Long tenantId, Long memberId, String status, long offset, long pageSize) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(payOrderSelectSql());
+        appendPayOrderFilter(sql, args, tenantId, memberId, status);
+        sql.append(" ORDER BY o.created_at DESC, o.order_id DESC LIMIT ? OFFSET ?");
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.queryForList(sql.toString(), args.toArray());
+    }
+
+    public long countPayOrders(Long tenantId, Long memberId, String status) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM pay_order o
+                """);
+        appendPayOrderFilter(sql, args, tenantId, memberId, status);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return count == null ? 0 : count;
+    }
+
+    public Map<String, Object> getPayOrder(Long tenantId, Long memberId, String orderNo) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(payOrderSelectSql());
+        appendPayOrderFilter(sql, args, tenantId, memberId, null);
+        sql.append(" AND o.order_no = ?");
+        args.add(orderNo);
+        return jdbcTemplate.queryForMap(sql.toString(), args.toArray());
+    }
+
+    public List<Map<String, Object>> findPrepaymentLedger(Long tenantId, Long memberId, long offset, long pageSize) {
+        return jdbcTemplate.queryForList("""
+                SELECT *
+                FROM (
+                  SELECT p.created_at AS createdAt, p.project_id AS projectId, bp.project_name AS projectName,
+                         p.order_no AS businessNo, 'IN' AS direction, p.source AS source,
+                         p.amount AS amount, p.remaining_amount AS remainingAmount,
+                         NULL AS billNo, NULL AS feeItemName, NULL AS billPeriod, NULL AS houseNo,
+                         p.remark AS remark
+                  FROM member_prepayment p
+                  LEFT JOIN base_project bp ON bp.tenant_id = p.tenant_id
+                      AND bp.project_id = p.project_id AND bp.deleted = 0
+                  WHERE p.tenant_id = ? AND p.member_id = ? AND p.deleted = 0
+                  UNION ALL
+                  SELECT u.created_at AS createdAt, u.project_id AS projectId, bp.project_name AS projectName,
+                         u.bill_no AS businessNo, 'OUT' AS direction, u.usage_type AS source,
+                         u.amount AS amount, NULL AS remainingAmount,
+                         fb.bill_no AS billNo, fi.item_name AS feeItemName, fb.bill_period AS billPeriod,
+                         CONCAT_WS('', bd.building_name, bu.unit_name, h.house_no) AS houseNo,
+                         u.remark AS remark
+                  FROM member_prepayment_usage u
+                  LEFT JOIN base_project bp ON bp.tenant_id = u.tenant_id
+                      AND bp.project_id = u.project_id AND bp.deleted = 0
+                  LEFT JOIN fee_bill fb ON fb.tenant_id = u.tenant_id AND fb.bill_id = u.bill_id AND fb.deleted = 0
+                  LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                  LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                  LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                  LEFT JOIN base_unit bu ON bu.tenant_id = h.tenant_id AND bu.unit_id = h.unit_id AND bu.deleted = 0
+                  WHERE u.tenant_id = ? AND u.member_id = ? AND u.deleted = 0
+                ) t
+                ORDER BY t.createdAt DESC
+                LIMIT ? OFFSET ?
+                """, tenantId, memberId, tenantId, memberId, pageSize, offset);
+    }
+
+    public long countPrepaymentLedger(Long tenantId, Long memberId) {
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT
+                  (SELECT COUNT(*) FROM member_prepayment
+                   WHERE tenant_id = ? AND member_id = ? AND deleted = 0)
+                  +
+                  (SELECT COUNT(*) FROM member_prepayment_usage
+                   WHERE tenant_id = ? AND member_id = ? AND deleted = 0)
+                """, Long.class, tenantId, memberId, tenantId, memberId);
+        return count == null ? 0 : count;
+    }
+
+    public Map<String, Object> prepaymentSummary(Long tenantId, Long memberId) {
+        return jdbcTemplate.queryForMap("""
+                SELECT
+                  COALESCE((SELECT SUM(amount) FROM member_prepayment
+                            WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS totalAmount,
+                  COALESCE((SELECT SUM(amount - remaining_amount) FROM member_prepayment
+                            WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS usedAmount,
+                  COALESCE((SELECT SUM(remaining_amount) FROM member_prepayment
+                            WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS remainingAmount
+                """, tenantId, memberId, tenantId, memberId, tenantId, memberId);
+    }
+
     public List<Map<String, Object>> findVehicles(Long tenantId, Long memberId, long offset, long pageSize) {
         return jdbcTemplate.queryForList("""
                 SELECT vehicle_id AS vehicleId, project_id AS projectId, plate_no AS plateNo,
@@ -195,6 +284,58 @@ public class AppRepository {
                 """;
     }
 
+    private String payOrderSelectSql() {
+        return """
+                SELECT o.order_id AS orderId, o.project_id AS projectId, bp.project_name AS projectName,
+                       o.order_no AS orderNo, o.pay_channel AS payChannel, o.amount, o.subject, o.status,
+                       o.expire_at AS expireAt, o.paid_at AS paidAt, o.third_trade_no AS thirdTradeNo,
+                       o.created_at AS createdAt,
+                       COALESCE(ob.bill_count, 0) AS billCount,
+                       COALESCE(ob.bill_applied_amount, 0) AS billAppliedAmount,
+                       COALESCE(tx.transaction_amount, 0) AS transactionAmount,
+                       COALESCE(r.refunded_amount, 0) AS refundedAmount,
+                       COALESCE(pp.prepayment_amount, 0) AS prepaymentAmount,
+                       COALESCE(pp.prepayment_remaining_amount, 0) AS prepaymentRemainingAmount,
+                       ob.house_no AS houseNo,
+                       ob.bill_summary AS billSummary
+                FROM pay_order o
+                LEFT JOIN base_project bp ON bp.tenant_id = o.tenant_id
+                    AND bp.project_id = o.project_id AND bp.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id, COUNT(*) AS bill_count, SUM(ob.amount) AS bill_applied_amount,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS transaction_amount
+                    FROM pay_transaction
+                    GROUP BY tenant_id, order_id
+                ) tx ON tx.tenant_id = o.tenant_id AND tx.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT rt.tenant_id, r.order_id, SUM(rt.refund_amount) AS refunded_amount
+                    FROM pay_refund_transaction rt
+                    JOIN pay_refund r ON r.tenant_id = rt.tenant_id AND r.refund_id = rt.refund_id AND r.deleted = 0
+                    GROUP BY rt.tenant_id, r.order_id
+                ) r ON r.tenant_id = o.tenant_id AND r.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount,
+                           SUM(remaining_amount) AS prepayment_remaining_amount
+                    FROM member_prepayment
+                    WHERE deleted = 0
+                    GROUP BY tenant_id, order_id
+                ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                """;
+    }
+
     private void appendBillAccessFilter(StringBuilder sql, List<Object> args, Long tenantId, Long memberId, Long houseId) {
         sql.append("""
                 WHERE fb.tenant_id = ? AND fb.house_id = ? AND fb.deleted = 0
@@ -220,5 +361,17 @@ public class AppRepository {
         }
         sql.append(" AND fb.status = ?");
         args.add(status);
+    }
+
+    private void appendPayOrderFilter(StringBuilder sql, List<Object> args, Long tenantId, Long memberId, String status) {
+        sql.append("""
+                WHERE o.tenant_id = ? AND o.member_id = ? AND o.deleted = 0
+                """);
+        args.add(tenantId);
+        args.add(memberId);
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND o.status = ?");
+            args.add(status);
+        }
     }
 }

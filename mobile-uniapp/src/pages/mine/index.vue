@@ -82,6 +82,8 @@ const mine = reactive<Record<string, unknown>>({})
 const avatarText = computed(() => String(mine.realName || member.realName || '访').slice(0, 1))
 const menuItems = [
   { title: '我的账单', sub: '待缴费用和缴费记录', url: '/pages/bill/list' },
+  { title: '缴费记录', sub: '收款凭证、退款和支付记录', url: '/pages/payment/history' },
+  { title: '预存款', sub: '超收余额和账单抵扣明细', url: '/pages/payment/prepayment' },
   { title: '我的工单', sub: '报修、投诉、评价记录', url: '/pages/workorder/list' },
   { title: '我的车辆', sub: '车牌、车位、月租信息', url: '/pages/vehicle/list' },
   { title: '我的租赁', sub: '合同和到期提醒', url: '/pages/lease/contracts' },

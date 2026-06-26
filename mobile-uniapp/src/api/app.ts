@@ -73,6 +73,36 @@ export function confirmDemoPayOrder(orderNo: string) {
   })
 }
 
+export function fetchPayOrders(params: Record<string, unknown>) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/pay/orders',
+    method: 'GET',
+    data: params,
+  })
+}
+
+export function fetchPayOrderDetail(orderNo: string) {
+  return request<Record<string, unknown>>({
+    url: `/app/pay/orders/${orderNo}`,
+    method: 'GET',
+  })
+}
+
+export function fetchPrepayments(params: Record<string, unknown>) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/prepayments',
+    method: 'GET',
+    data: params,
+  })
+}
+
+export function fetchPrepaymentSummary() {
+  return request<Record<string, unknown>>({
+    url: '/app/prepayments/summary',
+    method: 'GET',
+  })
+}
+
 export function fetchNotices(params: Record<string, unknown>) {
   return request<PageResult<Record<string, unknown>>>({
     url: '/app/notices',

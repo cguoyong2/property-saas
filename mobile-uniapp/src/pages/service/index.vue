@@ -63,6 +63,20 @@
           </view>
           <text class="badge">缴费</text>
         </button>
+        <button class="row" @click="openPrivate('/pages/payment/history')">
+          <view>
+            <text class="row-title">缴费记录</text>
+            <text class="row-sub">收款凭证、退款和支付记录</text>
+          </view>
+          <text class="arrow">›</text>
+        </button>
+        <button class="row" @click="openPrivate('/pages/payment/prepayment')">
+          <view>
+            <text class="row-title">预存款</text>
+            <text class="row-sub">余额、超收转入和账单抵扣</text>
+          </view>
+          <text class="arrow">›</text>
+        </button>
         <button class="row" @click="openPrivate('/pages/visitor/create')">
           <view>
             <text class="row-title">访客邀请</text>

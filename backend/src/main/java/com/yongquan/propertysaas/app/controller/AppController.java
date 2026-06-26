@@ -64,6 +64,33 @@ public class AppController {
         return ApiResponse.success(service.confirmDemoPayOrder(orderNo));
     }
 
+    @GetMapping("/api/app/pay/orders")
+    @RequiresPermission("app:bill:list")
+    public ApiResponse<PageResult<Map<String, Object>>> payOrders(@RequestParam(required = false) String status,
+                                                                  @RequestParam(defaultValue = "1") long pageNo,
+                                                                  @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.payOrders(status, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/app/pay/orders/{orderNo}")
+    @RequiresPermission("app:bill:view")
+    public ApiResponse<Map<String, Object>> payOrder(@PathVariable String orderNo) {
+        return ApiResponse.success(service.payOrder(orderNo));
+    }
+
+    @GetMapping("/api/app/prepayments")
+    @RequiresPermission("app:bill:list")
+    public ApiResponse<PageResult<Map<String, Object>>> prepayments(@RequestParam(defaultValue = "1") long pageNo,
+                                                                    @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.prepayments(pageNo, pageSize));
+    }
+
+    @GetMapping("/api/app/prepayments/summary")
+    @RequiresPermission("app:bill:list")
+    public ApiResponse<Map<String, Object>> prepaymentSummary() {
+        return ApiResponse.success(service.prepaymentSummary());
+    }
+
     @GetMapping("/api/app/vehicles")
     @RequiresPermission("app:vehicle:list")
     public ApiResponse<PageResult<Map<String, Object>>> vehicles(@RequestParam(defaultValue = "1") long pageNo,

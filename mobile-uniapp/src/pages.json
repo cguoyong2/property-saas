@@ -49,6 +49,24 @@
       }
     },
     {
+      "path": "pages/payment/history",
+      "style": {
+        "navigationBarTitleText": "缴费记录"
+      }
+    },
+    {
+      "path": "pages/payment/receipt",
+      "style": {
+        "navigationBarTitleText": "收款凭证"
+      }
+    },
+    {
+      "path": "pages/payment/prepayment",
+      "style": {
+        "navigationBarTitleText": "预存款"
+      }
+    },
+    {
       "path": "pages/workorder/create",
       "style": {
         "navigationBarTitleText": "报事报修"

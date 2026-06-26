@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 public class AppService {
 
     private static final Set<String> BILL_STATUSES = Set.of("ALL", "UNPAID", "OVERDUE", "PARTIAL_PAID", "PAID", "VOIDED");
+    private static final Set<String> PAY_ORDER_STATUSES = Set.of(
+            "ALL", "PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED");
 
     private final AppRepository repository;
     private final PaymentService paymentService;
@@ -66,6 +68,36 @@ public class AppService {
         return paymentService.confirmDemoAppPayment(orderNo);
     }
 
+    public PageResult<Map<String, Object>> payOrders(String status, long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        String normalizedStatus = normalizePayOrderStatus(status);
+        return new PageResult<>(
+                repository.findPayOrders(tenantId(), memberId(), normalizedStatus, offset(pageNo, pageSize), pageSize),
+                repository.countPayOrders(tenantId(), memberId(), normalizedStatus),
+                pageNo,
+                pageSize);
+    }
+
+    public Map<String, Object> payOrder(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) {
+            throw new IllegalArgumentException("订单号不能为空");
+        }
+        return repository.getPayOrder(tenantId(), memberId(), orderNo.trim());
+    }
+
+    public PageResult<Map<String, Object>> prepayments(long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        return new PageResult<>(
+                repository.findPrepaymentLedger(tenantId(), memberId(), offset(pageNo, pageSize), pageSize),
+                repository.countPrepaymentLedger(tenantId(), memberId()),
+                pageNo,
+                pageSize);
+    }
+
+    public Map<String, Object> prepaymentSummary() {
+        return repository.prepaymentSummary(tenantId(), memberId());
+    }
+
     public PageResult<Map<String, Object>> vehicles(long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         return new PageResult<>(
@@ -102,6 +134,17 @@ public class AppService {
         String normalized = status.trim().toUpperCase();
         if (!BILL_STATUSES.contains(normalized)) {
             throw new IllegalArgumentException("非法账单状态：" + status);
+        }
+        return normalized;
+    }
+
+    private String normalizePayOrderStatus(String status) {
+        if (status == null || status.isBlank() || "ALL".equals(status)) {
+            return null;
+        }
+        String normalized = status.trim().toUpperCase();
+        if (!PAY_ORDER_STATUSES.contains(normalized)) {
+            throw new IllegalArgumentException("非法支付订单状态：" + status);
         }
         return normalized;
     }
