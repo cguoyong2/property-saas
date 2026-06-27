@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.member.service;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
+import com.yongquan.propertysaas.member.dto.FamilyMemberInviteRequest;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
 import com.yongquan.propertysaas.member.dto.MemberAuditRequest;
 import com.yongquan.propertysaas.member.dto.MemberRequest;
@@ -26,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private static final Set<String> BIND_ROLES = Set.of("OWNER", "FAMILY", "TENANT", "RESIDENT");
+    private static final Set<String> FAMILY_BIND_ROLES = Set.of("FAMILY", "TENANT", "RESIDENT");
+    private static final Set<String> RELATIONSHIPS = Set.of("SPOUSE", "PARENT", "CHILD", "RELATIVE", "TENANT", "OTHER");
     private static final Set<String> AUDIT_RESULTS = Set.of("APPROVED", "REJECTED");
     private static final Set<String> MEMBER_STATUSES = Set.of("ACTIVE", "DISABLED");
     private static final List<String> APP_PERMISSIONS = List.of(
@@ -33,6 +36,8 @@ public class MemberService {
             "app:house:list",
             "app:house:bind",
             "app:house:unbind",
+            "app:family:list",
+            "app:family:manage",
             "app:bill:list",
             "app:bill:view",
             "app:pay:create",
@@ -71,6 +76,10 @@ public class MemberService {
                     return existing;
                 })
                 .orElseGet(() -> {
+                    MemberView invited = reuseInvitedMember(request);
+                    if (invited != null) {
+                        return invited;
+                    }
                     validateMobileUnique(request.tenantId(), request.mobile(), null);
                     Long memberId = newId();
                     repository.insertMember(request.tenantId(), memberId, request);
@@ -145,6 +154,43 @@ public class MemberService {
                 pageSize);
     }
 
+    public PageResult<MemberHouseBindingView> familyMembers(Long houseId) {
+        requirePositive(houseId, "房屋不能为空");
+        Long tenantId = tenantId();
+        Long memberId = userId();
+        ensureOwnerHouse(tenantId, memberId, houseId);
+        List<MemberHouseBindingView> records = repository.findFamilyBindings(tenantId, memberId, houseId);
+        return new PageResult<>(records, records.size(), 1, Math.max(records.size(), 1));
+    }
+
+    @Transactional
+    public Long inviteFamilyMember(FamilyMemberInviteRequest request) {
+        Long tenantId = tenantId();
+        Long ownerMemberId = userId();
+        validateFamilyInvite(request);
+        ensureOwnerHouse(tenantId, ownerMemberId, request.houseId());
+        Long targetMemberId = invitedMemberId(tenantId, request);
+        if (ownerMemberId.equals(targetMemberId)) {
+            throw new IllegalArgumentException("不能把本人添加为家属/同住人");
+        }
+        if (repository.approvedBindingExists(tenantId, targetMemberId, request.houseId())) {
+            throw new IllegalArgumentException("该人员已绑定当前房屋");
+        }
+        if (repository.pendingBindingExists(tenantId, targetMemberId, request.houseId())) {
+            throw new IllegalArgumentException("该人员已有待审核绑定申请");
+        }
+        Long bindId = newId();
+        repository.insertFamilyBinding(
+                bindId,
+                tenantId,
+                repository.projectIdByHouse(tenantId, request.houseId()),
+                targetMemberId,
+                ownerMemberId,
+                request
+        );
+        return bindId;
+    }
+
     @Transactional
     public Long applyBinding(HouseBindingApplyRequest request) {
         ensureCurrentMember(request.tenantId(), request.memberId());
@@ -207,6 +253,69 @@ public class MemberService {
         }
         if (repository.pendingBindingExists(request.tenantId(), request.memberId(), request.houseId())) {
             throw new IllegalArgumentException("该会员已有待审核绑定申请");
+        }
+    }
+
+    private MemberView reuseInvitedMember(WxLoginRequest request) {
+        String mobile = blankToNull(request.mobile());
+        if (mobile == null) {
+            return null;
+        }
+        return repository.findMemberByMobile(request.tenantId(), mobile)
+                .map(existing -> {
+                    repository.updateMemberLogin(request.tenantId(), existing.memberId(), request);
+                    return repository.findMemberByOpenid(request.tenantId(), request.openid()).orElse(existing);
+                })
+                .orElse(null);
+    }
+
+    private Long invitedMemberId(Long tenantId, FamilyMemberInviteRequest request) {
+        return repository.findMemberByMobile(tenantId, request.mobile().trim())
+                .map(MemberView::memberId)
+                .orElseGet(() -> {
+                    Long memberId = newId();
+                    repository.insertInvitedMember(
+                            tenantId,
+                            memberId,
+                            request.mobile().trim(),
+                            request.realName().trim(),
+                            "INVITE-" + tenantId + "-" + memberId
+                    );
+                    return memberId;
+                });
+    }
+
+    private void validateFamilyInvite(FamilyMemberInviteRequest request) {
+        requirePositive(request.houseId(), "房屋不能为空");
+        String role = blankToNull(request.bindRole());
+        if (role == null || !FAMILY_BIND_ROLES.contains(role)) {
+            throw new IllegalArgumentException("家属/同住人身份只能选择家属、租户或住户");
+        }
+        String relationship = blankToNull(request.relationship());
+        if (relationship != null && !RELATIONSHIPS.contains(relationship)) {
+            throw new IllegalArgumentException("非法关系类型：" + relationship);
+        }
+        String mobile = blankToNull(request.mobile());
+        if (mobile == null || !mobile.matches("\\d{11}")) {
+            throw new IllegalArgumentException("手机号必须为11位数字");
+        }
+        if (blankToNull(request.realName()) == null) {
+            throw new IllegalArgumentException("姓名不能为空");
+        }
+    }
+
+    private void ensureOwnerHouse(Long tenantId, Long memberId, Long houseId) {
+        if (!"MEMBER".equals(TenantContext.getUserType())) {
+            throw new AccessDeniedException("仅业主可管理家属/同住人");
+        }
+        if (!repository.ownerApprovedHouseExists(tenantId, memberId, houseId)) {
+            throw new AccessDeniedException("仅已审核通过的业主可管理该房屋家属/同住人");
+        }
+    }
+
+    private void requirePositive(Long value, String message) {
+        if (value == null || value <= 0) {
+            throw new IllegalArgumentException(message);
         }
     }
 

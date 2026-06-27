@@ -1684,7 +1684,7 @@ function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingAr
 
 type SelectOption = string | {
   label: string
-  value: string | number
+  value: string | number | boolean
   status?: string
   monthlyRentStatus?: string
 }

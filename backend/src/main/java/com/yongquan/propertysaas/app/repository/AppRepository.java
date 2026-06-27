@@ -100,6 +100,7 @@ public class AppRepository {
                     SELECT 1 FROM member_house_bind mhb
                     WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
                       AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
+                      AND (mhb.bind_role = 'OWNER' OR mhb.allow_bill = 1)
                       AND mhb.deleted = 0
                   )
                 """;
@@ -126,6 +127,7 @@ public class AppRepository {
                     SELECT 1 FROM member_house_bind mhb
                     WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
                       AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
+                      AND (mhb.bind_role = 'OWNER' OR mhb.allow_payment = 1)
                       AND mhb.deleted = 0
                   )
                 """);
@@ -263,10 +265,12 @@ public class AppRepository {
                   (SELECT COUNT(*) FROM member_house_bind WHERE tenant_id = ? AND member_id = ? AND status = 'APPROVED' AND deleted = 0) AS houseCount,
                   (SELECT COUNT(*) FROM fee_bill fb WHERE fb.tenant_id = ? AND fb.deleted = 0 AND fb.status IN ('UNPAID','OVERDUE','PARTIAL_PAID')
                     AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id AND b.project_id = fb.project_id
-                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED' AND b.deleted = 0)) AS unpaidBillCount,
+                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED'
+                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0)) AS unpaidBillCount,
                   (SELECT COALESCE(SUM(fb.remaining_amount), 0) FROM fee_bill fb WHERE fb.tenant_id = ? AND fb.deleted = 0 AND fb.status IN ('UNPAID','OVERDUE','PARTIAL_PAID')
                     AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id AND b.project_id = fb.project_id
-                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED' AND b.deleted = 0)) AS unpaidAmount,
+                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED'
+                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0)) AS unpaidAmount,
                   (SELECT COUNT(*) FROM work_order WHERE tenant_id = ? AND member_id = ? AND deleted = 0) AS workOrderCount,
                   (SELECT COUNT(*) FROM base_vehicle WHERE tenant_id = ? AND member_id = ? AND deleted = 0) AS vehicleCount
                 """, tenantId, memberId, tenantId, memberId, tenantId, memberId, tenantId, memberId, tenantId, memberId);
@@ -385,6 +389,7 @@ public class AppRepository {
                     SELECT 1 FROM member_house_bind mhb
                     WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
                       AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
+                      AND (mhb.bind_role = 'OWNER' OR mhb.allow_bill = 1)
                       AND mhb.deleted = 0
                   )
                 """);

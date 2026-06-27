@@ -244,7 +244,7 @@ public class WorkOrderRepository {
                 SELECT COUNT(*)
                 FROM member_house_bind
                 WHERE tenant_id = ? AND project_id = ? AND member_id = ? AND house_id = ?
-                  AND status = 'APPROVED' AND deleted = 0
+                  AND status = 'APPROVED' AND (bind_role = 'OWNER' OR allow_work_order = 1) AND deleted = 0
                 """, tenantId, projectId, memberId, houseId);
     }
 

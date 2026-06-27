@@ -71,6 +71,22 @@ export function unbindHouse(bindId: string | number, reason: string) {
   })
 }
 
+export function fetchFamilyMembers(params: Record<string, unknown>) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/family-members',
+    method: 'GET',
+    data: params,
+  })
+}
+
+export function inviteFamilyMember(data: Record<string, unknown>) {
+  return request<Record<string, unknown>>({
+    url: '/app/family-members',
+    method: 'POST',
+    data,
+  })
+}
+
 export function fetchBills(params: Record<string, unknown>) {
   return request<PageResult<Record<string, unknown>>>({
     url: '/app/bills',

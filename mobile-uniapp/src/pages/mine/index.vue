@@ -50,7 +50,7 @@
           <text class="wide-title">我的房屋</text>
           <text class="wide-copy">绑定、切换、解绑本人或家属房屋。</text>
         </button>
-        <button class="wide-card" @click="goPrivate('/pages/mine/index')">
+        <button class="wide-card" @click="goPrivate('/pages/family/list')">
           <text class="wide-title">家属管理</text>
           <text class="wide-copy">添加配偶、父母、子女等同住人，授权接收通知和办理服务。</text>
         </button>

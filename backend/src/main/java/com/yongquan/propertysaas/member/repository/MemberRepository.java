@@ -2,6 +2,7 @@ package com.yongquan.propertysaas.member.repository;
 
 import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
+import com.yongquan.propertysaas.member.dto.FamilyMemberInviteRequest;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
 import com.yongquan.propertysaas.member.dto.MemberRequest;
 import com.yongquan.propertysaas.member.dto.WxLoginRequest;
@@ -48,6 +49,29 @@ public class MemberRepository {
         return members.stream().findFirst();
     }
 
+    public Optional<MemberView> findMemberByMobile(Long tenantId, String mobile) {
+        List<MemberView> members = jdbcTemplate.query("""
+                SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
+                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       m.last_login_at, m.created_at
+                FROM member_user m
+                LEFT JOIN member_house_bind b
+                       ON b.bind_id = (
+                         SELECT mb.bind_id
+                         FROM member_house_bind mb
+                         WHERE mb.tenant_id = m.tenant_id AND mb.member_id = m.member_id
+                           AND mb.status = 'APPROVED' AND mb.deleted = 0
+                         ORDER BY mb.created_at DESC, mb.bind_id DESC
+                         LIMIT 1
+                       )
+                LEFT JOIN base_house h
+                       ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                WHERE m.tenant_id = ? AND m.mobile = ? AND m.deleted = 0
+                LIMIT 1
+                """, this::mapMember, tenantId, mobile);
+        return members.stream().findFirst();
+    }
+
     public void insertMember(Long tenantId, Long memberId, WxLoginRequest request) {
         jdbcTemplate.update("""
                         INSERT INTO member_user(member_id, tenant_id, openid, unionid, mobile, real_name,
@@ -66,19 +90,28 @@ public class MemberRepository {
     public void updateMemberLogin(Long tenantId, Long memberId, WxLoginRequest request) {
         jdbcTemplate.update("""
                         UPDATE member_user
-                        SET unionid = COALESCE(?, unionid),
+                        SET openid = COALESCE(?, openid),
+                            unionid = COALESCE(?, unionid),
                             mobile = COALESCE(?, mobile),
                             real_name = COALESCE(?, real_name),
                             avatar_url = COALESCE(?, avatar_url),
                             last_login_at = NOW()
                         WHERE tenant_id = ? AND member_id = ? AND deleted = 0
                         """,
+                request.openid(),
                 request.unionid(),
                 request.mobile(),
                 request.realName(),
                 request.avatarUrl(),
                 tenantId,
                 memberId);
+    }
+
+    public void insertInvitedMember(Long tenantId, Long memberId, String mobile, String realName, String openid) {
+        jdbcTemplate.update("""
+                        INSERT INTO member_user(member_id, tenant_id, openid, mobile, real_name, status)
+                        VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+                        """, memberId, tenantId, openid, mobile, realName);
     }
 
     public void insertBackofficeMember(Long tenantId, Long memberId, MemberRequest request, String openid) {
@@ -203,8 +236,11 @@ public class MemberRepository {
                 SELECT b.bind_id, b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id,
                        u.unit_name, b.member_id, b.house_id, h.house_no,
                        CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
-                       b.bind_role, b.real_name, b.mobile,
-                       CASE WHEN b.created_by = b.member_id THEN '业主端提交' ELSE '物业端提交' END AS apply_source,
+                       b.bind_role, b.relationship, b.invite_member_id, b.allow_notice, b.allow_bill,
+                       b.allow_payment, b.allow_work_order, b.allow_visitor, b.real_name, b.mobile,
+                       CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
+                            WHEN b.created_by = b.member_id THEN '业主端提交'
+                            ELSE '物业端提交' END AS apply_source,
                        b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
                        b.audit_remark, b.created_at
                 FROM member_house_bind b
@@ -223,6 +259,38 @@ public class MemberRepository {
         return jdbcTemplate.query(sql.toString(), this::mapBinding, args.toArray());
     }
 
+    public List<MemberHouseBindingView> findFamilyBindings(Long tenantId, Long ownerMemberId, Long houseId) {
+        return jdbcTemplate.query("""
+                SELECT b.bind_id, b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id,
+                       u.unit_name, b.member_id, b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role, b.relationship, b.invite_member_id, b.allow_notice, b.allow_bill,
+                       b.allow_payment, b.allow_work_order, b.allow_visitor, b.real_name, b.mobile,
+                       CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
+                            WHEN b.created_by = b.member_id THEN '业主端提交'
+                            ELSE '物业端提交' END AS apply_source,
+                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       b.audit_remark, b.created_at
+                FROM member_house_bind b
+                LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = b.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE b.tenant_id = ? AND b.house_id = ? AND b.deleted = 0
+                  AND b.member_id <> ?
+                  AND (
+                    b.invite_member_id = ?
+                    OR EXISTS (
+                      SELECT 1 FROM member_house_bind owner_bind
+                      WHERE owner_bind.tenant_id = b.tenant_id AND owner_bind.house_id = b.house_id
+                        AND owner_bind.member_id = ? AND owner_bind.bind_role = 'OWNER'
+                        AND owner_bind.status = 'APPROVED' AND owner_bind.deleted = 0
+                    )
+                  )
+                ORDER BY b.status = 'PENDING' DESC, b.status = 'APPROVED' DESC, b.created_at DESC
+                """, this::mapBinding, tenantId, houseId, ownerMemberId, ownerMemberId, ownerMemberId);
+    }
+
     public long countBindings(Long tenantId, List<Long> allowedProjectIds, Long projectId, Long memberId,
                               String realName, String status) {
         List<Object> args = new ArrayList<>();
@@ -239,8 +307,11 @@ public class MemberRepository {
                 SELECT b.bind_id, b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id,
                        u.unit_name, b.member_id, b.house_id, h.house_no,
                        CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
-                       b.bind_role, b.real_name, b.mobile,
-                       CASE WHEN b.created_by = b.member_id THEN '业主端提交' ELSE '物业端提交' END AS apply_source,
+                       b.bind_role, b.relationship, b.invite_member_id, b.allow_notice, b.allow_bill,
+                       b.allow_payment, b.allow_work_order, b.allow_visitor, b.real_name, b.mobile,
+                       CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
+                            WHEN b.created_by = b.member_id THEN '业主端提交'
+                            ELSE '物业端提交' END AS apply_source,
                        b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
                        b.audit_remark, b.created_at
                 FROM member_house_bind b
@@ -272,6 +343,33 @@ public class MemberRepository {
                 request.effectiveDate(),
                 request.expireDate(),
                 request.memberId());
+    }
+
+    public void insertFamilyBinding(Long bindId, Long tenantId, Long projectId, Long targetMemberId,
+                                    Long inviteMemberId, FamilyMemberInviteRequest request) {
+        jdbcTemplate.update("""
+                        INSERT INTO member_house_bind(bind_id, tenant_id, project_id, member_id, house_id, bind_role,
+                                                      relationship, invite_member_id, allow_notice, allow_bill,
+                                                      allow_payment, allow_work_order, allow_visitor, real_name, mobile,
+                                                      status, effective_date, audit_remark, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_DATE, '业主端邀请待审核', ?)
+                        """,
+                bindId,
+                tenantId,
+                projectId,
+                targetMemberId,
+                request.houseId(),
+                request.bindRole(),
+                text(request.relationship(), "OTHER"),
+                inviteMemberId,
+                bool(request.allowNotice(), true),
+                bool(request.allowBill(), false),
+                bool(request.allowPayment(), false),
+                bool(request.allowWorkOrder(), true),
+                bool(request.allowVisitor(), true),
+                text(request.realName()),
+                text(request.mobile()),
+                inviteMemberId);
     }
 
     public void auditBinding(Long tenantId, Long bindId, String status, Long auditUserId, String auditRemark) {
@@ -351,6 +449,22 @@ public class MemberRepository {
                 WHERE tenant_id = ? AND member_id = ? AND house_id = ?
                   AND status = 'PENDING' AND deleted = 0
                 """, tenantId, memberId, houseId);
+    }
+
+    public boolean ownerApprovedHouseExists(Long tenantId, Long memberId, Long houseId) {
+        return exists("""
+                SELECT COUNT(*) FROM member_house_bind
+                WHERE tenant_id = ? AND member_id = ? AND house_id = ? AND bind_role = 'OWNER'
+                  AND status = 'APPROVED' AND deleted = 0
+                """, tenantId, memberId, houseId);
+    }
+
+    public Long projectIdByHouse(Long tenantId, Long houseId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT project_id FROM base_house
+                WHERE tenant_id = ? AND house_id = ? AND deleted = 0
+                LIMIT 1
+                """, Long.class, tenantId, houseId);
     }
 
     public List<Long> findAllowedProjectIds(Long tenantId, Long userId) {
@@ -461,6 +575,13 @@ public class MemberRepository {
                 rs.getString("house_no"),
                 rs.getString("room_no"),
                 rs.getString("bind_role"),
+                rs.getString("relationship"),
+                (Long) rs.getObject("invite_member_id"),
+                rs.getBoolean("allow_notice"),
+                rs.getBoolean("allow_bill"),
+                rs.getBoolean("allow_payment"),
+                rs.getBoolean("allow_work_order"),
+                rs.getBoolean("allow_visitor"),
                 rs.getString("real_name"),
                 rs.getString("mobile"),
                 rs.getString("apply_source"),
@@ -485,5 +606,9 @@ public class MemberRepository {
     private String text(String value, String fallback) {
         String text = text(value);
         return text == null ? fallback : text;
+    }
+
+    private int bool(Boolean value, boolean fallback) {
+        return Boolean.TRUE.equals(value == null ? fallback : value) ? 1 : 0;
     }
 }

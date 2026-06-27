@@ -37,6 +37,12 @@
       }
     },
     {
+      "path": "pages/family/list",
+      "style": {
+        "navigationBarTitleText": "家属管理"
+      }
+    },
+    {
       "path": "pages/bill/list",
       "style": {
         "navigationBarTitleText": "物业缴费"

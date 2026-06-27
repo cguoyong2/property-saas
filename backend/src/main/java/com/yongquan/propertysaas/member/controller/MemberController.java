@@ -4,6 +4,7 @@ import com.yongquan.propertysaas.common.api.ApiResponse;
 import com.yongquan.propertysaas.common.api.PageResult;
 import com.yongquan.propertysaas.member.domain.MemberHouseBindingView;
 import com.yongquan.propertysaas.member.domain.MemberView;
+import com.yongquan.propertysaas.member.dto.FamilyMemberInviteRequest;
 import com.yongquan.propertysaas.member.dto.HouseBindingApplyRequest;
 import com.yongquan.propertysaas.member.dto.MemberAuditRequest;
 import com.yongquan.propertysaas.member.dto.MemberRequest;
@@ -46,6 +47,18 @@ public class MemberController {
     public ApiResponse<Void> appUnbind(@PathVariable Long bindId, @RequestBody(required = false) UnbindRequest request) {
         service.appUnbind(bindId, request);
         return ApiResponse.success();
+    }
+
+    @GetMapping("/api/app/family-members")
+    @RequiresPermission("app:family:list")
+    public ApiResponse<PageResult<MemberHouseBindingView>> familyMembers(@RequestParam Long houseId) {
+        return ApiResponse.success(service.familyMembers(houseId));
+    }
+
+    @PostMapping("/api/app/family-members")
+    @RequiresPermission("app:family:manage")
+    public ApiResponse<Map<String, Long>> inviteFamilyMember(@Valid @RequestBody FamilyMemberInviteRequest request) {
+        return ApiResponse.success(Map.of("bindId", service.inviteFamilyMember(request)));
     }
 
     @GetMapping("/api/base/members")

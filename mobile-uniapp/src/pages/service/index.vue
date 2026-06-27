@@ -26,7 +26,7 @@
           </view>
           <text class="arrow">›</text>
         </button>
-        <button class="row" @click="openPrivate('/pages/mine/index')">
+        <button class="row" @click="openPrivate('/pages/family/list')">
           <view>
             <text class="row-title">家属管理</text>
             <text class="row-sub">添加家属、租户、同住人</text>

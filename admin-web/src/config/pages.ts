@@ -42,7 +42,7 @@ export interface FieldConfig {
     | 'vehicleBrandId'
     | 'vehicleBrand'
     | 'vehicleModel'
-  options?: Array<string | { label: string; value: string | number }>
+  options?: Array<string | { label: string; value: string | number | boolean }>
   required?: boolean
   inFilter?: boolean
   tableHidden?: boolean
@@ -82,6 +82,18 @@ const memberBindingStatusOptions = [
   { label: '已通过', value: 'APPROVED' },
   { label: '已驳回', value: 'REJECTED' },
   { label: '已解绑', value: 'UNBOUND' },
+]
+const memberRelationshipOptions = [
+  { label: '配偶', value: 'SPOUSE' },
+  { label: '父母', value: 'PARENT' },
+  { label: '子女', value: 'CHILD' },
+  { label: '亲属', value: 'RELATIVE' },
+  { label: '租户', value: 'TENANT' },
+  { label: '其他', value: 'OTHER' },
+]
+const yesNoOptions = [
+  { label: '是', value: true },
+  { label: '否', value: false },
 ]
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
@@ -552,6 +564,7 @@ const baseArchiveExtraPages: PageConfig[] = [
       { prop: 'realName', label: '业主/住户', inFilter: true },
       { prop: 'mobile', label: '手机号' },
       { prop: 'bindRole', label: '住户类型', type: 'select', options: memberBindRoleOptions },
+      { prop: 'relationship', label: '关系', type: 'select', options: memberRelationshipOptions },
       { prop: 'applySource', label: '来源' },
       { prop: 'status', label: '审核状态', type: 'select', options: memberBindingStatusOptions, inFilter: true },
       { prop: 'createdAt', label: '申请时间' },
@@ -564,6 +577,12 @@ const baseArchiveExtraPages: PageConfig[] = [
       { prop: 'realName', label: '业主/住户' },
       { prop: 'mobile', label: '手机号' },
       { prop: 'bindRole', label: '住户类型', type: 'select', options: memberBindRoleOptions },
+      { prop: 'relationship', label: '关系', type: 'select', options: memberRelationshipOptions },
+      { prop: 'allowNotice', label: '允许通知', type: 'select', options: yesNoOptions },
+      { prop: 'allowBill', label: '允许看账单', type: 'select', options: yesNoOptions },
+      { prop: 'allowPayment', label: '允许缴费', type: 'select', options: yesNoOptions },
+      { prop: 'allowWorkOrder', label: '允许报修', type: 'select', options: yesNoOptions },
+      { prop: 'allowVisitor', label: '允许访客', type: 'select', options: yesNoOptions },
       { prop: 'applySource', label: '来源' },
       { prop: 'status', label: '审核状态', type: 'select', options: memberBindingStatusOptions },
       { prop: 'auditRemark', label: '审核/驳回备注' },
