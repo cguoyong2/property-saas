@@ -7,6 +7,7 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -242,8 +244,8 @@ public class PaymentRefundService {
     }
 
     public PageResult<ReconcileExceptionView> pageReconcileExceptions(Long projectId, String exceptionType,
-                                                                       String businessNo, String memberName,
-                                                                       String status, long pageNo, long pageSize) {
+                                                                      String businessNo, String memberName,
+                                                                      String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
@@ -258,6 +260,33 @@ public class PaymentRefundService {
                         normalize(businessNo), normalize(memberName), normalize(status), offset(pageNo, pageSize), pageSize),
                 repository.countReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
                         normalize(businessNo), normalize(memberName), normalize(status)),
+                pageNo,
+                pageSize);
+    }
+
+    public PageResult<ReconcileExceptionReviewView> pageReconcileExceptionReviews(Long projectId, String exceptionType,
+                                                                                  String memberName,
+                                                                                  String reviewStatus,
+                                                                                  String currentCheckStatus,
+                                                                                  long pageNo,
+                                                                                  long pageSize) {
+        validatePage(pageNo, pageSize);
+        if (reviewStatus != null && !reviewStatus.isBlank()
+                && !Set.of("PENDING", "APPROVED", "REJECTED").contains(reviewStatus)) {
+            throw new IllegalArgumentException("非法复核状态：" + reviewStatus);
+        }
+        if (currentCheckStatus != null && !currentCheckStatus.isBlank()
+                && !Set.of("RESOLVED", "STILL_ABNORMAL").contains(currentCheckStatus)) {
+            throw new IllegalArgumentException("非法复算状态：" + currentCheckStatus);
+        }
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        return new PageResult<>(
+                repository.findReconcileExceptionReviews(tenantId, scope, projectId, normalize(exceptionType),
+                        normalize(memberName), normalize(reviewStatus), normalize(currentCheckStatus),
+                        offset(pageNo, pageSize), pageSize),
+                repository.countReconcileExceptionReviews(tenantId, scope, projectId, normalize(exceptionType),
+                        normalize(memberName), normalize(reviewStatus), normalize(currentCheckStatus)),
                 pageNo,
                 pageSize);
     }
@@ -289,13 +318,12 @@ public class PaymentRefundService {
         };
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
-        ReconcileExceptionView exception = repository.getReconcileException(tenantId, scope, exceptionKey);
+        ReconcileExceptionReviewView exception = repository.getReconcileExceptionReview(tenantId, scope, exceptionKey);
         ensureProjectAllowed(exception.projectId());
         if (!"HANDLED".equals(exception.status())) {
             throw new IllegalArgumentException("只有已处理的账务异常可以复核");
         }
-        if ("APPROVED".equals(reviewStatus)
-                && repository.currentReconcileExceptionExists(tenantId, scope, exception.exceptionKey())) {
+        if ("APPROVED".equals(reviewStatus) && "STILL_ABNORMAL".equals(exception.currentCheckStatus())) {
             throw new IllegalArgumentException("处理后系统复算仍存在该异常，不能复核通过：" + exception.reason());
         }
         repository.reviewReconcileExceptionHandle(tenantId, exception.exceptionKey(), reviewStatus, userId(),
@@ -315,11 +343,18 @@ public class PaymentRefundService {
                                                                                    long pageNo,
                                                                                    long pageSize) {
         validatePage(pageNo, pageSize);
-        ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
-        ensureProjectAllowed(exception.projectId());
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        try {
+            ReconcileExceptionReviewView handled = repository.getReconcileExceptionReview(tenantId, scope, exceptionKey);
+            ensureProjectAllowed(handled.projectId());
+        } catch (EmptyResultDataAccessException ignored) {
+            ReconcileExceptionView current = repository.getReconcileException(tenantId, scope, exceptionKey);
+            ensureProjectAllowed(current.projectId());
+        }
         return new PageResult<>(
-                repository.findReconcileExceptionHistory(tenantId(), exception.exceptionKey(), offset(pageNo, pageSize), pageSize),
-                repository.countReconcileExceptionHistory(tenantId(), exception.exceptionKey()),
+                repository.findReconcileExceptionHistory(tenantId, exceptionKey, offset(pageNo, pageSize), pageSize),
+                repository.countReconcileExceptionHistory(tenantId, exceptionKey),
                 pageNo,
                 pageSize);
     }

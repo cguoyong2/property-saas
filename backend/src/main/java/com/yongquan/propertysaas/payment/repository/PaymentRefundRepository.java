@@ -4,6 +4,7 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -441,6 +442,44 @@ public class PaymentRefundRepository {
                         + ") e WHERE e.exception_key = ?",
                 Long.class, args.toArray());
         return value(count) > 0;
+    }
+
+    public List<ReconcileExceptionReviewView> findReconcileExceptionReviews(Long tenantId,
+                                                                            List<Long> allowedProjectIds,
+                                                                            Long projectId,
+                                                                            String exceptionType,
+                                                                            String memberName,
+                                                                            String reviewStatus,
+                                                                            String currentCheckStatus,
+                                                                            long offset,
+                                                                            long pageSize) {
+        List<Object> args = reviewArgs(tenantId, allowedProjectIds, projectId, exceptionType, memberName,
+                reviewStatus, currentCheckStatus);
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(reviewSql(allowedProjectIds) + """
+                ORDER BY h.handled_at DESC, h.exception_key DESC
+                LIMIT ? OFFSET ?
+                """, this::mapReconcileExceptionReview, args.toArray());
+    }
+
+    public long countReconcileExceptionReviews(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                               String exceptionType, String memberName, String reviewStatus,
+                                               String currentCheckStatus) {
+        List<Object> args = reviewArgs(tenantId, allowedProjectIds, projectId, exceptionType, memberName,
+                reviewStatus, currentCheckStatus);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + reviewSql(allowedProjectIds) + ") r",
+                Long.class, args.toArray());
+        return value(count);
+    }
+
+    public ReconcileExceptionReviewView getReconcileExceptionReview(Long tenantId, List<Long> allowedProjectIds,
+                                                                    String exceptionKey) {
+        List<Object> args = reviewArgs(tenantId, allowedProjectIds, null, null, null, null, null);
+        args.add(exceptionKey);
+        return jdbcTemplate.queryForObject("SELECT * FROM (" + reviewSql(allowedProjectIds)
+                        + ") r WHERE r.exception_key = ?",
+                this::mapReconcileExceptionReview, args.toArray());
     }
 
     public void upsertReconcileExceptionHandle(Long handleId, Long tenantId, Long projectId, String exceptionKey,
@@ -912,6 +951,72 @@ public class PaymentRefundRepository {
         return args;
     }
 
+    private String reviewSql(List<Long> allowedProjectIds) {
+        String scope = "";
+        if (allowedProjectIds != null && !allowedProjectIds.isEmpty()) {
+            scope = " AND h.project_id IN (" + placeholders(allowedProjectIds.size()) + ") ";
+        }
+        return """
+                SELECT h.exception_key,
+                       h.project_id,
+                       COALESCE(e.exception_type, h.exception_type) AS exception_type,
+                       COALESCE(e.exception_level, '-') AS exception_level,
+                       COALESCE(e.business_type, h.business_type) AS business_type,
+                       COALESCE(e.business_id, h.business_id) AS business_id,
+                       e.business_no,
+                       e.member_name,
+                       e.member_mobile,
+                       COALESCE(e.amount, 0) AS amount,
+                       CASE WHEN e.exception_key IS NULL THEN '处理后复算已无异常，可复核通过'
+                            ELSE e.reason END AS reason,
+                       h.status AS handle_status,
+                       h.handled_at,
+                       h.handled_by,
+                       h.handle_remark,
+                       h.attachment_file_ids,
+                       h.review_status,
+                       h.reviewed_at,
+                       h.reviewed_by,
+                       h.review_remark,
+                       CASE WHEN e.exception_key IS NULL THEN 'RESOLVED'
+                            ELSE 'STILL_ABNORMAL' END AS current_check_status,
+                       h.created_at
+                FROM payment_reconcile_exception_handle h
+                LEFT JOIN (
+                """ + exceptionSql(allowedProjectIds) + """
+                ) e ON e.exception_key = h.exception_key
+                WHERE h.tenant_id = ? AND h.deleted = 0 AND h.status = 'HANDLED'
+                """ + scope + """
+                AND (? IS NULL OR h.project_id = ?)
+                AND (? IS NULL OR COALESCE(e.exception_type, h.exception_type) = ?)
+                AND (? IS NULL OR COALESCE(e.member_name, '') LIKE ? OR COALESCE(e.member_mobile, '') LIKE ?)
+                AND (? IS NULL OR h.review_status = ?)
+                AND (? IS NULL OR (CASE WHEN e.exception_key IS NULL THEN 'RESOLVED' ELSE 'STILL_ABNORMAL' END) = ?)
+                """;
+    }
+
+    private List<Object> reviewArgs(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                    String exceptionType, String memberName, String reviewStatus,
+                                    String currentCheckStatus) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, null, null, null, null, null);
+        args.add(tenantId);
+        if (allowedProjectIds != null && !allowedProjectIds.isEmpty()) {
+            args.addAll(allowedProjectIds);
+        }
+        args.add(projectId);
+        args.add(projectId);
+        args.add(normalizeBlank(exceptionType));
+        args.add(normalizeBlank(exceptionType));
+        args.add(normalizeLike(memberName));
+        args.add(normalizeLike(memberName));
+        args.add(normalizeLike(memberName));
+        args.add(normalizeBlank(reviewStatus));
+        args.add(normalizeBlank(reviewStatus));
+        args.add(normalizeBlank(currentCheckStatus));
+        args.add(normalizeBlank(currentCheckStatus));
+        return args;
+    }
+
     private void addExceptionSqlArgs(List<Object> args, List<Long> allowedProjectIds, Long projectId,
                                      String exceptionType, String businessNo, String memberName, String status) {
         args.add(args.get(0));
@@ -950,6 +1055,10 @@ public class PaymentRefundRepository {
         return value == null || value.isBlank() ? null : "%" + value.trim() + "%";
     }
 
+    private String placeholders(int size) {
+        return String.join(",", java.util.Collections.nCopies(size, "?"));
+    }
+
     private ReconcileExceptionView mapReconcileException(ResultSet rs, int rowNum) throws SQLException {
         return new ReconcileExceptionView(rs.getString("exception_key"), rs.getLong("project_id"),
                 rs.getString("exception_type"), rs.getString("exception_level"), rs.getString("business_type"),
@@ -959,6 +1068,17 @@ public class PaymentRefundRepository {
                 rs.getString("handle_remark"), rs.getString("attachment_file_ids"), rs.getString("review_status"),
                 toLocalDateTime(rs, "reviewed_at"), (Long) rs.getObject("reviewed_by"), rs.getString("review_remark"),
                 rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private ReconcileExceptionReviewView mapReconcileExceptionReview(ResultSet rs, int rowNum) throws SQLException {
+        return new ReconcileExceptionReviewView(rs.getString("exception_key"), rs.getLong("project_id"),
+                rs.getString("exception_type"), rs.getString("exception_level"), rs.getString("business_type"),
+                (Long) rs.getObject("business_id"), rs.getString("business_no"), rs.getString("member_name"),
+                rs.getString("member_mobile"), rs.getBigDecimal("amount"), rs.getString("reason"),
+                rs.getString("handle_status"), toLocalDateTime(rs, "handled_at"), (Long) rs.getObject("handled_by"),
+                rs.getString("handle_remark"), rs.getString("attachment_file_ids"), rs.getString("review_status"),
+                toLocalDateTime(rs, "reviewed_at"), (Long) rs.getObject("reviewed_by"), rs.getString("review_remark"),
+                rs.getString("current_check_status"), rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     private ReconcileExceptionHistoryView mapReconcileExceptionHistory(ResultSet rs, int rowNum) throws SQLException {

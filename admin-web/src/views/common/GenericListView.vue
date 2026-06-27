@@ -1002,6 +1002,39 @@ const businessActions: Record<string, BusinessAction[]> = {
       buildPayload: (_row, formData = {}) => ({ reviewResult: 'REJECTED', reviewRemark: formData.reviewRemark }),
     },
   ],
+  'payment-reconcile-reviews': [
+    {
+      key: 'reconcile-review-approve',
+      label: '复核通过',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
+      type: 'success',
+      permission: 'payment:reconcile:view',
+      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      fields: [
+        {
+          prop: 'reviewRemark',
+          label: '复核备注',
+          type: 'textarea',
+          help: '只有复算状态为“复算已解决”时才允许复核通过；仍异常会被系统阻止。',
+        },
+      ],
+      buildPayload: (_row, formData = {}) => ({ reviewResult: 'APPROVED', reviewRemark: formData.reviewRemark }),
+    },
+    {
+      key: 'reconcile-review-reject',
+      label: '退回重办',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
+      type: 'warning',
+      permission: 'payment:reconcile:view',
+      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      fields: [{ prop: 'reviewRemark', label: '退回原因', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ reviewResult: 'REJECTED', reviewRemark: formData.reviewRemark }),
+    },
+  ],
   'member-bindings': [
     {
       key: 'member-binding-approve',
@@ -1238,7 +1271,7 @@ const availableActions = computed(() => (businessActions[config.value.key] ?? []
 const pageActions = computed(() => availableActions.value.filter((action) => action.scope === 'page'))
 const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
 const detailFields = computed(() => config.value.detailFields ?? config.value.columns)
-const isReconcileExceptionDetail = computed(() => config.value.key === 'payment-reconcile-exceptions')
+const isReconcileExceptionDetail = computed(() => ['payment-reconcile-exceptions', 'payment-reconcile-reviews'].includes(config.value.key))
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
   if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
