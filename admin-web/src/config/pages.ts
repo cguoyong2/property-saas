@@ -243,6 +243,9 @@ const reconcileExceptionTypeOptions = [
   { label: '支付流水订单异常', value: '支付流水订单异常' },
   { label: '退款缺少退款流水', value: '退款缺少退款流水' },
   { label: '订单金额不一致', value: '订单金额不一致' },
+  { label: '订单实收核销不平', value: '订单实收核销不平' },
+  { label: '退款流水金额不平', value: '退款流水金额不平' },
+  { label: '预存款余额异常', value: '预存款余额异常' },
   { label: '账单金额状态异常', value: '账单金额状态异常' },
 ]
 

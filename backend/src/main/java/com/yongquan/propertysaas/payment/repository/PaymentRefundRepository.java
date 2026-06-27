@@ -717,6 +717,91 @@ public class PaymentRefundRepository {
                       AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
                       AND ABS(o.amount - (COALESCE(ob.bill_amount, 0) + COALESCE(pp.prepayment_amount, 0))) >= 0.01
                     UNION ALL
+                    SELECT CONCAT('ORDER_PAID_ALLOCATION_MISMATCH:', o.order_id) AS exception_key,
+                           o.project_id,
+                           '订单实收核销不平' AS exception_type,
+                           '高' AS exception_level,
+                           '支付订单' AS business_type,
+                           o.order_id AS business_id,
+                           o.order_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           ABS(COALESCE(tx.paid_amount, 0) - COALESCE(ob.bill_amount, 0) - COALESCE(pp.prepayment_amount, 0)) AS amount,
+                           '实收金额与账单核销金额加预存款转入金额不一致' AS reason,
+                           o.created_at
+                    FROM pay_order o
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS paid_amount
+                        FROM pay_transaction
+                        GROUP BY tenant_id, order_id
+                    ) tx ON tx.tenant_id = o.tenant_id AND tx.order_id = o.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS bill_amount
+                        FROM pay_order_bill
+                        GROUP BY tenant_id, order_id
+                    ) ob ON ob.tenant_id = o.tenant_id AND ob.order_id = o.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount
+                        FROM member_prepayment
+                        WHERE deleted = 0
+                        GROUP BY tenant_id, order_id
+                    ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                    WHERE o.tenant_id = ? AND o.deleted = 0
+                      AND o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                      AND COALESCE(tx.paid_amount, 0) > 0
+                      AND ABS(COALESCE(tx.paid_amount, 0) - COALESCE(ob.bill_amount, 0) - COALESCE(pp.prepayment_amount, 0)) >= 0.01
+                    UNION ALL
+                    SELECT CONCAT('REFUND_AMOUNT_MISMATCH:', r.refund_id) AS exception_key,
+                           r.project_id,
+                           '退款流水金额不平' AS exception_type,
+                           '高' AS exception_level,
+                           '退款单' AS business_type,
+                           r.refund_id AS business_id,
+                           r.refund_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           ABS(r.refund_amount - COALESCE(rt.refund_tx_amount, 0)) AS amount,
+                           '退款单金额与退款流水金额不一致' AS reason,
+                           r.created_at
+                    FROM pay_refund r
+                    LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
+                    LEFT JOIN member_user m ON m.tenant_id = o.tenant_id AND m.member_id = o.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, refund_id, SUM(refund_amount) AS refund_tx_amount
+                        FROM pay_refund_transaction
+                        GROUP BY tenant_id, refund_id
+                    ) rt ON rt.tenant_id = r.tenant_id AND rt.refund_id = r.refund_id
+                    WHERE r.tenant_id = ? AND r.deleted = 0
+                      AND r.status = 'REFUNDED'
+                      AND COALESCE(rt.refund_tx_amount, 0) > 0
+                      AND ABS(r.refund_amount - COALESCE(rt.refund_tx_amount, 0)) >= 0.01
+                    UNION ALL
+                    SELECT CONCAT('PREPAYMENT_BALANCE_MISMATCH:', p.prepayment_id) AS exception_key,
+                           p.project_id,
+                           '预存款余额异常' AS exception_type,
+                           '高' AS exception_level,
+                           '业主预存款' AS business_type,
+                           p.prepayment_id AS business_id,
+                           p.order_no AS business_no,
+                           m.real_name AS member_name,
+                           m.mobile AS member_mobile,
+                           ABS(p.amount - p.remaining_amount - COALESCE(u.used_amount, 0)) AS amount,
+                           '预存款余额与已抵扣金额不一致，或余额超出合理范围' AS reason,
+                           p.created_at
+                    FROM member_prepayment p
+                    LEFT JOIN member_user m ON m.tenant_id = p.tenant_id AND m.member_id = p.member_id AND m.deleted = 0
+                    LEFT JOIN (
+                        SELECT tenant_id, prepayment_id, SUM(amount) AS used_amount
+                        FROM member_prepayment_usage
+                        WHERE deleted = 0
+                        GROUP BY tenant_id, prepayment_id
+                    ) u ON u.tenant_id = p.tenant_id AND u.prepayment_id = p.prepayment_id
+                    WHERE p.tenant_id = ? AND p.deleted = 0
+                      AND (p.remaining_amount < 0
+                           OR p.remaining_amount > p.amount
+                           OR ABS(p.amount - p.remaining_amount - COALESCE(u.used_amount, 0)) >= 0.01)
+                    UNION ALL
                     SELECT CONCAT('BILL_AMOUNT_STATUS_MISMATCH:', b.bill_id) AS exception_key,
                            b.project_id,
                            '账单金额状态异常' AS exception_type,
@@ -758,6 +843,9 @@ public class PaymentRefundRepository {
 
     private void addExceptionSqlArgs(List<Object> args, List<Long> allowedProjectIds, Long projectId,
                                      String exceptionType, String businessNo, String memberName, String status) {
+        args.add(args.get(0));
+        args.add(args.get(0));
+        args.add(args.get(0));
         args.add(args.get(0));
         args.add(args.get(0));
         args.add(args.get(0));
