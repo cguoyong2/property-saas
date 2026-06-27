@@ -409,6 +409,7 @@
           <p>{{ reconcileSuggestionText(detailRow) }}</p>
         </div>
         <div class="reconcile-detail__actions">
+          <span class="reconcile-detail__actions-label">修复入口</span>
           <el-button
             v-for="target in reconcileTargets(detailRow)"
             :key="target.label"
@@ -1438,23 +1439,50 @@ function reconcileSuggestionText(row: Record<string, unknown>) {
 
 function reconcileTargets(row: Record<string, unknown>) {
   const businessType = String(row.businessType ?? '')
-  const businessNo = encodeURIComponent(String(row.businessNo ?? ''))
-  const memberName = encodeURIComponent(String(row.memberName ?? ''))
+  const exceptionType = String(row.exceptionType ?? '')
+  const businessNo = String(row.businessNo ?? '')
+  const memberName = String(row.memberName ?? '')
+  const memberMobile = String(row.memberMobile ?? '')
   const targets: Array<{ label: string; path: string }> = []
+  const addTarget = (label: string, path: string) => {
+    if (!targets.some((target) => target.path === path)) {
+      targets.push({ label, path })
+    }
+  }
+  const queryPath = (path: string, params: Record<string, unknown>) => {
+    const search = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return
+      search.set(key, String(value))
+    })
+    const query = search.toString()
+    return query ? `${path}?${query}` : path
+  }
+
   if (businessType === '支付订单') {
-    targets.push({ label: '查看收款订单', path: `/payment/orders?orderNo=${businessNo}` })
+    addTarget('修复收款订单', queryPath('/payment/orders', { orderNo: businessNo }))
+    addTarget('核对支付流水', queryPath('/payment/transactions', { orderNo: businessNo }))
+    addTarget('核对账单核销', queryPath('/fee/bills', { memberName, memberMobile }))
+    if (exceptionType.includes('预存')) {
+      addTarget('核对预存款', queryPath('/payment/prepayments', { orderNo: businessNo, memberName }))
+    }
   } else if (businessType === '支付流水') {
-    targets.push({ label: '查看支付流水', path: `/payment/transactions?orderNo=${businessNo}` })
-    targets.push({ label: '查看收款订单', path: `/payment/orders?orderNo=${businessNo}` })
+    addTarget('修复支付流水', queryPath('/payment/transactions', { orderNo: businessNo }))
+    addTarget('核对收款订单', queryPath('/payment/orders', { orderNo: businessNo }))
   } else if (businessType === '退款单') {
-    targets.push({ label: '查看退款管理', path: `/payment/refunds?refundNo=${businessNo}` })
+    addTarget('修复退款单', queryPath('/payment/refunds', { refundNo: businessNo }))
+    addTarget('核对原收款订单', queryPath('/payment/orders', { memberName, memberMobile }))
   } else if (businessType === '收费账单') {
-    targets.push({ label: '查看账单管理', path: `/fee/bills?billNo=${businessNo}` })
+    addTarget('修复账单', queryPath('/fee/bills', { billNo: businessNo }))
+    addTarget('核对收款订单', queryPath('/payment/orders', { memberName, memberMobile }))
   } else if (businessType === '业主预存款') {
-    targets.push({ label: '查看预存款', path: `/payment/prepayments?orderNo=${businessNo}` })
+    addTarget('修复预存款', queryPath('/payment/prepayments', { orderNo: businessNo, memberName }))
+    addTarget('核对收款订单', queryPath('/payment/orders', { orderNo: businessNo, memberName }))
   }
   if (memberName) {
-    targets.push({ label: '查看业主/住户', path: `/base/members?realName=${memberName}` })
+    addTarget('查看业主/住户', queryPath('/base/members', { realName: memberName }))
+  } else if (memberMobile) {
+    addTarget('查看业主/住户', queryPath('/base/members', { mobile: memberMobile }))
   }
   return targets
 }
@@ -2942,8 +2970,15 @@ onMounted(loadProjects)
 
 .reconcile-detail__actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.reconcile-detail__actions-label {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .reconcile-history {

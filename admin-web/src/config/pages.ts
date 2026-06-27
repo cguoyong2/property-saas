@@ -829,8 +829,8 @@ const billingPages: PageConfig[] = [
     columns: [
       { prop: 'billNo', label: '账单号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
-      { prop: 'memberName', label: '业主/住户' },
-      { prop: 'memberMobile', label: '手机号' },
+      { prop: 'memberName', label: '业主/住户', inFilter: true },
+      { prop: 'memberMobile', label: '手机号', inFilter: true },
       { prop: 'houseNo', label: '房号' },
       { prop: 'billPeriod', label: '账期' },
       { prop: 'detailSummary', label: '应收明细' },
