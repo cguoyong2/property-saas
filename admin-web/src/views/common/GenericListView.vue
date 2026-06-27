@@ -1510,6 +1510,7 @@ async function loadReconcileReviewStats() {
   try {
     const params: Record<string, string | number> = {}
     Object.entries(filters).forEach(([key, value]) => {
+      if (key === 'reviewStatus' || key === 'currentCheckStatus') return
       if (value !== '') params[key] = value
     })
     const { data } = await fetchPage('/payment/reconcile/reviews/stats', params)

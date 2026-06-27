@@ -287,14 +287,8 @@ public class PaymentRefundService {
                                                                                   long pageNo,
                                                                                   long pageSize) {
         validatePage(pageNo, pageSize);
-        if (reviewStatus != null && !reviewStatus.isBlank()
-                && !Set.of("PENDING", "APPROVED", "REJECTED").contains(reviewStatus)) {
-            throw new IllegalArgumentException("非法复核状态：" + reviewStatus);
-        }
-        if (currentCheckStatus != null && !currentCheckStatus.isBlank()
-                && !Set.of("RESOLVED", "STILL_ABNORMAL").contains(currentCheckStatus)) {
-            throw new IllegalArgumentException("非法复算状态：" + currentCheckStatus);
-        }
+        validateReconcileReviewStatus(reviewStatus);
+        validateReconcileCurrentCheckStatus(currentCheckStatus);
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
@@ -396,12 +390,18 @@ public class PaymentRefundService {
             case "REJECTED" -> "REJECTED";
             default -> throw new IllegalArgumentException("非法复核结果：" + request.reviewResult());
         };
+        if ("REJECTED".equals(reviewStatus) && normalize(request.reviewRemark()) == null) {
+            throw new IllegalArgumentException("退回重办必须填写退回原因");
+        }
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         ReconcileExceptionReviewView exception = repository.getReconcileExceptionReview(tenantId, scope, exceptionKey);
         ensureProjectAllowed(exception.projectId());
         if (!"HANDLED".equals(exception.status())) {
             throw new IllegalArgumentException("只有已处理的账务异常可以复核");
+        }
+        if (!"PENDING".equals(exception.reviewStatus())) {
+            throw new IllegalArgumentException("只有待复核的账务异常可以执行复核");
         }
         if ("APPROVED".equals(reviewStatus) && "STILL_ABNORMAL".equals(exception.currentCheckStatus())) {
             throw new IllegalArgumentException("处理后系统复算仍存在该异常，不能复核通过：" + exception.reason());

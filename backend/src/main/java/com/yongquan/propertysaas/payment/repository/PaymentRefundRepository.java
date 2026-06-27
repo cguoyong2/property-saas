@@ -1050,7 +1050,9 @@ public class PaymentRefundRepository {
                 LEFT JOIN (
                 """ + exceptionSql(allowedProjectIds) + """
                 ) e ON e.exception_key = h.exception_key
-                WHERE h.tenant_id = ? AND h.deleted = 0 AND h.status = 'HANDLED'
+                WHERE h.tenant_id = ? AND h.deleted = 0
+                AND h.status IN ('HANDLED', 'OPEN')
+                AND h.review_status IN ('PENDING', 'APPROVED', 'REJECTED')
                 """ + scope + """
                 AND (? IS NULL OR h.project_id = ?)
                 AND (? IS NULL OR COALESCE(e.exception_type, h.exception_type) = ?)
