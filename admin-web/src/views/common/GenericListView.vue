@@ -864,7 +864,7 @@ const businessActions: Record<string, BusinessAction[]> = {
   'member-bindings': [
     {
       key: 'member-binding-approve',
-      label: '通过',
+      label: '审核通过',
       scope: 'row',
       method: 'PUT',
       path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
@@ -876,7 +876,7 @@ const businessActions: Record<string, BusinessAction[]> = {
     },
     {
       key: 'member-binding-reject',
-      label: '驳回',
+      label: '审核驳回',
       scope: 'row',
       method: 'PUT',
       path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
@@ -1100,6 +1100,7 @@ const detailFields = computed(() => config.value.detailFields ?? config.value.co
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
   if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
+  if (config.value.key === 'member-bindings') return 340
   return rowActions.value.length > 3 ? 360 : rowActions.value.length > 1 ? 260 : 140
 })
 const collectionActionSummary = computed(() => {

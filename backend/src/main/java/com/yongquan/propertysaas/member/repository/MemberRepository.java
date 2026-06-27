@@ -241,7 +241,7 @@ public class MemberRepository {
                        CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
                             WHEN b.created_by = b.member_id THEN '业主端提交'
                             ELSE '物业端提交' END AS apply_source,
-                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       COALESCE(NULLIF(b.status, ''), 'PENDING') AS status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
                        b.audit_remark, b.created_at
                 FROM member_house_bind b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
@@ -253,7 +253,7 @@ public class MemberRepository {
         args.add(tenantId);
         appendBindingFilters(sql, args, projectId, memberId, realName, status);
         appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY b.created_at DESC, b.bind_id DESC LIMIT ? OFFSET ?");
+        sql.append(" ORDER BY COALESCE(NULLIF(b.status, ''), 'PENDING') = 'PENDING' DESC, b.created_at DESC, b.bind_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapBinding, args.toArray());
@@ -269,7 +269,7 @@ public class MemberRepository {
                        CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
                             WHEN b.created_by = b.member_id THEN '业主端提交'
                             ELSE '物业端提交' END AS apply_source,
-                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       COALESCE(NULLIF(b.status, ''), 'PENDING') AS status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
                        b.audit_remark, b.created_at
                 FROM member_house_bind b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
@@ -287,7 +287,9 @@ public class MemberRepository {
                         AND owner_bind.status = 'APPROVED' AND owner_bind.deleted = 0
                     )
                   )
-                ORDER BY b.status = 'PENDING' DESC, b.status = 'APPROVED' DESC, b.created_at DESC
+                ORDER BY COALESCE(NULLIF(b.status, ''), 'PENDING') = 'PENDING' DESC,
+                         COALESCE(NULLIF(b.status, ''), 'PENDING') = 'APPROVED' DESC,
+                         b.created_at DESC
                 """, this::mapBinding, tenantId, houseId, ownerMemberId, ownerMemberId, ownerMemberId);
     }
 
@@ -312,7 +314,7 @@ public class MemberRepository {
                        CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
                             WHEN b.created_by = b.member_id THEN '业主端提交'
                             ELSE '物业端提交' END AS apply_source,
-                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       COALESCE(NULLIF(b.status, ''), 'PENDING') AS status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
                        b.audit_remark, b.created_at
                 FROM member_house_bind b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
@@ -516,7 +518,7 @@ public class MemberRepository {
             args.add(like);
         }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND b.status = ?");
+            sql.append(" AND COALESCE(NULLIF(b.status, ''), 'PENDING') = ?");
             args.add(status);
         }
     }
