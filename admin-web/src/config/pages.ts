@@ -238,6 +238,12 @@ const reconcileExceptionStatusOptions = [
   { label: '未处理', value: 'OPEN' },
   { label: '已处理', value: 'HANDLED' },
 ]
+const reconcileReviewStatusOptions = [
+  { label: '无需复核', value: 'NONE' },
+  { label: '待复核', value: 'PENDING' },
+  { label: '复核通过', value: 'APPROVED' },
+  { label: '退回重办', value: 'REJECTED' },
+]
 const reconcileExceptionTypeOptions = [
   { label: '订单缺少支付流水', value: '订单缺少支付流水' },
   { label: '支付流水订单异常', value: '支付流水订单异常' },
@@ -1146,8 +1152,11 @@ const billingExtraPages: PageConfig[] = [
       { prop: 'amount', label: '差异金额' },
       { prop: 'reason', label: '异常原因' },
       { prop: 'status', label: '处理状态', type: 'select', options: reconcileExceptionStatusOptions, inFilter: true },
+      { prop: 'reviewStatus', label: '复核状态', type: 'select', options: reconcileReviewStatusOptions },
       { prop: 'handledAt', label: '处理时间' },
       { prop: 'handleRemark', label: '处理备注' },
+      { prop: 'reviewedAt', label: '复核时间' },
+      { prop: 'reviewRemark', label: '复核备注' },
       { prop: 'createdAt', label: '发现时间' },
     ],
     detailFields: [
@@ -1165,6 +1174,11 @@ const billingExtraPages: PageConfig[] = [
       { prop: 'handledAt', label: '处理时间' },
       { prop: 'handledBy', label: '处理人ID' },
       { prop: 'handleRemark', label: '处理备注' },
+      { prop: 'attachmentFileIds', label: '处理附件ID' },
+      { prop: 'reviewStatus', label: '复核状态', type: 'select', options: reconcileReviewStatusOptions },
+      { prop: 'reviewedAt', label: '复核时间' },
+      { prop: 'reviewedBy', label: '复核人ID' },
+      { prop: 'reviewRemark', label: '复核备注' },
       { prop: 'createdAt', label: '发现时间' },
     ],
   },

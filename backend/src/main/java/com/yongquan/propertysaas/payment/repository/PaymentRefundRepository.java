@@ -433,19 +433,40 @@ public class PaymentRefundRepository {
 
     public void upsertReconcileExceptionHandle(Long handleId, Long tenantId, Long projectId, String exceptionKey,
                                                String exceptionType, String businessType, Long businessId,
-                                               Long userId, String remark) {
+                                               Long userId, String remark, String attachmentFileIds) {
         jdbcTemplate.update("""
                         INSERT INTO payment_reconcile_exception_handle(handle_id, tenant_id, project_id, exception_key,
                                                                        exception_type, business_type, business_id,
-                                                                       status, handle_remark, handled_by, handled_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'HANDLED', ?, ?, NOW())
+                                                                       status, handle_remark, attachment_file_ids,
+                                                                       handled_by, handled_at, review_status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'HANDLED', ?, ?, ?, NOW(), 'PENDING')
                         ON DUPLICATE KEY UPDATE status = 'HANDLED',
                                                 handle_remark = VALUES(handle_remark),
+                                                attachment_file_ids = VALUES(attachment_file_ids),
                                                 handled_by = VALUES(handled_by),
                                                 handled_at = NOW(),
+                                                review_status = 'PENDING',
+                                                reviewed_by = NULL,
+                                                reviewed_at = NULL,
+                                                review_remark = NULL,
                                                 deleted = 0
                         """, handleId, tenantId, projectId, exceptionKey, exceptionType, businessType,
-                businessId, remark, userId);
+                businessId, remark, attachmentFileIds, userId);
+    }
+
+    public void reviewReconcileExceptionHandle(Long tenantId, String exceptionKey, String reviewStatus, Long userId,
+                                               String reviewRemark) {
+        String status = "REJECTED".equals(reviewStatus) ? "OPEN" : "HANDLED";
+        jdbcTemplate.update("""
+                        UPDATE payment_reconcile_exception_handle
+                        SET status = ?,
+                            review_status = ?,
+                            reviewed_by = ?,
+                            reviewed_at = NOW(),
+                            review_remark = ?,
+                            updated_at = NOW()
+                        WHERE tenant_id = ? AND exception_key = ? AND deleted = 0
+                        """, status, reviewStatus, userId, reviewRemark, tenantId, exceptionKey);
     }
 
     public boolean projectExists(Long tenantId, Long projectId) {
@@ -621,7 +642,9 @@ public class PaymentRefundRepository {
                 ? " AND 1 = 0"
                 : " AND e.project_id IN (" + "?,".repeat(allowedProjectIds.size()).replaceFirst(",$", "") + ")";
         return """
-                SELECT e.*, COALESCE(h.status, 'OPEN') AS handle_status, h.handled_at, h.handled_by, h.handle_remark
+                SELECT e.*, COALESCE(h.status, 'OPEN') AS handle_status, h.handled_at, h.handled_by, h.handle_remark,
+                       h.attachment_file_ids, COALESCE(h.review_status, 'NONE') AS review_status,
+                       h.reviewed_at, h.reviewed_by, h.review_remark
                 FROM (
                     SELECT CONCAT('ORDER_PAID_WITHOUT_TRANSACTION:', o.order_id) AS exception_key,
                            o.project_id,
@@ -885,6 +908,8 @@ public class PaymentRefundRepository {
                 (Long) rs.getObject("business_id"), rs.getString("business_no"), rs.getString("member_name"),
                 rs.getString("member_mobile"), rs.getBigDecimal("amount"), rs.getString("reason"),
                 rs.getString("handle_status"), toLocalDateTime(rs, "handled_at"), (Long) rs.getObject("handled_by"),
-                rs.getString("handle_remark"), rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getString("handle_remark"), rs.getString("attachment_file_ids"), rs.getString("review_status"),
+                toLocalDateTime(rs, "reviewed_at"), (Long) rs.getObject("reviewed_by"), rs.getString("review_remark"),
+                rs.getTimestamp("created_at").toLocalDateTime());
     }
 }

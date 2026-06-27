@@ -14,6 +14,7 @@ import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
 import com.yongquan.propertysaas.payment.dto.ReconcileExceptionHandleRequest;
+import com.yongquan.propertysaas.payment.dto.ReconcileExceptionReviewRequest;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
 import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
 import com.yongquan.propertysaas.payment.dto.WechatRefundNotifyRequest;
@@ -231,6 +232,14 @@ public class PaymentController {
     public ApiResponse<Void> handleReconcileException(@PathVariable String exceptionKey,
                                                       @Valid @RequestBody ReconcileExceptionHandleRequest request) {
         refundService.handleReconcileException(exceptionKey, request);
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/api/payment/reconcile/exceptions/{exceptionKey}/review")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<Void> reviewReconcileException(@PathVariable String exceptionKey,
+                                                      @Valid @RequestBody ReconcileExceptionReviewRequest request) {
+        refundService.reviewReconcileException(exceptionKey, request);
         return ApiResponse.success();
     }
 

@@ -10,6 +10,7 @@ import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.dto.ReconcileExceptionHandleRequest;
+import com.yongquan.propertysaas.payment.dto.ReconcileExceptionReviewRequest;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
 import com.yongquan.propertysaas.payment.dto.RefundAuditRequest;
 import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
@@ -265,10 +266,34 @@ public class PaymentRefundService {
         ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
         ensureProjectAllowed(exception.projectId());
         repository.upsertReconcileExceptionHandle(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
-                exception.exceptionType(), exception.businessType(), exception.businessId(), userId(), request.handleRemark());
+                exception.exceptionType(), exception.businessType(), exception.businessId(), userId(),
+                request.handleRemark(), normalize(request.attachmentFileIds()));
         operationLogService.record(new OperationLogWrite(tenantId(), exception.projectId(), "payment", "RECONCILE_EXCEPTION_HANDLE",
                 exception.businessType(), exception.businessId(), Map.of("status", exception.status()),
-                Map.of("status", "HANDLED", "exceptionKey", exception.exceptionKey()), request.handleRemark()));
+                Map.of("status", "HANDLED", "exceptionKey", exception.exceptionKey(),
+                        "attachmentFileIds", request.attachmentFileIds() == null ? "" : request.attachmentFileIds()),
+                request.handleRemark()));
+    }
+
+    @Transactional
+    public void reviewReconcileException(String exceptionKey, ReconcileExceptionReviewRequest request) {
+        String reviewStatus = switch (request.reviewResult()) {
+            case "APPROVED" -> "APPROVED";
+            case "REJECTED" -> "REJECTED";
+            default -> throw new IllegalArgumentException("非法复核结果：" + request.reviewResult());
+        };
+        ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
+        ensureProjectAllowed(exception.projectId());
+        if (!"HANDLED".equals(exception.status())) {
+            throw new IllegalArgumentException("只有已处理的账务异常可以复核");
+        }
+        repository.reviewReconcileExceptionHandle(tenantId(), exception.exceptionKey(), reviewStatus, userId(),
+                request.reviewRemark());
+        String newStatus = "APPROVED".equals(reviewStatus) ? "HANDLED" : "OPEN";
+        operationLogService.record(new OperationLogWrite(tenantId(), exception.projectId(), "payment", "RECONCILE_EXCEPTION_REVIEW",
+                exception.businessType(), exception.businessId(), Map.of("status", exception.status(),
+                "reviewStatus", exception.reviewStatus()), Map.of("status", newStatus, "reviewStatus", reviewStatus,
+                "exceptionKey", exception.exceptionKey()), request.reviewRemark()));
     }
 
     private void allocateRefundToBills(Long tenantId, Long orderId, BigDecimal refundAmount) {

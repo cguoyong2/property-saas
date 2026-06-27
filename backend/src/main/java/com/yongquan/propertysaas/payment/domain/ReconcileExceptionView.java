@@ -19,6 +19,11 @@ public record ReconcileExceptionView(
         LocalDateTime handledAt,
         Long handledBy,
         String handleRemark,
+        String attachmentFileIds,
+        String reviewStatus,
+        LocalDateTime reviewedAt,
+        Long reviewedBy,
+        String reviewRemark,
         LocalDateTime createdAt
 ) {
 }

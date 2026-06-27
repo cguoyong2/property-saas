@@ -374,6 +374,9 @@
           <el-tag :type="detailRow.status === 'HANDLED' ? 'success' : 'danger'" effect="light">
             {{ reconcileStatusText(detailRow.status) }}
           </el-tag>
+          <el-tag :type="detailRow.reviewStatus === 'APPROVED' ? 'success' : detailRow.reviewStatus === 'REJECTED' ? 'warning' : 'info'" effect="light">
+            {{ reconcileReviewStatusText(detailRow.reviewStatus) }}
+          </el-tag>
         </div>
         <div class="reconcile-detail__grid">
           <div>
@@ -930,8 +933,38 @@ const businessActions: Record<string, BusinessAction[]> = {
       type: 'success',
       permission: 'payment:reconcile:view',
       visible: (row) => row?.status !== 'HANDLED',
-      fields: [{ prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true }],
-      buildPayload: (_row, formData = {}) => ({ handleRemark: formData.handleRemark }),
+      fields: [
+        { prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true },
+        { prop: 'attachmentFileIds', label: '附件文件ID', help: '多个附件 ID 用英文逗号分隔，用于保存处理凭证' },
+      ],
+      buildPayload: (_row, formData = {}) => ({
+        handleRemark: formData.handleRemark,
+        attachmentFileIds: formData.attachmentFileIds,
+      }),
+    },
+    {
+      key: 'reconcile-exception-review-approve',
+      label: '复核通过',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
+      type: 'success',
+      permission: 'payment:reconcile:view',
+      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      fields: [{ prop: 'reviewRemark', label: '复核备注', type: 'textarea' }],
+      buildPayload: (_row, formData = {}) => ({ reviewResult: 'APPROVED', reviewRemark: formData.reviewRemark }),
+    },
+    {
+      key: 'reconcile-exception-review-reject',
+      label: '退回重办',
+      scope: 'row',
+      method: 'POST',
+      path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
+      type: 'warning',
+      permission: 'payment:reconcile:view',
+      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      fields: [{ prop: 'reviewRemark', label: '退回原因', type: 'textarea', required: true }],
+      buildPayload: (_row, formData = {}) => ({ reviewResult: 'REJECTED', reviewRemark: formData.reviewRemark }),
     },
   ],
   'member-bindings': [
@@ -1266,6 +1299,16 @@ function openDetail(row: Record<string, unknown>) {
 
 function reconcileStatusText(status: unknown) {
   return status === 'HANDLED' ? '已处理' : '未处理'
+}
+
+function reconcileReviewStatusText(status: unknown) {
+  const labels: Record<string, string> = {
+    NONE: '无需复核',
+    PENDING: '待复核',
+    APPROVED: '复核通过',
+    REJECTED: '退回重办',
+  }
+  return labels[String(status ?? 'NONE')] ?? '无需复核'
 }
 
 function reconcileCalculationText(row: Record<string, unknown>) {
