@@ -14,6 +14,7 @@ import com.yongquan.propertysaas.payment.dto.PayOrderCreateRequest;
 import com.yongquan.propertysaas.payment.dto.WechatPayNotifyRequest;
 import com.yongquan.propertysaas.payment.repository.PaymentRepository;
 import com.yongquan.propertysaas.payment.wechat.WechatPayClient;
+import com.yongquan.propertysaas.service.service.AppMessageService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,6 +39,7 @@ public class PaymentService {
     private final PaymentRepository repository;
     private final WechatPayClient wechatPayClient;
     private final ObjectMapper objectMapper;
+    private final AppMessageService appMessageService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
     private record BillAllocation(PayableBill bill, BigDecimal amount) {
@@ -47,10 +49,12 @@ public class PaymentService {
                                    BigDecimal amount, BigDecimal prepaymentAmount) {
     }
 
-    public PaymentService(PaymentRepository repository, WechatPayClient wechatPayClient, ObjectMapper objectMapper) {
+    public PaymentService(PaymentRepository repository, WechatPayClient wechatPayClient, ObjectMapper objectMapper,
+                          AppMessageService appMessageService) {
         this.repository = repository;
         this.wechatPayClient = wechatPayClient;
         this.objectMapper = objectMapper;
+        this.appMessageService = appMessageService;
     }
 
     public PageResult<PayOrderView> pageOrders(Long projectId, String orderNo, String memberName,
@@ -157,6 +161,7 @@ public class PaymentService {
         settlePaidOrder(tenantId(), request.projectId(), orderId, orderNo, payment.memberId(), payment.amount(),
                 "现金收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId(), orderId, thirdTradeNo, paidAt);
+        notifyPaymentSuccess(repository.getOrderByNo(orderNo), payment.amount());
         return new PayOrderCreateResult(orderId, orderNo, payment.amount(), "PAID", thirdTradeNo, paidAt);
     }
 
@@ -188,6 +193,7 @@ public class PaymentService {
         settlePaidOrder(tenantId, order.projectId(), order.orderId(), order.orderNo(), order.memberId(), notifyAmount,
                 "收款码收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId, order.orderId(), request.thirdTradeNo(), request.paidAt());
+        notifyPaymentSuccess(order, notifyAmount);
         return new PaymentNotifyResult(order.orderNo(), "PAID", false);
     }
 
@@ -221,6 +227,7 @@ public class PaymentService {
         if (inserted) {
             settlePaidOrder(order.tenantId(), order.projectId(), order.orderId(), order.orderNo(), order.memberId(),
                     order.amount(), "业主端模拟支付超出应收金额，自动转入预存款");
+            notifyPaymentSuccess(order, order.amount());
         }
         repository.markOrderPaid(order.tenantId(), order.orderId(), thirdTradeNo, paidAt);
         return new PaymentNotifyResult(order.orderNo(), "PAID", !inserted);
@@ -382,6 +389,32 @@ public class PaymentService {
 
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private void notifyPaymentSuccess(PayOrderView order, BigDecimal paidAmount) {
+        if (order.memberId() == null) {
+            return;
+        }
+        String content = "您的物业缴费已入账。"
+                + "\n订单号：" + order.orderNo()
+                + "\n本次收款：" + money(paidAmount) + " 元"
+                + "\n支付方式：" + payChannelText(order.payChannel())
+                + (order.billSummary() == null || order.billSummary().isBlank()
+                ? "" : "\n账单明细：" + order.billSummary());
+        appMessageService.sendToMember(order.tenantId(), order.projectId(), order.memberId(), "PAYMENT_SUCCESS",
+                "缴费成功", content);
+    }
+
+    private String payChannelText(String payChannel) {
+        return switch (payChannel == null ? "" : payChannel) {
+            case "WECHAT" -> "微信";
+            case "ALI" -> "支付宝";
+            case "OFFLINE" -> "线下收款";
+            case "POS" -> "POS";
+            case "CASH" -> "现金";
+            case "BANK_TRANSFER" -> "银行转账";
+            default -> payChannel == null ? "-" : payChannel;
+        };
     }
 
     private Long newId() {

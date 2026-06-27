@@ -33,13 +33,15 @@ public class WorkOrderService {
     private final WorkOrderRepository repository;
     private final OperationLogService operationLogService;
     private final FileObjectService fileObjectService;
+    private final AppMessageService appMessageService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
     public WorkOrderService(WorkOrderRepository repository, OperationLogService operationLogService,
-                            FileObjectService fileObjectService) {
+                            FileObjectService fileObjectService, AppMessageService appMessageService) {
         this.repository = repository;
         this.operationLogService = operationLogService;
         this.fileObjectService = fileObjectService;
+        this.appMessageService = appMessageService;
     }
 
     public PageResult<WorkOrderView> pageWorkOrders(Long projectId, String status, String orderType,
@@ -93,6 +95,8 @@ public class WorkOrderService {
         repository.insertEvent(newId(), tenantId, normalized.projectId(), workOrderId, null, "SUBMITTED",
                 "CREATE", operatorType(), operatorId(normalized.memberId()), normalized.description(), normalized.imageFileIds());
         insertProjectMessage(tenantId, normalized.projectId(), "新工单待受理", "新工单：" + normalized.title());
+        notifyWorkOrderMember(tenantId, normalized.projectId(), normalized.memberId(), orderNo(workOrderId),
+                normalized.title(), "SUBMITTED");
         return workOrderId;
     }
 
@@ -132,6 +136,8 @@ public class WorkOrderService {
         repository.insertMessage(newId(), tenantId(), workOrder.projectId(),
                 new NoticeRecipient("USER", request.handlerUserId(), null), "SITE", "WORKORDER_DISPATCH",
                 "工单待处理", "工单已派给您：" + workOrder.title());
+        notifyWorkOrderMember(tenantId(), workOrder.projectId(), workOrder.memberId(), workOrder.orderNo(),
+                workOrder.title(), toStatus);
         operationLogService.record(new OperationLogWrite(tenantId(), workOrder.projectId(), "service", "WORKORDER_DISPATCH",
                 "work_order", workOrderId, Map.of("status", fromStatus),
                 Map.of("status", toStatus, "handlerUserId", request.handlerUserId()), request.content()));
@@ -221,6 +227,8 @@ public class WorkOrderService {
         repository.insertEvent(newId(), tenantId(), workOrder.projectId(), workOrderId, fromStatus, toStatus,
                 action, "USER", userId(), request == null ? null : request.content(),
                 request == null ? null : request.imageFileIds());
+        notifyWorkOrderMember(tenantId(), workOrder.projectId(), workOrder.memberId(), workOrder.orderNo(),
+                workOrder.title(), toStatus);
     }
 
     private WorkOrderCreateRequest validateCreateRequest(WorkOrderCreateRequest request) {
@@ -318,6 +326,38 @@ public class WorkOrderService {
 
     private String normalize(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value.trim().toUpperCase();
+    }
+
+    private void notifyWorkOrderMember(Long tenantId, Long projectId, Long memberId, String orderNo,
+                                       String title, String status) {
+        if (memberId == null) {
+            return;
+        }
+        String statusText = workOrderStatusText(status);
+        String content = "您的工单状态已更新。"
+                + "\n工单号：" + orderNo
+                + "\n工单标题：" + title
+                + "\n当前状态：" + statusText;
+        appMessageService.sendToMember(tenantId, projectId, memberId, "WORKORDER_STATUS",
+                "工单状态更新：" + statusText, content);
+    }
+
+    private String workOrderStatusText(String status) {
+        return switch (status == null ? "" : status) {
+            case "SUBMITTED" -> "已提交";
+            case "ACCEPTED" -> "已受理";
+            case "DISPATCHED" -> "已派单";
+            case "PROCESSING" -> "处理中";
+            case "HANG_UP" -> "已挂起";
+            case "WAIT_CONFIRM" -> "待确认";
+            case "COMPLETED" -> "已完成";
+            case "EVALUATED" -> "已评价";
+            case "CANCELLED" -> "已取消";
+            case "REJECTED" -> "已驳回";
+            case "TRANSFERRED" -> "已转派";
+            case "REWORK" -> "返工中";
+            default -> status == null ? "-" : status;
+        };
     }
 
     private void validateActionImages(WorkOrderView workOrder, WorkOrderActionRequest request) {

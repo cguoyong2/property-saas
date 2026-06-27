@@ -11,6 +11,7 @@ import com.yongquan.propertysaas.fee.dto.BillImportRequest;
 import com.yongquan.propertysaas.fee.dto.BillManualRequest;
 import com.yongquan.propertysaas.fee.dto.BillRemindRequest;
 import com.yongquan.propertysaas.fee.repository.FeeBillRepository;
+import com.yongquan.propertysaas.service.service.AppMessageService;
 import com.yongquan.propertysaas.system.audit.domain.OperationLogWrite;
 import com.yongquan.propertysaas.system.audit.service.OperationLogService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
@@ -38,11 +39,14 @@ public class FeeBillService {
 
     private final FeeBillRepository repository;
     private final OperationLogService operationLogService;
+    private final AppMessageService appMessageService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
-    public FeeBillService(FeeBillRepository repository, OperationLogService operationLogService) {
+    public FeeBillService(FeeBillRepository repository, OperationLogService operationLogService,
+                          AppMessageService appMessageService) {
         this.repository = repository;
         this.operationLogService = operationLogService;
+        this.appMessageService = appMessageService;
     }
 
     @Transactional
@@ -236,6 +240,8 @@ public class FeeBillService {
         BigDecimal remaining = receivable.subtract(discount).setScale(2, RoundingMode.HALF_UP);
         repository.insertBill(tenantId, billId, billNo, createdBy, request, receivable, discount, remaining, sourceType);
         applyAvailablePrepayment(tenantId, billId, billNo, request, remaining, createdBy);
+        FeeBillView createdBill = repository.getBill(tenantId, billId);
+        notifyBillCreated(tenantId, createdBill, request);
     }
 
     private void applyAvailablePrepayment(Long tenantId, Long billId, String billNo, BillManualRequest request,
@@ -546,6 +552,23 @@ public class FeeBillService {
 
     private String text(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    private void notifyBillCreated(Long tenantId, FeeBillView bill, BillManualRequest request) {
+        if (request.memberId() == null) {
+            return;
+        }
+        String content = "您有一笔新的物业账单。"
+                + "\n账单号：" + bill.billNo()
+                + "\n账期：" + request.billPeriod()
+                + "\n应收：" + bill.receivableAmount() + " 元"
+                + "\n优惠：" + bill.discountAmount() + " 元"
+                + (bill.prepaymentAppliedAmount() == null || bill.prepaymentAppliedAmount().signum() == 0
+                ? "" : "\n预存款抵扣：" + bill.prepaymentAppliedAmount() + " 元")
+                + "\n待缴：" + bill.remainingAmount() + " 元"
+                + (request.dueDate() == null ? "" : "\n到期日：" + request.dueDate());
+        appMessageService.sendToMember(tenantId, request.projectId(), request.memberId(), "BILL_CREATED",
+                "账单已生成", content);
     }
 
     private List<Long> projectScope(Long tenantId) {

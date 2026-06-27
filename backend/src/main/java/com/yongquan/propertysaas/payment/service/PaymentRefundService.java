@@ -16,6 +16,7 @@ import com.yongquan.propertysaas.payment.dto.RefundCreateRequest;
 import com.yongquan.propertysaas.payment.dto.WechatRefundNotifyRequest;
 import com.yongquan.propertysaas.payment.repository.PaymentRefundRepository;
 import com.yongquan.propertysaas.payment.wechat.WechatPayClient;
+import com.yongquan.propertysaas.service.service.AppMessageService;
 import com.yongquan.propertysaas.system.audit.domain.OperationLogWrite;
 import com.yongquan.propertysaas.system.audit.service.OperationLogService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
@@ -40,14 +41,17 @@ public class PaymentRefundService {
     private final OperationLogService operationLogService;
     private final WechatPayClient wechatPayClient;
     private final ObjectMapper objectMapper;
+    private final AppMessageService appMessageService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
     public PaymentRefundService(PaymentRefundRepository repository, OperationLogService operationLogService,
-                                WechatPayClient wechatPayClient, ObjectMapper objectMapper) {
+                                WechatPayClient wechatPayClient, ObjectMapper objectMapper,
+                                AppMessageService appMessageService) {
         this.repository = repository;
         this.operationLogService = operationLogService;
         this.wechatPayClient = wechatPayClient;
         this.objectMapper = objectMapper;
+        this.appMessageService = appMessageService;
     }
 
     public PageResult<PayRefundView> pageRefunds(Long projectId, String refundNo, String orderNo,
@@ -106,6 +110,13 @@ public class PaymentRefundService {
         operationLogService.record(new OperationLogWrite(tenantId(), request.projectId(), "payment", "REFUND_APPLY",
                 "pay_refund", refundId, Map.of("orderId", order.orderId(), "orderStatus", order.status()),
                 Map.of("refundNo", refundNo, "status", "APPLYING", "refundAmount", refundAmount), request.reason()));
+        notifyRefund(order.tenantId(), order.projectId(), order.memberId(), "REFUND_APPLY",
+                "退款申请已提交",
+                "您的退款申请已提交。"
+                        + "\n订单号：" + order.orderNo()
+                        + "\n退款单号：" + refundNo
+                        + "\n申请金额：" + refundAmount + " 元"
+                        + (request.reason() == null || request.reason().isBlank() ? "" : "\n原因：" + request.reason()));
         return refundId;
     }
 
@@ -125,6 +136,12 @@ public class PaymentRefundService {
         operationLogService.record(new OperationLogWrite(tenantId(), refund.projectId(), "payment", "REFUND_AUDIT",
                 "pay_refund", refundId, Map.of("status", refund.status()),
                 Map.of("status", status, "auditResult", request.auditResult()), request.auditRemark()));
+        notifyRefund(tenantId(), refund.projectId(), refund.memberId(), "REFUND_AUDIT",
+                "APPROVED".equals(request.auditResult()) ? "退款审核通过" : "退款审核驳回",
+                "您的退款申请已" + ("APPROVED".equals(request.auditResult()) ? "审核通过，等待退款到账。" : "被驳回。")
+                        + "\n退款单号：" + refund.refundNo()
+                        + "\n退款金额：" + refund.refundAmount() + " 元"
+                        + (request.auditRemark() == null || request.auditRemark().isBlank() ? "" : "\n说明：" + request.auditRemark()));
     }
 
     @Transactional
@@ -148,6 +165,12 @@ public class PaymentRefundService {
         }
         repository.markRefundRefunded(tenantId(), refund.refundId(), thirdRefundNo, refundedAt, rawNotify);
         repository.markOrderRefundStatus(tenantId(), refund.orderId());
+        notifyRefund(tenantId(), refund.projectId(), refund.memberId(), "REFUND_SUCCESS",
+                "退款已完成",
+                "您的退款已完成。"
+                        + "\n退款单号：" + refund.refundNo()
+                        + "\n退款金额：" + refund.refundAmount() + " 元"
+                        + "\n退款方式：线下退款");
         operationLogService.record(new OperationLogWrite(tenantId(), refund.projectId(), "payment", "OFFLINE_REFUND_CONFIRM",
                 "pay_refund", refundId, Map.of("status", refund.status()),
                 Map.of("status", "REFUNDED", "thirdRefundNo", thirdRefundNo, "refundAmount", refund.refundAmount()),
@@ -184,6 +207,12 @@ public class PaymentRefundService {
         allocateRefundToBills(tenantId, refund.orderId(), notifyAmount);
         repository.markRefundRefunded(tenantId, refund.refundId(), request.thirdRefundNo(), request.refundedAt(), rawNotify);
         repository.markOrderRefundStatus(tenantId, refund.orderId());
+        notifyRefund(tenantId, refund.projectId(), refund.memberId(), "REFUND_SUCCESS",
+                "退款已完成",
+                "您的退款已完成。"
+                        + "\n退款单号：" + refund.refundNo()
+                        + "\n退款金额：" + notifyAmount + " 元"
+                        + "\n退款方式：微信");
         return new RefundNotifyResult(refund.refundNo(), "REFUNDED", false);
     }
 
@@ -317,6 +346,11 @@ public class PaymentRefundService {
 
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private void notifyRefund(Long tenantId, Long projectId, Long memberId, String templateCode,
+                              String title, String content) {
+        appMessageService.sendToMember(tenantId, projectId, memberId, templateCode, title, content);
     }
 
     private long offset(long pageNo, long pageSize) {
