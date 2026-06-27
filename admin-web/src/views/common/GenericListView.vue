@@ -96,14 +96,14 @@
         <span>低风险</span>
         <strong>{{ reconcileStats.lowRiskCount }}</strong>
       </div>
-      <div class="reconcile-stats__card">
+      <button class="reconcile-stats__card" type="button" @click="setReconcileStatusFilter('OPEN')">
         <span>待处理</span>
         <strong>{{ reconcileStats.openCount }}</strong>
-      </div>
-      <div class="reconcile-stats__card">
+      </button>
+      <button class="reconcile-stats__card reconcile-stats__card--link" type="button" @click="goToPendingReconcileReviews()">
         <span>待复核</span>
         <strong>{{ reconcileStats.pendingReviewCount }}</strong>
-      </div>
+      </button>
       <div class="reconcile-stats__card reconcile-stats__card--muted">
         <span>已处理</span>
         <strong>{{ reconcileStats.handledCount }}</strong>
@@ -1056,6 +1056,16 @@ const businessActions: Record<string, BusinessAction[]> = {
   ],
   'payment-reconcile-exceptions': [
     {
+      key: 'reconcile-view-pending-reviews',
+      label: '查看待复核',
+      scope: 'page',
+      method: 'CUSTOM',
+      path: '',
+      type: 'warning',
+      icon: Search,
+      permission: 'payment:reconcile:view',
+    },
+    {
       key: 'reconcile-exception-handle',
       label: '标记已处理',
       scope: 'row',
@@ -1658,23 +1668,50 @@ function goToReconcileTarget(path: string) {
 
 function reconcileFollowUpQuery(row?: Record<string, unknown>) {
   const query: Record<string, string> = {}
+  const projectId = String(row?.projectId ?? '').trim()
+  const exceptionType = String(row?.exceptionType ?? '').trim()
   const memberName = String(row?.memberName ?? '').trim()
+  if (projectId) query.projectId = projectId
+  if (exceptionType) query.exceptionType = exceptionType
   if (memberName) query.memberName = memberName
   return query
 }
 
+function reconcileReviewQueueQuery() {
+  const query: Record<string, string> = { reviewStatus: 'PENDING' }
+  ;['projectId', 'exceptionType', 'memberName'].forEach((key) => {
+    const value = String(filters[key] ?? '').trim()
+    if (value) query[key] = value
+  })
+  return query
+}
+
+function goToPendingReconcileReviews(row?: Record<string, unknown>) {
+  const query = row
+    ? { reviewStatus: 'PENDING', ...reconcileFollowUpQuery(row) }
+    : reconcileReviewQueueQuery()
+  router.push({ path: '/payment/reconcile/reviews', query })
+}
+
+function setReconcileStatusFilter(status: string) {
+  filters.status = status
+  pageNo.value = 1
+  load()
+}
+
 async function handleReconcileActionSuccess(action: BusinessAction, row?: Record<string, unknown>) {
   if (action.key === 'reconcile-exception-handle') {
+    if (isLowRiskReconcileException(row)) {
+      ElMessage.success('低风险异常已处理并自动归档')
+      return
+    }
     try {
       await ElMessageBox.confirm('该异常已进入复核池，是否现在去“异常复核”继续处理？', '处理完成', {
         confirmButtonText: '去复核',
         cancelButtonText: '留在当前页',
         type: 'success',
       })
-      await router.push({
-        path: '/payment/reconcile/reviews',
-        query: { reviewStatus: 'PENDING', ...reconcileFollowUpQuery(row) },
-      })
+      await goToPendingReconcileReviews(row)
     } catch {
       // User chose to stay on the current page.
     }
@@ -2876,6 +2913,9 @@ function runCustomAction(action: BusinessAction, row?: Record<string, unknown>) 
     receiptRow.value = row
     receiptDialogVisible.value = true
   }
+  if (action.key === 'reconcile-view-pending-reviews') {
+    goToPendingReconcileReviews()
+  }
 }
 
 async function loadActionRemoteOptions(fields: FieldConfig[]) {
@@ -3243,6 +3283,16 @@ onMounted(loadProjects)
   background: #fff;
 }
 
+button.reconcile-stats__card {
+  cursor: pointer;
+  text-align: left;
+}
+
+button.reconcile-stats__card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
 .reconcile-stats__card span,
 .reconcile-stats__total span {
   color: #64748b;
@@ -3286,6 +3336,15 @@ onMounted(loadProjects)
 
 .reconcile-stats__card--muted {
   background: #f8fafc;
+}
+
+.reconcile-stats__card--link {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.reconcile-stats__card--link strong {
+  color: #ea580c;
 }
 
 .reconcile-stats__total {
