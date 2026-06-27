@@ -240,6 +240,11 @@ const reconcileExceptionStatusOptions = [
   { label: '未处理', value: 'OPEN' },
   { label: '已处理', value: 'HANDLED' },
 ]
+const reconcileExceptionLevelOptions = [
+  { label: '高风险', value: '高' },
+  { label: '中风险', value: '中' },
+  { label: '低风险', value: '低' },
+]
 const reconcileReviewStatusOptions = [
   { label: '无需复核', value: 'NONE' },
   { label: '待复核', value: 'PENDING' },
@@ -1183,7 +1188,7 @@ const billingExtraPages: PageConfig[] = [
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'exceptionType', label: '异常类型', type: 'select', options: reconcileExceptionTypeOptions, inFilter: true },
-      { prop: 'exceptionLevel', label: '级别' },
+      { prop: 'exceptionLevel', label: '级别', type: 'select', options: reconcileExceptionLevelOptions, inFilter: true },
       { prop: 'businessType', label: '业务类型' },
       { prop: 'businessNo', label: '业务单号', inFilter: true },
       { prop: 'memberName', label: '业主/住户', inFilter: true },

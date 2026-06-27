@@ -368,7 +368,7 @@
             <span>差异金额</span>
             <strong>{{ moneyText(detailRow.amount) }}</strong>
           </div>
-          <el-tag :type="detailRow.exceptionLevel === '高' ? 'danger' : 'warning'" effect="light">
+          <el-tag :type="reconcileLevelTagType(detailRow.exceptionLevel)" effect="light">
             {{ detailRow.exceptionLevel }}
           </el-tag>
           <el-tag :type="detailRow.status === 'HANDLED' ? 'success' : 'danger'" effect="light">
@@ -399,6 +399,11 @@
         <div class="reconcile-detail__section">
           <h3>异常原因</h3>
           <p>{{ detailRow.reason || '-' }}</p>
+        </div>
+        <div class="reconcile-detail__section reconcile-rule">
+          <h3>分级处理规则</h3>
+          <p>{{ reconcileLevelRuleText(detailRow) }}</p>
+          <small>{{ reconcileMissingActionText(detailRow) }}</small>
         </div>
         <div class="reconcile-detail__section">
           <h3>系统计算口径</h3>
@@ -1430,6 +1435,12 @@ function reconcileReviewStatusText(status: unknown) {
   return labels[String(status ?? 'NONE')] ?? '无需复核'
 }
 
+function reconcileLevelTagType(level: unknown) {
+  if (isHighRiskLevel(level)) return 'danger'
+  if (isLowRiskLevel(level)) return 'success'
+  return 'warning'
+}
+
 function reconcileHistoryActionText(actionType: unknown) {
   const labels: Record<string, string> = {
     HANDLE: '标记已处理',
@@ -1482,6 +1493,24 @@ function reconcileSuggestionText(row: Record<string, unknown>) {
   if (type === '预存款余额异常') return '核对预存款生成来源和抵扣明细，必要时修正抵扣记录或预存款余额。'
   if (type === '账单金额状态异常') return '核对该账单的应收、已收、已退、待收和状态；金额正确后再修正账单状态。'
   return '打开关联业务记录，核对金额、状态和流水后再标记为已处理。'
+}
+
+function reconcileLevelRuleText(row: Record<string, unknown>) {
+  if (isHighRiskLevel(row.exceptionLevel)) return '高风险异常涉及账实不一致、支付/退款流水缺失或预存款余额异常，必须上传处理凭证，处理后进入复核池。'
+  if (isLowRiskLevel(row.exceptionLevel)) return '低风险异常处理时需要填写处理备注，提交后系统自动归档，不再进入人工复核池。'
+  return '中风险异常需要填写处理备注，处理后进入复核池，由复核人员确认复算结果后关闭或退回。'
+}
+
+function reconcileMissingActionText(row: Record<string, unknown>) {
+  if (row.status !== 'HANDLED') {
+    if (isHighRiskLevel(row.exceptionLevel) && !attachmentIds(row.attachmentFileIds).length) {
+      return '当前缺口：待处理，且高风险异常还缺少处理凭证。'
+    }
+    return '当前缺口：待处理，需要先完成业务修复并填写处理备注。'
+  }
+  if (row.reviewStatus === 'PENDING') return '当前缺口：已处理，等待复核人员确认复算结果。'
+  if (row.reviewStatus === 'REJECTED') return '当前缺口：复核已退回，需要重新修复后再次标记已处理。'
+  return '当前状态：规则要求已满足。'
 }
 
 function reconcileTargets(row: Record<string, unknown>) {
@@ -2799,8 +2828,7 @@ async function submitAction() {
 }
 
 function isHighRiskReconcileException(row?: Record<string, unknown> | null) {
-  const level = String(row?.exceptionLevel ?? '').trim().toUpperCase()
-  return level === '高' || level === 'HIGH' || level === 'CRITICAL'
+  return isHighRiskLevel(row?.exceptionLevel)
 }
 
 function needsReconcileReview(row?: Record<string, unknown>) {
@@ -2808,7 +2836,16 @@ function needsReconcileReview(row?: Record<string, unknown>) {
 }
 
 function isLowRiskReconcileException(row?: Record<string, unknown> | null) {
-  const level = String(row?.exceptionLevel ?? '').trim().toUpperCase()
+  return isLowRiskLevel(row?.exceptionLevel)
+}
+
+function isHighRiskLevel(value: unknown) {
+  const level = String(value ?? '').trim().toUpperCase()
+  return level === '高' || level === 'HIGH' || level === 'CRITICAL'
+}
+
+function isLowRiskLevel(value: unknown) {
+  const level = String(value ?? '').trim().toUpperCase()
   return level === '低' || level === 'LOW'
 }
 

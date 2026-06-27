@@ -244,11 +244,16 @@ public class PaymentRefundService {
     }
 
     public PageResult<ReconcileExceptionView> pageReconcileExceptions(Long projectId, String exceptionType,
+                                                                      String exceptionLevel,
                                                                       String businessNo, String memberName,
                                                                       String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
+        }
+        if (exceptionLevel != null && !exceptionLevel.isBlank()
+                && !Set.of("高", "中", "低", "HIGH", "MEDIUM", "LOW").contains(exceptionLevel)) {
+            throw new IllegalArgumentException("非法异常级别：" + exceptionLevel);
         }
         if (status != null && !status.isBlank() && !Set.of("OPEN", "HANDLED").contains(status)) {
             throw new IllegalArgumentException("非法处理状态：" + status);
@@ -257,9 +262,9 @@ public class PaymentRefundService {
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
                 repository.findReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
-                        normalize(businessNo), normalize(memberName), normalize(status), offset(pageNo, pageSize), pageSize),
+                        normalize(exceptionLevel), normalize(businessNo), normalize(memberName), normalize(status), offset(pageNo, pageSize), pageSize),
                 repository.countReconcileExceptions(tenantId, scope, projectId, normalize(exceptionType),
-                        normalize(businessNo), normalize(memberName), normalize(status)),
+                        normalize(exceptionLevel), normalize(businessNo), normalize(memberName), normalize(status)),
                 pageNo,
                 pageSize);
     }

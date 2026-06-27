@@ -220,12 +220,13 @@ public class PaymentController {
     @RequiresPermission("payment:reconcile:view")
     public ApiResponse<PageResult<ReconcileExceptionView>> reconcileExceptions(@RequestParam(required = false) Long projectId,
                                                                                @RequestParam(required = false) String exceptionType,
+                                                                               @RequestParam(required = false) String exceptionLevel,
                                                                                @RequestParam(required = false) String businessNo,
                                                                                @RequestParam(required = false) String memberName,
                                                                                @RequestParam(required = false) String status,
                                                                                @RequestParam(defaultValue = "1") long pageNo,
                                                                                @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, businessNo,
+        return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, exceptionLevel, businessNo,
                 memberName, status, pageNo, pageSize));
     }
 

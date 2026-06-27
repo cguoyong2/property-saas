@@ -388,7 +388,7 @@ public class PaymentRefundRepository {
                 WHERE u.tenant_id = ? AND u.deleted = 0
                 """, tenantId, allowedProjectIds, projectId, startDate, endDate, null, null,
                 "u.project_id", "u.created_at", null, null);
-        long exceptionCount = countReconcileExceptions(tenantId, allowedProjectIds, projectId, null, null, null, "OPEN");
+        long exceptionCount = countReconcileExceptions(tenantId, allowedProjectIds, projectId, null, null, null, null, "OPEN");
         BigDecimal exceptionAmount = sumReconcileExceptionAmount(tenantId, allowedProjectIds, projectId, null, "OPEN");
         return new ReconcileSummaryView(projectId, tx.total(), refund.total(), order.total(), tx.amount(),
                 refund.amount(), prepayment.amount(), prepaymentUsed.amount(), billApplied.amount(),
@@ -396,10 +396,11 @@ public class PaymentRefundRepository {
     }
 
     public List<ReconcileExceptionView> findReconcileExceptions(Long tenantId, List<Long> allowedProjectIds,
-                                                                 Long projectId, String exceptionType, String businessNo,
-                                                                 String memberName, String status,
+                                                                 Long projectId, String exceptionType, String exceptionLevel,
+                                                                 String businessNo, String memberName, String status,
                                                                  long offset, long pageSize) {
-        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, businessNo, memberName, status);
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, exceptionLevel,
+                businessNo, memberName, status);
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(exceptionSql(allowedProjectIds) + """
@@ -409,8 +410,10 @@ public class PaymentRefundRepository {
     }
 
     public long countReconcileExceptions(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                         String exceptionType, String businessNo, String memberName, String status) {
-        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, businessNo, memberName, status);
+                                         String exceptionType, String exceptionLevel, String businessNo,
+                                         String memberName, String status) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, exceptionLevel,
+                businessNo, memberName, status);
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + exceptionSql(allowedProjectIds) + ") e",
                 Long.class, args.toArray());
         return value(count);
@@ -418,7 +421,7 @@ public class PaymentRefundRepository {
 
     public BigDecimal sumReconcileExceptionAmount(Long tenantId, List<Long> allowedProjectIds, Long projectId,
                                                   String exceptionType, String status) {
-        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, null, null, status);
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, null, null, null, status);
         BigDecimal amount = jdbcTemplate.queryForObject("SELECT COALESCE(SUM(amount), 0) FROM (" + exceptionSql(allowedProjectIds) + ") e",
                 BigDecimal.class, args.toArray());
         return amount == null ? BigDecimal.ZERO : amount;
@@ -427,7 +430,7 @@ public class PaymentRefundRepository {
     public ReconcileExceptionView getReconcileException(Long tenantId, List<Long> allowedProjectIds, String exceptionKey) {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
-        addExceptionSqlArgs(args, allowedProjectIds, null, null, null, null, null);
+        addExceptionSqlArgs(args, allowedProjectIds, null, null, null, null, null, null);
         args.add(exceptionKey);
         return jdbcTemplate.queryForObject("SELECT * FROM (" + exceptionSql(allowedProjectIds) + ") e WHERE e.exception_key = ?",
                 this::mapReconcileException, args.toArray());
@@ -436,7 +439,7 @@ public class PaymentRefundRepository {
     public boolean currentReconcileExceptionExists(Long tenantId, List<Long> allowedProjectIds, String exceptionKey) {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
-        addExceptionSqlArgs(args, allowedProjectIds, null, null, null, null, null);
+        addExceptionSqlArgs(args, allowedProjectIds, null, null, null, null, null, null);
         args.add(exceptionKey);
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + exceptionSql(allowedProjectIds)
                         + ") e WHERE e.exception_key = ?",
@@ -942,6 +945,7 @@ public class PaymentRefundRepository {
                 """ + scope + """
                 AND (? IS NULL OR e.project_id = ?)
                 AND (? IS NULL OR e.exception_type = ?)
+                AND (? IS NULL OR e.exception_level = ?)
                 AND (? IS NULL OR e.business_no LIKE ?)
                 AND (? IS NULL OR e.member_name LIKE ? OR e.member_mobile LIKE ?)
                 AND (? IS NULL OR COALESCE(h.status, 'OPEN') = ?)
@@ -949,11 +953,13 @@ public class PaymentRefundRepository {
     }
 
     private List<Object> exceptionArgs(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                       String exceptionType, String businessNo, String memberName, String status) {
+                                       String exceptionType, String exceptionLevel, String businessNo,
+                                       String memberName, String status) {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
         addExceptionSqlArgs(args, allowedProjectIds, projectId, normalizeBlank(exceptionType),
-                normalizeLike(businessNo), normalizeLike(memberName), normalizeBlank(status));
+                normalizeBlank(exceptionLevel), normalizeLike(businessNo), normalizeLike(memberName),
+                normalizeBlank(status));
         return args;
     }
 
@@ -1004,7 +1010,7 @@ public class PaymentRefundRepository {
     private List<Object> reviewArgs(Long tenantId, List<Long> allowedProjectIds, Long projectId,
                                     String exceptionType, String memberName, String reviewStatus,
                                     String currentCheckStatus) {
-        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, null, null, null, null, null);
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, null, null, null, null, null, null);
         args.add(tenantId);
         if (allowedProjectIds != null && !allowedProjectIds.isEmpty()) {
             args.addAll(allowedProjectIds);
@@ -1024,7 +1030,8 @@ public class PaymentRefundRepository {
     }
 
     private void addExceptionSqlArgs(List<Object> args, List<Long> allowedProjectIds, Long projectId,
-                                     String exceptionType, String businessNo, String memberName, String status) {
+                                     String exceptionType, String exceptionLevel, String businessNo,
+                                     String memberName, String status) {
         args.add(args.get(0));
         args.add(args.get(0));
         args.add(args.get(0));
@@ -1044,6 +1051,8 @@ public class PaymentRefundRepository {
         args.add(projectId);
         args.add(exceptionType);
         args.add(exceptionType);
+        args.add(exceptionLevel);
+        args.add(exceptionLevel);
         args.add(businessNo);
         args.add(businessNo);
         args.add(memberName);
