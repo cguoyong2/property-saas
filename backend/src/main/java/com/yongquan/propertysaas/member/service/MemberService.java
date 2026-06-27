@@ -212,6 +212,10 @@ public class MemberService {
         if (!"PENDING".equals(binding.status())) {
             throw new IllegalArgumentException("仅待审核绑定可审核");
         }
+        if ("APPROVED".equals(request.auditResult())
+                && repository.approvedBindingExists(tenantId, binding.memberId(), binding.houseId())) {
+            throw new IllegalArgumentException("该业主/住户已绑定当前房屋，请勿重复审核通过");
+        }
         repository.auditBinding(tenantId, bindId, request.auditResult(), userId(), request.auditRemark());
         notifyBindingAuditResult(binding, request);
     }

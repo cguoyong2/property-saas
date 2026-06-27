@@ -1202,7 +1202,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
       type: 'success',
       permission: 'base:memberBinding:audit',
-      visible: (row) => row?.status === 'PENDING',
+      visible: (row) => rowStatus(row) === 'PENDING',
       fields: [{ prop: 'auditRemark', label: '审核备注', type: 'textarea' }],
       buildPayload: (_row, formData = {}) => ({ auditResult: 'APPROVED', auditRemark: formData.auditRemark }),
     },
@@ -1214,7 +1214,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/base/member-bindings/${row?.bindId}/audit`,
       type: 'danger',
       permission: 'base:memberBinding:audit',
-      visible: (row) => row?.status === 'PENDING',
+      visible: (row) => rowStatus(row) === 'PENDING',
       fields: [{ prop: 'auditRemark', label: '驳回原因', type: 'textarea', required: true }],
       buildPayload: (_row, formData = {}) => ({ auditResult: 'REJECTED', auditRemark: formData.auditRemark }),
     },
@@ -1226,7 +1226,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/base/member-bindings/${row?.bindId}/unbind`,
       type: 'warning',
       permission: 'base:memberBinding:unbind',
-      visible: (row) => row?.status === 'APPROVED',
+      visible: (row) => rowStatus(row) === 'APPROVED',
       fields: [{ prop: 'reason', label: '解绑原因', type: 'textarea', required: true }],
     },
   ],
@@ -2312,6 +2312,10 @@ function payOrderStatusText(value: unknown) {
   return typeof value === 'string' ? labels[value] ?? value : '-'
 }
 
+function rowStatus(row?: Record<string, unknown> | null) {
+  return String(row?.status ?? '').trim().toUpperCase()
+}
+
 function printReceipt() {
   window.print()
 }
@@ -2567,6 +2571,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   }
   if (field.type === 'house' && row.houseNo) {
     return row.houseNo
+  }
+  if (field.prop === 'roomNo') {
+    return value || [row.buildingName, row.unitName, row.houseNo].filter(Boolean).join('') || ''
   }
   if (field.type === 'parkingArea' && row.areaName) {
     return row.areaName
