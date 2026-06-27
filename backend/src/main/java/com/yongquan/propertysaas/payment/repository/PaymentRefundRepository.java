@@ -3,6 +3,7 @@ package com.yongquan.propertysaas.payment.repository;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -469,6 +470,42 @@ public class PaymentRefundRepository {
                         """, status, reviewStatus, userId, reviewRemark, tenantId, exceptionKey);
     }
 
+    public void insertReconcileExceptionHistory(Long historyId, Long tenantId, Long projectId, String exceptionKey,
+                                                String actionType, String beforeStatus, String afterStatus,
+                                                String beforeReviewStatus, String afterReviewStatus, String remark,
+                                                String attachmentFileIds, Long operatorId) {
+        jdbcTemplate.update("""
+                        INSERT INTO payment_reconcile_exception_history(history_id, tenant_id, project_id, exception_key,
+                                                                        action_type, before_status, after_status,
+                                                                        before_review_status, after_review_status,
+                                                                        remark, attachment_file_ids, operator_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, historyId, tenantId, projectId, exceptionKey, actionType, beforeStatus, afterStatus,
+                beforeReviewStatus, afterReviewStatus, remark, attachmentFileIds, operatorId);
+    }
+
+    public List<ReconcileExceptionHistoryView> findReconcileExceptionHistory(Long tenantId, String exceptionKey,
+                                                                             long offset, long pageSize) {
+        return jdbcTemplate.query("""
+                        SELECT history_id, exception_key, action_type, before_status, after_status,
+                               before_review_status, after_review_status, remark, attachment_file_ids,
+                               operator_id, created_at
+                        FROM payment_reconcile_exception_history
+                        WHERE tenant_id = ? AND exception_key = ? AND deleted = 0
+                        ORDER BY created_at DESC, history_id DESC
+                        LIMIT ? OFFSET ?
+                        """, this::mapReconcileExceptionHistory, tenantId, exceptionKey, pageSize, offset);
+    }
+
+    public long countReconcileExceptionHistory(Long tenantId, String exceptionKey) {
+        Long count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM payment_reconcile_exception_history
+                        WHERE tenant_id = ? AND exception_key = ? AND deleted = 0
+                        """, Long.class, tenantId, exceptionKey);
+        return value(count);
+    }
+
     public boolean projectExists(Long tenantId, Long projectId) {
         return exists("SELECT COUNT(*) FROM base_project WHERE tenant_id = ? AND project_id = ? AND deleted = 0", tenantId, projectId);
     }
@@ -910,6 +947,21 @@ public class PaymentRefundRepository {
                 rs.getString("handle_status"), toLocalDateTime(rs, "handled_at"), (Long) rs.getObject("handled_by"),
                 rs.getString("handle_remark"), rs.getString("attachment_file_ids"), rs.getString("review_status"),
                 toLocalDateTime(rs, "reviewed_at"), (Long) rs.getObject("reviewed_by"), rs.getString("review_remark"),
+                rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private ReconcileExceptionHistoryView mapReconcileExceptionHistory(ResultSet rs, int rowNum) throws SQLException {
+        return new ReconcileExceptionHistoryView(
+                rs.getLong("history_id"),
+                rs.getString("exception_key"),
+                rs.getString("action_type"),
+                rs.getString("before_status"),
+                rs.getString("after_status"),
+                rs.getString("before_review_status"),
+                rs.getString("after_review_status"),
+                rs.getString("remark"),
+                rs.getString("attachment_file_ids"),
+                (Long) rs.getObject("operator_id"),
                 rs.getTimestamp("created_at").toLocalDateTime());
     }
 }

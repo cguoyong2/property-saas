@@ -8,6 +8,7 @@ import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -233,6 +234,15 @@ public class PaymentController {
                                                       @Valid @RequestBody ReconcileExceptionHandleRequest request) {
         refundService.handleReconcileException(exceptionKey, request);
         return ApiResponse.success();
+    }
+
+    @GetMapping("/api/payment/reconcile/exceptions/{exceptionKey}/history")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<PageResult<ReconcileExceptionHistoryView>> reconcileExceptionHistory(
+            @PathVariable String exceptionKey,
+            @RequestParam(defaultValue = "1") long pageNo,
+            @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(refundService.pageReconcileExceptionHistory(exceptionKey, pageNo, pageSize));
     }
 
     @PostMapping("/api/payment/reconcile/exceptions/{exceptionKey}/review")

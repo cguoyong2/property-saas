@@ -419,6 +419,32 @@
             {{ target.label }}
           </el-button>
         </div>
+        <div class="reconcile-detail__section">
+          <h3>处理历史</h3>
+          <el-skeleton v-if="reconcileHistoryLoading" :rows="3" animated />
+          <el-empty v-else-if="!reconcileHistories.length" description="暂无处理历史" />
+          <el-timeline v-else class="reconcile-history">
+            <el-timeline-item
+              v-for="history in reconcileHistories"
+              :key="String(history.historyId)"
+              :timestamp="String(history.createdAt ?? '')"
+              placement="top"
+            >
+              <div class="reconcile-history__card">
+                <div class="reconcile-history__head">
+                  <strong>{{ reconcileHistoryActionText(history.actionType) }}</strong>
+                  <span>处理人：{{ history.operatorId ?? '-' }}</span>
+                </div>
+                <p>{{ history.remark || '-' }}</p>
+                <small>
+                  状态：{{ reconcileStatusText(history.beforeStatus) }} -> {{ reconcileStatusText(history.afterStatus) }}
+                  ｜复核：{{ reconcileReviewStatusText(history.beforeReviewStatus) }} -> {{ reconcileReviewStatusText(history.afterReviewStatus) }}
+                </small>
+                <small v-if="history.attachmentFileIds">附件：{{ history.attachmentFileIds }}</small>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
       </div>
       <el-form v-if="detailRow" label-position="top" class="detail-form">
         <el-form-item v-for="field in detailFields" :key="field.prop" :label="field.label">
@@ -658,6 +684,8 @@ const currentAction = ref<BusinessAction | null>(null)
 const currentActionRow = ref<Record<string, unknown> | undefined>()
 const detailRow = ref<Record<string, unknown> | null>(null)
 const receiptRow = ref<Record<string, unknown> | null>(null)
+const reconcileHistories = ref<Record<string, unknown>[]>([])
+const reconcileHistoryLoading = ref(false)
 const chinaAreaOptions = pcaTextArr
 const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
 const plateLetterOptions = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('')
@@ -1295,6 +1323,9 @@ function openEdit(row: Record<string, unknown>) {
 function openDetail(row: Record<string, unknown>) {
   detailRow.value = row
   detailDialogVisible.value = true
+  if (isReconcileExceptionDetail.value) {
+    loadReconcileHistory(row)
+  }
 }
 
 function reconcileStatusText(status: unknown) {
@@ -1309,6 +1340,34 @@ function reconcileReviewStatusText(status: unknown) {
     REJECTED: '退回重办',
   }
   return labels[String(status ?? 'NONE')] ?? '无需复核'
+}
+
+function reconcileHistoryActionText(actionType: unknown) {
+  const labels: Record<string, string> = {
+    HANDLE: '标记已处理',
+    REVIEW_APPROVE: '复核通过',
+    REVIEW_REJECT: '退回重办',
+  }
+  return labels[String(actionType ?? '')] ?? String(actionType ?? '-')
+}
+
+async function loadReconcileHistory(row: Record<string, unknown>) {
+  const exceptionKey = String(row.exceptionKey ?? '')
+  reconcileHistories.value = []
+  if (!exceptionKey) return
+  reconcileHistoryLoading.value = true
+  try {
+    const { data } = await fetchPage(`/payment/reconcile/exceptions/${encodeURIComponent(exceptionKey)}/history`, {
+      pageNo: 1,
+      pageSize: 20,
+    })
+    const payload = data.data
+    reconcileHistories.value = Array.isArray(payload?.records) ? payload.records : []
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载处理历史失败')
+  } finally {
+    reconcileHistoryLoading.value = false
+  }
 }
 
 function reconcileCalculationText(row: Record<string, unknown>) {
@@ -2836,6 +2895,36 @@ onMounted(loadProjects)
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.reconcile-history {
+  margin-top: 4px;
+}
+
+.reconcile-history__card {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.reconcile-history__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #111827;
+}
+
+.reconcile-history__head span,
+.reconcile-history__card small {
+  color: #64748b;
+}
+
+.reconcile-history__card p {
+  margin: 0;
+  color: #334155;
 }
 
 .receipt-print-area {
