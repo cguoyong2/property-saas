@@ -35,6 +35,7 @@ public class NoticeController {
     public ApiResponse<PageResult<NoticeView>> pagePlatformNotices(@RequestParam(required = false) Long tenantId,
                                                                    @RequestParam(required = false) Long projectId,
                                                                    @RequestParam(required = false) String status,
+                                                                   @RequestParam(required = false) String sendStatus,
                                                                    @RequestParam(defaultValue = "1") long pageNo,
                                                                    @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(service.pagePlatformNotices(tenantId, projectId, status, pageNo, pageSize));
@@ -86,9 +87,15 @@ public class NoticeController {
     public ApiResponse<PageResult<MessageRecordView>> pageMessages(@RequestParam(required = false) Long projectId,
                                                                    @RequestParam(required = false) String channel,
                                                                    @RequestParam(required = false) String status,
+                                                                   @RequestParam(required = false) String sendStatus,
+                                                                   @RequestParam(required = false) String templateCode,
+                                                                   @RequestParam(required = false) String receiverType,
+                                                                   @RequestParam(required = false) String readStatus,
                                                                    @RequestParam(defaultValue = "1") long pageNo,
                                                                    @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.pageMessages(projectId, channel, status, pageNo, pageSize));
+        String effectiveStatus = sendStatus == null || sendStatus.isBlank() ? status : sendStatus;
+        return ApiResponse.success(service.pageMessages(projectId, channel, effectiveStatus, templateCode, receiverType,
+                readStatus, pageNo, pageSize));
     }
 
     @GetMapping("/api/service/message-templates")

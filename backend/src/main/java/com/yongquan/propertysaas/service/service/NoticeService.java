@@ -125,18 +125,23 @@ public class NoticeService {
     }
 
     public PageResult<MessageRecordView> pageMessages(Long projectId, String channel, String status,
+                                                       String templateCode, String receiverType, String readStatus,
                                                        long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         validateChannelIfPresent(channel);
         validateMessageStatus(status);
+        validateReadStatus(readStatus);
         if (projectId != null) {
             ensureProjectAllowed(projectId);
         }
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
-                repository.findMessages(tenantId, scope, projectId, channel, status, offset(pageNo, pageSize), pageSize),
-                repository.countMessages(tenantId, scope, projectId, channel, status),
+                repository.findMessages(tenantId, scope, projectId, normalizeNullable(channel), normalizeNullable(status),
+                        normalizeNullable(templateCode), normalizeNullable(receiverType), normalizeNullable(readStatus),
+                        offset(pageNo, pageSize), pageSize),
+                repository.countMessages(tenantId, scope, projectId, normalizeNullable(channel), normalizeNullable(status),
+                        normalizeNullable(templateCode), normalizeNullable(receiverType), normalizeNullable(readStatus)),
                 pageNo,
                 pageSize);
     }

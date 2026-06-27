@@ -221,7 +221,8 @@ public class NoticeRepository {
     }
 
     public List<MessageRecordView> findMessages(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                                String channel, String status, long offset, long pageSize) {
+                                                String channel, String status, String templateCode,
+                                                String receiverType, String readStatus, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
@@ -231,7 +232,7 @@ public class NoticeRepository {
                 WHERE tenant_id = ?
                 """);
         args.add(tenantId);
-        appendMessageFilters(sql, args, projectId, channel, status);
+        appendMessageFilters(sql, args, projectId, channel, status, templateCode, receiverType, readStatus);
         appendMessageProjectScope(sql, args, allowedProjectIds);
         sql.append(" ORDER BY created_at DESC, message_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
@@ -239,11 +240,12 @@ public class NoticeRepository {
         return jdbcTemplate.query(sql.toString(), this::mapMessage, args.toArray());
     }
 
-    public long countMessages(Long tenantId, List<Long> allowedProjectIds, Long projectId, String channel, String status) {
+    public long countMessages(Long tenantId, List<Long> allowedProjectIds, Long projectId, String channel, String status,
+                              String templateCode, String receiverType, String readStatus) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM message_record WHERE tenant_id = ?");
         args.add(tenantId);
-        appendMessageFilters(sql, args, projectId, channel, status);
+        appendMessageFilters(sql, args, projectId, channel, status, templateCode, receiverType, readStatus);
         appendMessageProjectScope(sql, args, allowedProjectIds);
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
@@ -549,7 +551,8 @@ public class NoticeRepository {
         args.addAll(allowedProjectIds);
     }
 
-    private void appendMessageFilters(StringBuilder sql, List<Object> args, Long projectId, String channel, String status) {
+    private void appendMessageFilters(StringBuilder sql, List<Object> args, Long projectId, String channel, String status,
+                                      String templateCode, String receiverType, String readStatus) {
         if (projectId != null) {
             sql.append(" AND project_id = ?");
             args.add(projectId);
@@ -561,6 +564,18 @@ public class NoticeRepository {
         if (status != null && !status.isBlank()) {
             sql.append(" AND send_status = ?");
             args.add(status);
+        }
+        if (templateCode != null && !templateCode.isBlank()) {
+            sql.append(" AND template_code LIKE ?");
+            args.add("%" + templateCode + "%");
+        }
+        if (receiverType != null && !receiverType.isBlank()) {
+            sql.append(" AND receiver_type = ?");
+            args.add(receiverType);
+        }
+        if (readStatus != null && !readStatus.isBlank()) {
+            sql.append(" AND read_status = ?");
+            args.add(readStatus);
         }
     }
 

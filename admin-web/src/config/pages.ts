@@ -100,6 +100,35 @@ const yesNoOptions = [
   { label: '是', value: true },
   { label: '否', value: false },
 ]
+const messageChannelOptions = [
+  { label: '站内消息', value: 'SITE' },
+  { label: '短信', value: 'SMS' },
+  { label: '微信', value: 'WECHAT' },
+]
+const messageSendStatusOptions = [
+  { label: '待发送', value: 'PENDING' },
+  { label: '已发送', value: 'SENT' },
+  { label: '发送失败', value: 'FAILED' },
+]
+const messageReadStatusOptions = [
+  { label: '未读', value: 'UNREAD' },
+  { label: '已读', value: 'READ' },
+]
+const messageReceiverTypeOptions = [
+  { label: '业主/住户', value: 'MEMBER' },
+  { label: '物业用户', value: 'USER' },
+]
+const messageTemplateCodeOptions = [
+  { label: '账单已生成', value: 'BILL_CREATED' },
+  { label: '账单催缴提醒', value: 'BILL_DUE' },
+  { label: '缴费成功', value: 'PAYMENT_SUCCESS' },
+  { label: '退款申请', value: 'REFUND_APPLY' },
+  { label: '退款审核', value: 'REFUND_AUDIT' },
+  { label: '退款完成', value: 'REFUND_SUCCESS' },
+  { label: '工单状态更新', value: 'WORKORDER_STATUS' },
+  { label: '房屋绑定审核', value: 'HOUSE_BINDING_AUDIT' },
+  { label: '工单派发', value: 'WORKORDER_DISPATCH' },
+]
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
   { label: '商业项目', value: 'COMMERCIAL' },
@@ -1205,11 +1234,32 @@ const servicePages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'title', label: '标题', inFilter: true },
-      { prop: 'channel', label: '渠道', inFilter: true },
-      { prop: 'receiverType', label: '接收方' },
+      { prop: 'templateCode', label: '业务类型', type: 'select', options: messageTemplateCodeOptions, inFilter: true },
+      { prop: 'channel', label: '渠道', type: 'select', options: messageChannelOptions, inFilter: true },
+      { prop: 'receiverType', label: '接收方', type: 'select', options: messageReceiverTypeOptions, inFilter: true },
       { prop: 'receiverId', label: '接收ID' },
-      { prop: 'sendStatus', label: '状态', inFilter: true },
+      { prop: 'receiverMobile', label: '接收手机号' },
+      { prop: 'sendStatus', label: '发送状态', type: 'select', options: messageSendStatusOptions, inFilter: true },
+      { prop: 'readStatus', label: '阅读状态', type: 'select', options: messageReadStatusOptions, inFilter: true },
+      { prop: 'sentAt', label: '发送时间' },
+      { prop: 'readAt', label: '阅读时间' },
       { prop: 'failReason', label: '失败原因' },
+      { prop: 'createdAt', label: '创建时间' },
+    ],
+    showDetails: true,
+    detailFields: [
+      { prop: 'title', label: '标题' },
+      { prop: 'templateCode', label: '业务类型', type: 'select', options: messageTemplateCodeOptions },
+      { prop: 'channel', label: '渠道', type: 'select', options: messageChannelOptions },
+      { prop: 'receiverType', label: '接收方', type: 'select', options: messageReceiverTypeOptions },
+      { prop: 'receiverId', label: '接收ID' },
+      { prop: 'receiverMobile', label: '接收手机号' },
+      { prop: 'sendStatus', label: '发送状态', type: 'select', options: messageSendStatusOptions },
+      { prop: 'readStatus', label: '阅读状态', type: 'select', options: messageReadStatusOptions },
+      { prop: 'content', label: '消息内容' },
+      { prop: 'failReason', label: '失败原因' },
+      { prop: 'sentAt', label: '发送时间' },
+      { prop: 'readAt', label: '阅读时间' },
       { prop: 'createdAt', label: '创建时间' },
     ],
   },
@@ -1229,17 +1279,17 @@ const servicePages: PageConfig[] = [
     columns: [
       { prop: 'templateCode', label: '模板编码', inFilter: true },
       { prop: 'templateName', label: '模板名称', inFilter: true },
-      { prop: 'channel', label: '渠道', inFilter: true },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'channel', label: '渠道', type: 'select', options: messageChannelOptions, inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
       { prop: 'createdAt', label: '创建时间' },
     ],
     fields: [
       { prop: 'templateCode', label: '模板编码', required: true },
       { prop: 'templateName', label: '模板名称', required: true },
-      { prop: 'channel', label: '渠道', type: 'select', options: ['SITE', 'SMS', 'WECHAT'], required: true },
+      { prop: 'channel', label: '渠道', type: 'select', options: messageChannelOptions, required: true },
       { prop: 'titleTemplate', label: '标题模板', required: true },
       { prop: 'contentTemplate', label: '内容模板', type: 'textarea', required: true },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
 ]
