@@ -10,6 +10,7 @@ import com.yongquan.propertysaas.payment.domain.PayTransactionView;
 import com.yongquan.propertysaas.payment.domain.PaymentNotifyResult;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -228,6 +229,18 @@ public class PaymentController {
                                                                                @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(refundService.pageReconcileExceptions(projectId, exceptionType, exceptionLevel, businessNo,
                 memberName, status, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/payment/reconcile/exceptions/stats")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<ReconcileExceptionStatsView> reconcileExceptionStats(@RequestParam(required = false) Long projectId,
+                                                                            @RequestParam(required = false) String exceptionType,
+                                                                            @RequestParam(required = false) String exceptionLevel,
+                                                                            @RequestParam(required = false) String businessNo,
+                                                                            @RequestParam(required = false) String memberName,
+                                                                            @RequestParam(required = false) String status) {
+        return ApiResponse.success(refundService.reconcileExceptionStats(projectId, exceptionType, exceptionLevel,
+                businessNo, memberName, status));
     }
 
     @GetMapping("/api/payment/reconcile/reviews")

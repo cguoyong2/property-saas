@@ -8,6 +8,7 @@ import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -251,13 +252,8 @@ public class PaymentRefundService {
         if (projectId != null) {
             ensureProjectAllowed(projectId);
         }
-        if (exceptionLevel != null && !exceptionLevel.isBlank()
-                && !Set.of("高", "中", "低", "HIGH", "MEDIUM", "LOW").contains(exceptionLevel)) {
-            throw new IllegalArgumentException("非法异常级别：" + exceptionLevel);
-        }
-        if (status != null && !status.isBlank() && !Set.of("OPEN", "HANDLED").contains(status)) {
-            throw new IllegalArgumentException("非法处理状态：" + status);
-        }
+        validateReconcileExceptionLevel(exceptionLevel);
+        validateReconcileExceptionStatus(status);
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
@@ -267,6 +263,20 @@ public class PaymentRefundService {
                         normalize(exceptionLevel), normalize(businessNo), normalize(memberName), normalize(status)),
                 pageNo,
                 pageSize);
+    }
+
+    public ReconcileExceptionStatsView reconcileExceptionStats(Long projectId, String exceptionType,
+                                                               String exceptionLevel, String businessNo,
+                                                               String memberName, String status) {
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        validateReconcileExceptionLevel(exceptionLevel);
+        validateReconcileExceptionStatus(status);
+        Long tenantId = tenantId();
+        return repository.reconcileExceptionStats(tenantId, projectScope(tenantId), projectId,
+                normalize(exceptionType), normalize(exceptionLevel), normalize(businessNo), normalize(memberName),
+                normalize(status));
     }
 
     public PageResult<ReconcileExceptionReviewView> pageReconcileExceptionReviews(Long projectId, String exceptionType,
@@ -294,6 +304,19 @@ public class PaymentRefundService {
                         normalize(memberName), normalize(reviewStatus), normalize(currentCheckStatus)),
                 pageNo,
                 pageSize);
+    }
+
+    private void validateReconcileExceptionLevel(String exceptionLevel) {
+        if (exceptionLevel != null && !exceptionLevel.isBlank()
+                && !Set.of("高", "中", "低", "HIGH", "MEDIUM", "LOW").contains(exceptionLevel)) {
+            throw new IllegalArgumentException("非法异常级别：" + exceptionLevel);
+        }
+    }
+
+    private void validateReconcileExceptionStatus(String status) {
+        if (status != null && !status.isBlank() && !Set.of("OPEN", "HANDLED").contains(status)) {
+            throw new IllegalArgumentException("非法处理状态：" + status);
+        }
     }
 
     @Transactional

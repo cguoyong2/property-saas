@@ -83,6 +83,37 @@
       </el-form-item>
     </el-form>
 
+    <div v-if="isReconcileExceptionPage" class="reconcile-stats">
+      <div class="reconcile-stats__card reconcile-stats__card--danger">
+        <span>高风险</span>
+        <strong>{{ reconcileStats.highRiskCount }}</strong>
+      </div>
+      <div class="reconcile-stats__card reconcile-stats__card--warning">
+        <span>中风险</span>
+        <strong>{{ reconcileStats.mediumRiskCount }}</strong>
+      </div>
+      <div class="reconcile-stats__card reconcile-stats__card--success">
+        <span>低风险</span>
+        <strong>{{ reconcileStats.lowRiskCount }}</strong>
+      </div>
+      <div class="reconcile-stats__card">
+        <span>待处理</span>
+        <strong>{{ reconcileStats.openCount }}</strong>
+      </div>
+      <div class="reconcile-stats__card">
+        <span>待复核</span>
+        <strong>{{ reconcileStats.pendingReviewCount }}</strong>
+      </div>
+      <div class="reconcile-stats__card reconcile-stats__card--muted">
+        <span>已处理</span>
+        <strong>{{ reconcileStats.handledCount }}</strong>
+      </div>
+      <div class="reconcile-stats__total">
+        <span>{{ reconcileStatsLoading ? '统计刷新中' : '当前口径合计' }}</span>
+        <strong>{{ reconcileStats.totalCount }}</strong>
+      </div>
+    </div>
+
     <el-alert
       v-if="error"
       class="page-alert"
@@ -709,6 +740,16 @@ interface BusinessAction {
   visible?: (row?: Record<string, unknown>) => boolean
 }
 
+interface ReconcileExceptionStats {
+  totalCount: number
+  highRiskCount: number
+  mediumRiskCount: number
+  lowRiskCount: number
+  openCount: number
+  pendingReviewCount: number
+  handledCount: number
+}
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -738,6 +779,16 @@ const detailRow = ref<Record<string, unknown> | null>(null)
 const receiptRow = ref<Record<string, unknown> | null>(null)
 const reconcileHistories = ref<Record<string, unknown>[]>([])
 const reconcileHistoryLoading = ref(false)
+const reconcileStatsLoading = ref(false)
+const reconcileStats = reactive<ReconcileExceptionStats>({
+  totalCount: 0,
+  highRiskCount: 0,
+  mediumRiskCount: 0,
+  lowRiskCount: 0,
+  openCount: 0,
+  pendingReviewCount: 0,
+  handledCount: 0,
+})
 const chinaAreaOptions = pcaTextArr
 const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
 const plateLetterOptions = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('')
@@ -1323,6 +1374,7 @@ const availableActions = computed(() => (businessActions[config.value.key] ?? []
 const pageActions = computed(() => availableActions.value.filter((action) => action.scope === 'page'))
 const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
 const detailFields = computed(() => config.value.detailFields ?? config.value.columns)
+const isReconcileExceptionPage = computed(() => config.value.key === 'payment-reconcile-exceptions')
 const isReconcileExceptionDetail = computed(() => ['payment-reconcile-exceptions', 'payment-reconcile-reviews'].includes(config.value.key))
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
@@ -1370,10 +1422,41 @@ async function load() {
       total.value = 0
     }
     await loadVisibleRemoteOptions()
+    await loadReconcileStats()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReconcileStats() {
+  if (!isReconcileExceptionPage.value) return
+  reconcileStatsLoading.value = true
+  try {
+    const params: Record<string, string | number> = {}
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== '') params[key] = value
+    })
+    const { data } = await fetchPage('/payment/reconcile/exceptions/stats', params)
+    Object.assign(reconcileStats, normalizeReconcileStats(data.data))
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '异常统计加载失败'
+  } finally {
+    reconcileStatsLoading.value = false
+  }
+}
+
+function normalizeReconcileStats(value: unknown): ReconcileExceptionStats {
+  const item = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
+  return {
+    totalCount: numberValue(item.totalCount),
+    highRiskCount: numberValue(item.highRiskCount),
+    mediumRiskCount: numberValue(item.mediumRiskCount),
+    lowRiskCount: numberValue(item.lowRiskCount),
+    openCount: numberValue(item.openCount),
+    pendingReviewCount: numberValue(item.pendingReviewCount),
+    handledCount: numberValue(item.handledCount),
   }
 }
 
@@ -2070,6 +2153,11 @@ function moneyText(value: unknown) {
   const amount = Number(value ?? 0)
   if (!Number.isFinite(amount)) return '0.00'
   return amount.toFixed(2)
+}
+
+function numberValue(value: unknown) {
+  const count = Number(value ?? 0)
+  return Number.isFinite(count) ? count : 0
 }
 
 function payChannelText(value: unknown) {
@@ -3135,6 +3223,78 @@ onMounted(loadProjects)
 .detail-form :deep(.el-input.is-disabled .el-input__inner) {
   color: #303133;
   -webkit-text-fill-color: #303133;
+}
+
+.reconcile-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(108px, 1fr)) minmax(138px, 1.2fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.reconcile-stats__card,
+.reconcile-stats__total {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reconcile-stats__card span,
+.reconcile-stats__total span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reconcile-stats__card strong,
+.reconcile-stats__total strong {
+  color: #111827;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.reconcile-stats__card--danger {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.reconcile-stats__card--danger strong {
+  color: #dc2626;
+}
+
+.reconcile-stats__card--warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.reconcile-stats__card--warning strong {
+  color: #d97706;
+}
+
+.reconcile-stats__card--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.reconcile-stats__card--success strong {
+  color: #16a34a;
+}
+
+.reconcile-stats__card--muted {
+  background: #f8fafc;
+}
+
+.reconcile-stats__total {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.reconcile-stats__total strong {
+  color: #2563eb;
 }
 
 .reconcile-detail {

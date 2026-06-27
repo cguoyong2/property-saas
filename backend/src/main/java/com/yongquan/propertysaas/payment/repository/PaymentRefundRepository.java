@@ -5,6 +5,7 @@ import com.yongquan.propertysaas.payment.domain.PayRefundView;
 import com.yongquan.propertysaas.payment.domain.PayableBill;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
+import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
@@ -417,6 +418,33 @@ public class PaymentRefundRepository {
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + exceptionSql(allowedProjectIds) + ") e",
                 Long.class, args.toArray());
         return value(count);
+    }
+
+    public ReconcileExceptionStatsView reconcileExceptionStats(Long tenantId, List<Long> allowedProjectIds,
+                                                               Long projectId, String exceptionType,
+                                                               String exceptionLevel, String businessNo,
+                                                               String memberName, String status) {
+        List<Object> args = exceptionArgs(tenantId, allowedProjectIds, projectId, exceptionType, exceptionLevel,
+                businessNo, memberName, status);
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) AS total_count,
+                       COALESCE(SUM(CASE WHEN exception_level = '高' THEN 1 ELSE 0 END), 0) AS high_risk_count,
+                       COALESCE(SUM(CASE WHEN exception_level = '中' THEN 1 ELSE 0 END), 0) AS medium_risk_count,
+                       COALESCE(SUM(CASE WHEN exception_level = '低' THEN 1 ELSE 0 END), 0) AS low_risk_count,
+                       COALESCE(SUM(CASE WHEN handle_status = 'OPEN' THEN 1 ELSE 0 END), 0) AS open_count,
+                       COALESCE(SUM(CASE WHEN review_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_review_count,
+                       COALESCE(SUM(CASE WHEN handle_status = 'HANDLED' THEN 1 ELSE 0 END), 0) AS handled_count
+                FROM (
+                """ + exceptionSql(allowedProjectIds) + """
+                ) e
+                """, (rs, rowNum) -> new ReconcileExceptionStatsView(
+                rs.getLong("total_count"),
+                rs.getLong("high_risk_count"),
+                rs.getLong("medium_risk_count"),
+                rs.getLong("low_risk_count"),
+                rs.getLong("open_count"),
+                rs.getLong("pending_review_count"),
+                rs.getLong("handled_count")), args.toArray());
     }
 
     public BigDecimal sumReconcileExceptionAmount(Long tenantId, List<Long> allowedProjectIds, Long projectId,
