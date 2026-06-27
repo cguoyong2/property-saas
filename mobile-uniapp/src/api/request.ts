@@ -1,4 +1,4 @@
-export const API_BASE_URL = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? 'http://localhost:8080/api')
+export const API_BASE_URL = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? '/api')
 
 interface ApiEnvelope<T> {
   code: number

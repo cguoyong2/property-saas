@@ -15,7 +15,7 @@ type UniRouteOptions = {
   url: string
 }
 
-const API_BASE_URL = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? 'http://localhost:19023/api')
+const API_BASE_URL = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? '/api')
 
 function resolveApiUrl(url: string, data?: Record<string, unknown>, method = 'GET') {
   const baseUrl = API_BASE_URL.startsWith('http') ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`
