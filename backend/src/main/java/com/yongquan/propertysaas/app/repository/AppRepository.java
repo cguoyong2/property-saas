@@ -19,15 +19,57 @@ public class AppRepository {
         return jdbcTemplate.queryForList("""
                 SELECT b.bind_id AS bindId, b.project_id AS projectId, p.project_name AS projectName,
                        b.house_id AS houseId, h.house_no AS houseNo, h.building_id AS buildingId,
-                       h.unit_id AS unitId, h.building_area AS buildingArea, h.house_status AS houseStatus,
+                       bd.building_name AS buildingName, h.unit_id AS unitId, u.unit_name AS unitName,
+                       CONCAT_WS('', bd.building_name, u.unit_name, h.house_no) AS roomNo,
+                       h.building_area AS buildingArea, h.house_status AS houseStatus,
                        b.bind_role AS bindRole, b.status, b.created_at AS createdAt
                 FROM member_house_bind b
                 JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
                 JOIN base_house h ON h.tenant_id = b.tenant_id AND h.project_id = b.project_id
                                  AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 WHERE b.tenant_id = ? AND b.member_id = ? AND b.deleted = 0
                 ORDER BY b.status = 'APPROVED' DESC, b.created_at DESC
                 """, tenantId, memberId);
+    }
+
+    public List<Map<String, Object>> findBindProjects(Long tenantId) {
+        return jdbcTemplate.queryForList("""
+                SELECT project_id AS projectId, project_name AS projectName, city, district, address
+                FROM base_project
+                WHERE tenant_id = ? AND deleted = 0 AND status = 'ACTIVE'
+                ORDER BY created_at DESC, project_id DESC
+                """, tenantId);
+    }
+
+    public List<Map<String, Object>> findBindBuildings(Long tenantId, Long projectId) {
+        return jdbcTemplate.queryForList("""
+                SELECT building_id AS buildingId, project_id AS projectId, building_name AS buildingName, floor_count AS floorCount
+                FROM base_building
+                WHERE tenant_id = ? AND project_id = ? AND deleted = 0 AND status = 'ACTIVE'
+                ORDER BY sort_no ASC, building_id ASC
+                """, tenantId, projectId);
+    }
+
+    public List<Map<String, Object>> findBindUnits(Long tenantId, Long projectId, Long buildingId) {
+        return jdbcTemplate.queryForList("""
+                SELECT unit_id AS unitId, project_id AS projectId, building_id AS buildingId, unit_name AS unitName
+                FROM base_unit
+                WHERE tenant_id = ? AND project_id = ? AND building_id = ? AND deleted = 0 AND status = 'ACTIVE'
+                ORDER BY sort_no ASC, unit_id ASC
+                """, tenantId, projectId, buildingId);
+    }
+
+    public List<Map<String, Object>> findBindHouses(Long tenantId, Long projectId, Long buildingId, Long unitId) {
+        return jdbcTemplate.queryForList("""
+                SELECT house_id AS houseId, project_id AS projectId, building_id AS buildingId, unit_id AS unitId,
+                       house_no AS houseNo, floor_no AS floorNo, building_area AS buildingArea,
+                       house_usage AS houseUsage, house_status AS houseStatus
+                FROM base_house
+                WHERE tenant_id = ? AND project_id = ? AND building_id = ? AND unit_id = ? AND deleted = 0
+                ORDER BY floor_no ASC, house_no ASC, house_id ASC
+                """, tenantId, projectId, buildingId, unitId);
     }
 
     public List<Map<String, Object>> findBills(Long tenantId, Long memberId, Long houseId, String status,

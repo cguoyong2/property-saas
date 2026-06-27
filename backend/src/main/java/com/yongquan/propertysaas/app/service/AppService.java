@@ -41,6 +41,32 @@ public class AppService {
         return new PageResult<>(records, records.size(), 1, Math.max(records.size(), 1));
     }
 
+    public PageResult<Map<String, Object>> bindProjects() {
+        var records = repository.findBindProjects(tenantId());
+        return page(records);
+    }
+
+    public PageResult<Map<String, Object>> bindBuildings(Long projectId) {
+        requireId(projectId, "小区不能为空");
+        var records = repository.findBindBuildings(tenantId(), projectId);
+        return page(records);
+    }
+
+    public PageResult<Map<String, Object>> bindUnits(Long projectId, Long buildingId) {
+        requireId(projectId, "小区不能为空");
+        requireId(buildingId, "楼栋不能为空");
+        var records = repository.findBindUnits(tenantId(), projectId, buildingId);
+        return page(records);
+    }
+
+    public PageResult<Map<String, Object>> bindHouses(Long projectId, Long buildingId, Long unitId) {
+        requireId(projectId, "小区不能为空");
+        requireId(buildingId, "楼栋不能为空");
+        requireId(unitId, "单元不能为空");
+        var records = repository.findBindHouses(tenantId(), projectId, buildingId, unitId);
+        return page(records);
+    }
+
     public PageResult<Map<String, Object>> bills(Long houseId, String status, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         ensureApprovedHouse(houseId);
@@ -124,6 +150,16 @@ public class AppService {
     private void validatePage(long pageNo, long pageSize) {
         if (pageNo < 1 || pageSize < 1 || pageSize > 200) {
             throw new IllegalArgumentException("分页参数错误");
+        }
+    }
+
+    private PageResult<Map<String, Object>> page(java.util.List<Map<String, Object>> records) {
+        return new PageResult<>(records, records.size(), 1, Math.max(records.size(), 1));
+    }
+
+    private void requireId(Long value, String message) {
+        if (value == null || value <= 0) {
+            throw new IllegalArgumentException(message);
         }
     }
 

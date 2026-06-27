@@ -27,6 +27,34 @@ export function fetchHouses() {
   return request<PageResult<Record<string, unknown>>>({ url: '/app/houses', method: 'GET' })
 }
 
+export function fetchBindProjects() {
+  return request<PageResult<Record<string, unknown>>>({ url: '/app/bind-options/projects', method: 'GET' })
+}
+
+export function fetchBindBuildings(projectId: string | number) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/bind-options/buildings',
+    method: 'GET',
+    data: { projectId },
+  })
+}
+
+export function fetchBindUnits(projectId: string | number, buildingId: string | number) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/bind-options/units',
+    method: 'GET',
+    data: { projectId, buildingId },
+  })
+}
+
+export function fetchBindHouses(projectId: string | number, buildingId: string | number, unitId: string | number) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/bind-options/houses',
+    method: 'GET',
+    data: { projectId, buildingId, unitId },
+  })
+}
+
 export function applyHouseBinding(data: Record<string, unknown>) {
   return request<Record<string, unknown>>({
     url: '/app/house-bindings',

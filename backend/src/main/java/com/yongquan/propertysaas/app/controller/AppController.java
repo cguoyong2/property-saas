@@ -37,6 +37,33 @@ public class AppController {
         return ApiResponse.success(service.houses());
     }
 
+    @GetMapping("/api/app/bind-options/projects")
+    @RequiresPermission("app:house:list")
+    public ApiResponse<PageResult<Map<String, Object>>> bindProjects() {
+        return ApiResponse.success(service.bindProjects());
+    }
+
+    @GetMapping("/api/app/bind-options/buildings")
+    @RequiresPermission("app:house:list")
+    public ApiResponse<PageResult<Map<String, Object>>> bindBuildings(@RequestParam Long projectId) {
+        return ApiResponse.success(service.bindBuildings(projectId));
+    }
+
+    @GetMapping("/api/app/bind-options/units")
+    @RequiresPermission("app:house:list")
+    public ApiResponse<PageResult<Map<String, Object>>> bindUnits(@RequestParam Long projectId,
+                                                                  @RequestParam Long buildingId) {
+        return ApiResponse.success(service.bindUnits(projectId, buildingId));
+    }
+
+    @GetMapping("/api/app/bind-options/houses")
+    @RequiresPermission("app:house:list")
+    public ApiResponse<PageResult<Map<String, Object>>> bindHouses(@RequestParam Long projectId,
+                                                                   @RequestParam Long buildingId,
+                                                                   @RequestParam Long unitId) {
+        return ApiResponse.success(service.bindHouses(projectId, buildingId, unitId));
+    }
+
     @GetMapping("/api/app/bills")
     @RequiresPermission("app:bill:list")
     public ApiResponse<PageResult<Map<String, Object>>> bills(@RequestParam Long houseId,

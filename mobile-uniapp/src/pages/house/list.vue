@@ -10,10 +10,10 @@
 
     <view v-for="item in houses" :key="String(item.bindId)" class="card" :class="{ current: Number(item.houseId) === Number(member.currentHouseId) }">
       <view class="card-head">
-        <text class="title">{{ item.projectName }} {{ item.houseNo }}</text>
-        <text class="badge" :class="String(item.status).toLowerCase()">{{ item.status }}</text>
+        <text class="title">{{ item.projectName }} {{ roomText(item) }}</text>
+        <text class="badge" :class="String(item.status).toLowerCase()">{{ statusText(item.status) }}</text>
       </view>
-      <text class="meta">角色：{{ item.bindRole || '-' }}</text>
+      <text class="meta">身份：{{ roleText(item.bindRole) }} ｜ 申请时间：{{ formatTime(item.createdAt) }}</text>
       <text v-if="Number(item.houseId) === Number(member.currentHouseId)" class="current-text">当前使用中</text>
       <view v-if="item.status === 'APPROVED'" class="actions">
         <button @click="selectHouse(item)">设为当前房屋</button>
@@ -37,6 +37,18 @@ import { useMemberStore } from '@/store/member'
 
 const member = useMemberStore()
 const houses = ref<Record<string, unknown>[]>([])
+const statusLabels: Record<string, string> = {
+  PENDING: '待审核',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  UNBOUND: '已解绑',
+}
+const roleLabels: Record<string, string> = {
+  OWNER: '业主',
+  FAMILY: '家属',
+  TENANT: '租户',
+  RESIDENT: '住户',
+}
 
 onShow(load)
 
@@ -50,7 +62,7 @@ function selectHouse(item: Record<string, unknown>) {
     tenantId: Number(member.currentTenantId),
     projectId: Number(item.projectId),
     houseId: Number(item.houseId),
-    houseNo: String(item.houseNo ?? ''),
+    houseNo: roomText(item),
     bindRole: String(item.bindRole ?? ''),
   })
   uni.showToast({ title: '已切换' })
@@ -78,6 +90,22 @@ function unbind(item: Record<string, unknown>) {
       }
     },
   })
+}
+
+function roomText(item: Record<string, unknown>) {
+  return String(item.roomNo || `${item.buildingName || ''}${item.unitName || ''}${item.houseNo || ''}` || '-')
+}
+
+function statusText(value: unknown) {
+  return statusLabels[String(value)] ?? String(value || '-')
+}
+
+function roleText(value: unknown) {
+  return roleLabels[String(value)] ?? String(value || '-')
+}
+
+function formatTime(value: unknown) {
+  return String(value || '').replace('T', ' ').slice(0, 16) || '-'
 }
 </script>
 
