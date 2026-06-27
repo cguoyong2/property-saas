@@ -25,6 +25,7 @@ const pages = {
   '/pages/workorder/detail': defineAsyncComponent(() => import('@/pages/workorder/detail.vue')),
   '/pages/workorder/complaint': defineAsyncComponent(() => import('@/pages/workorder/complaint.vue')),
   '/pages/notice/list': defineAsyncComponent(() => import('@/pages/notice/list.vue')),
+  '/pages/notice/detail': defineAsyncComponent(() => import('@/pages/notice/detail.vue')),
   '/pages/visitor/create': defineAsyncComponent(() => import('@/pages/visitor/create.vue')),
   '/pages/vehicle/list': defineAsyncComponent(() => import('@/pages/vehicle/list.vue')),
   '/pages/lease/contracts': defineAsyncComponent(() => import('@/pages/lease/contracts.vue')),

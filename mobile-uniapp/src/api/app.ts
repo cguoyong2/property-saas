@@ -155,6 +155,44 @@ export function fetchNotices(params: Record<string, unknown>) {
   })
 }
 
+export function fetchAppMessages(params: Record<string, unknown>) {
+  return request<PageResult<Record<string, unknown>>>({
+    url: '/app/messages',
+    method: 'GET',
+    data: params,
+  })
+}
+
+export function fetchAppMessageDetail(messageId: string | number) {
+  return request<Record<string, unknown>>({
+    url: `/app/messages/${messageId}`,
+    method: 'GET',
+  })
+}
+
+export function markAppMessageRead(messageId: string | number) {
+  return request<void>({
+    url: `/app/messages/${messageId}/read`,
+    method: 'PUT',
+  })
+}
+
+export function markAllAppMessagesRead(params: Record<string, unknown>) {
+  return request<Record<string, unknown>>({
+    url: '/app/messages/read-all',
+    method: 'PUT',
+    data: params,
+  })
+}
+
+export function fetchAppUnreadSummary(params: Record<string, unknown>) {
+  return request<Record<string, unknown>>({
+    url: '/app/messages/unread-summary',
+    method: 'GET',
+    data: params,
+  })
+}
+
 export function fetchPublicNotices(params: Record<string, unknown>) {
   return request<PageResult<Record<string, unknown>>>({
     url: '/public/notices',

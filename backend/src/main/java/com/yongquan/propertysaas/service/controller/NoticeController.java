@@ -141,6 +141,40 @@ public class NoticeController {
         return ApiResponse.success(service.pageAppNotices(projectId, memberId, pageNo, pageSize));
     }
 
+    @GetMapping("/api/app/messages")
+    @RequiresPermission("app:notice:list")
+    public ApiResponse<PageResult<MessageRecordView>> pageAppMessages(@RequestParam(required = false) Long projectId,
+                                                                      @RequestParam(required = false) String readStatus,
+                                                                      @RequestParam(defaultValue = "1") long pageNo,
+                                                                      @RequestParam(defaultValue = "20") long pageSize) {
+        return ApiResponse.success(service.pageAppMessages(projectId, readStatus, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/app/messages/unread-summary")
+    @RequiresPermission("app:notice:list")
+    public ApiResponse<Map<String, Long>> appUnreadSummary(@RequestParam(required = false) Long projectId) {
+        return ApiResponse.success(service.appUnreadSummary(projectId));
+    }
+
+    @GetMapping("/api/app/messages/{messageId}")
+    @RequiresPermission("app:notice:list")
+    public ApiResponse<MessageRecordView> getAppMessage(@PathVariable Long messageId) {
+        return ApiResponse.success(service.getAppMessage(messageId));
+    }
+
+    @PutMapping("/api/app/messages/{messageId}/read")
+    @RequiresPermission("app:notice:list")
+    public ApiResponse<Void> readAppMessage(@PathVariable Long messageId) {
+        service.readAppMessage(messageId);
+        return ApiResponse.success();
+    }
+
+    @PutMapping("/api/app/messages/read-all")
+    @RequiresPermission("app:notice:list")
+    public ApiResponse<Map<String, Integer>> readAllAppMessages(@RequestParam(required = false) Long projectId) {
+        return ApiResponse.success(service.readAllAppMessages(projectId));
+    }
+
     @GetMapping("/api/public/notices")
     public ApiResponse<PageResult<NoticeView>> pagePublicNotices(@RequestParam Long tenantId,
                                                                  @RequestParam(required = false) Long projectId,

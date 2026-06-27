@@ -103,6 +103,12 @@
       }
     },
     {
+      "path": "pages/notice/detail",
+      "style": {
+        "navigationBarTitleText": "消息详情"
+      }
+    },
+    {
       "path": "pages/visitor/create",
       "style": {
         "navigationBarTitleText": "访客邀请"

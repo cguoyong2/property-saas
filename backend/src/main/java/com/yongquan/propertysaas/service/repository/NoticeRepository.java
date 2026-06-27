@@ -225,7 +225,8 @@ public class NoticeRepository {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
-                       channel, template_code, title, content, send_status, fail_reason, sent_at, created_at
+                       channel, template_code, title, content, send_status, read_status, read_at,
+                       fail_reason, sent_at, created_at
                 FROM message_record
                 WHERE tenant_id = ?
                 """);
@@ -327,10 +328,81 @@ public class NoticeRepository {
     public MessageRecordView getMessage(Long tenantId, Long messageId) {
         return jdbcTemplate.queryForObject("""
                 SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
-                       channel, template_code, title, content, send_status, fail_reason, sent_at, created_at
+                       channel, template_code, title, content, send_status, read_status, read_at,
+                       fail_reason, sent_at, created_at
                 FROM message_record
                 WHERE tenant_id = ? AND message_id = ?
                 """, this::mapMessage, tenantId, messageId);
+    }
+
+    public List<MessageRecordView> findAppMessages(Long tenantId, Long memberId, Long projectId,
+                                                   String readStatus, long offset, long pageSize) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
+                       channel, template_code, title, content, send_status, read_status, read_at,
+                       fail_reason, sent_at, created_at
+                FROM message_record
+                WHERE tenant_id = ? AND receiver_type = 'MEMBER' AND receiver_id = ? AND channel = 'SITE'
+                """);
+        args.add(tenantId);
+        args.add(memberId);
+        appendAppMessageFilters(sql, args, projectId, readStatus);
+        sql.append(" ORDER BY created_at DESC, message_id DESC LIMIT ? OFFSET ?");
+        args.add(pageSize);
+        args.add(offset);
+        return jdbcTemplate.query(sql.toString(), this::mapMessage, args.toArray());
+    }
+
+    public long countAppMessages(Long tenantId, Long memberId, Long projectId, String readStatus) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM message_record
+                WHERE tenant_id = ? AND receiver_type = 'MEMBER' AND receiver_id = ? AND channel = 'SITE'
+                """);
+        args.add(tenantId);
+        args.add(memberId);
+        appendAppMessageFilters(sql, args, projectId, readStatus);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return value(count);
+    }
+
+    public MessageRecordView getAppMessage(Long tenantId, Long memberId, Long messageId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
+                       channel, template_code, title, content, send_status, read_status, read_at,
+                       fail_reason, sent_at, created_at
+                FROM message_record
+                WHERE tenant_id = ? AND receiver_type = 'MEMBER' AND receiver_id = ? AND channel = 'SITE'
+                  AND message_id = ?
+                """, this::mapMessage, tenantId, memberId, messageId);
+    }
+
+    public int markAppMessageRead(Long tenantId, Long memberId, Long messageId) {
+        return jdbcTemplate.update("""
+                UPDATE message_record
+                SET read_status = 'READ', read_at = COALESCE(read_at, NOW())
+                WHERE tenant_id = ? AND receiver_type = 'MEMBER' AND receiver_id = ? AND channel = 'SITE'
+                  AND message_id = ? AND read_status = 'UNREAD'
+                """, tenantId, memberId, messageId);
+    }
+
+    public int markAllAppMessagesRead(Long tenantId, Long memberId, Long projectId) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                UPDATE message_record
+                SET read_status = 'READ', read_at = COALESCE(read_at, NOW())
+                WHERE tenant_id = ? AND receiver_type = 'MEMBER' AND receiver_id = ? AND channel = 'SITE'
+                  AND read_status = 'UNREAD'
+                """);
+        args.add(tenantId);
+        args.add(memberId);
+        if (projectId != null) {
+            sql.append(" AND (project_id IS NULL OR project_id = ?)");
+            args.add(projectId);
+        }
+        return jdbcTemplate.update(sql.toString(), args.toArray());
     }
 
     public List<MessageRecordView> findDispatchCandidates(Long tenantId, List<Long> allowedProjectIds,
@@ -338,7 +410,8 @@ public class NoticeRepository {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT message_id, tenant_id, project_id, receiver_type, receiver_id, receiver_mobile,
-                       channel, template_code, title, content, send_status, fail_reason, sent_at, created_at
+                       channel, template_code, title, content, send_status, read_status, read_at,
+                       fail_reason, sent_at, created_at
                 FROM message_record
                 WHERE tenant_id = ? AND send_status = ?
                 """);
@@ -517,6 +590,17 @@ public class NoticeRepository {
         args.addAll(allowedProjectIds);
     }
 
+    private void appendAppMessageFilters(StringBuilder sql, List<Object> args, Long projectId, String readStatus) {
+        if (projectId != null) {
+            sql.append(" AND (project_id IS NULL OR project_id = ?)");
+            args.add(projectId);
+        }
+        if (readStatus != null && !readStatus.isBlank()) {
+            sql.append(" AND read_status = ?");
+            args.add(readStatus);
+        }
+    }
+
     private void appendIn(StringBuilder sql, List<Object> args, String column, List<Long> values) {
         sql.append(" AND ").append(column).append(" IN (");
         sql.append("?,".repeat(values.size()));
@@ -542,7 +626,8 @@ public class NoticeRepository {
                 (Long) rs.getObject("project_id"), rs.getString("receiver_type"), (Long) rs.getObject("receiver_id"),
                 rs.getString("receiver_mobile"), rs.getString("channel"), rs.getString("template_code"),
                 rs.getString("title"), rs.getString("content"), rs.getString("send_status"),
-                rs.getString("fail_reason"), localDateTime(rs, "sent_at"), rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getString("read_status"), localDateTime(rs, "read_at"), rs.getString("fail_reason"),
+                localDateTime(rs, "sent_at"), rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     private MessageTemplateView mapTemplate(ResultSet rs, int rowNum) throws SQLException {

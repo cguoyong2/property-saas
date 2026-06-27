@@ -5,7 +5,7 @@
         <text class="page-title">消息</text>
         <text class="page-sub">{{ member.token ? '房屋通知与公共公告' : '公共公告' }}</text>
       </view>
-      <text class="pill">{{ records.length }} 条</text>
+      <text class="pill">{{ member.token ? `${unreadCount} 条未读` : `${records.length} 条` }}</text>
     </view>
 
     <view class="hero">
@@ -16,16 +16,29 @@
     <view class="section">
       <view class="section-head">
         <text>{{ member.token ? '最新消息' : '公开公告' }}</text>
-        <text>{{ member.currentHouseNo || (member.token ? '本人消息' : '全部') }}</text>
+        <button v-if="member.token && unreadCount" class="read-all" @click="readAll">全部已读</button>
+        <text v-else>{{ member.currentHouseNo || (member.token ? '本人消息' : '全部') }}</text>
       </view>
       <view v-if="records.length" class="message-list">
-        <view v-for="item in records" :key="String(item.noticeId)" class="message-card">
+        <view
+          v-for="item in records"
+          :key="messageKey(item)"
+          :class="['message-card', item.readStatus === 'UNREAD' ? 'unread' : '']"
+          @click="openDetail(item)"
+        >
           <view class="message-head">
-            <text class="badge">{{ item.noticeType || '公告' }}</text>
-            <text class="date">{{ item.publishedAt || item.createdAt }}</text>
+            <view class="badge-wrap">
+              <text class="badge">{{ typeText(item.noticeType || item.templateCode) }}</text>
+              <text v-if="item.readStatus === 'UNREAD'" class="unread-dot">未读</text>
+            </view>
+            <text class="date">{{ formatTime(item.publishedAt || item.createdAt) }}</text>
           </view>
           <text class="title">{{ item.title }}</text>
           <text class="content">{{ item.content }}</text>
+          <view v-if="item.templateCode" class="message-foot">
+            <text>{{ templateText(item.templateCode) }}</text>
+            <text>查看详情</text>
+          </view>
         </view>
       </view>
       <view v-else class="empty">
@@ -42,24 +55,29 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/AppTabBar.vue'
-import { fetchNotices, fetchPublicNotices } from '@/api/app'
+import { fetchAppMessages, fetchAppUnreadSummary, fetchPublicNotices, markAllAppMessagesRead } from '@/api/app'
 import { useMemberStore } from '@/store/member'
 
 const member = useMemberStore()
 const records = ref<Record<string, unknown>[]>([])
+const unreadCount = ref(0)
 
-onShow(async () => {
+async function load() {
   try {
     if (member.token) {
       const params: Record<string, unknown> = {
-        memberId: member.memberId,
         pageNo: 1,
         pageSize: 50,
       }
       if (member.currentProjectId) {
         params.projectId = member.currentProjectId
       }
-      records.value = (await fetchNotices(params)).records
+      const [messages, summary] = await Promise.all([
+        fetchAppMessages(params),
+        fetchAppUnreadSummary(member.currentProjectId ? { projectId: member.currentProjectId } : {}),
+      ])
+      records.value = messages.records
+      unreadCount.value = Number(summary.unreadCount || 0)
       return
     }
     records.value = (await fetchPublicNotices({
@@ -67,10 +85,62 @@ onShow(async () => {
       pageNo: 1,
       pageSize: 50,
     })).records
+    unreadCount.value = 0
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '公告加载失败', icon: 'none' })
   }
-})
+}
+
+onShow(load)
+
+async function readAll() {
+  try {
+    await markAllAppMessagesRead(member.currentProjectId ? { projectId: member.currentProjectId } : {})
+    uni.showToast({ title: '已全部标记为已读', icon: 'success' })
+    await load()
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '操作失败', icon: 'none' })
+  }
+}
+
+function openDetail(item: Record<string, unknown>) {
+  uni.setStorageSync('current_message_detail', JSON.stringify(item))
+  if (item.messageId) {
+    uni.navigateTo({ url: `/pages/notice/detail?messageId=${item.messageId}` })
+    return
+  }
+  uni.navigateTo({ url: `/pages/notice/detail?noticeId=${item.noticeId || ''}` })
+}
+
+function messageKey(item: Record<string, unknown>) {
+  return String(item.messageId || item.noticeId || item.createdAt || item.title)
+}
+
+function formatTime(value: unknown) {
+  if (!value) return ''
+  return String(value).replace('T', ' ').slice(0, 16)
+}
+
+function typeText(value: unknown) {
+  const map: Record<string, string> = {
+    PROPERTY: '公告',
+    SYSTEM: '系统',
+    PAYMENT: '缴费',
+    WORKORDER: '工单',
+    EMERGENCY: '紧急',
+    HOUSE_BINDING_AUDIT: '审核',
+  }
+  return map[String(value || '').toUpperCase()] || '消息'
+}
+
+function templateText(value: unknown) {
+  const map: Record<string, string> = {
+    HOUSE_BINDING_AUDIT: '房屋绑定审核结果',
+    BILL_DUE: '账单提醒',
+    WORKORDER_DISPATCH: '工单进度',
+  }
+  return map[String(value || '').toUpperCase()] || '站内通知'
+}
 </script>
 
 <style scoped>
@@ -142,6 +212,7 @@ onShow(async () => {
 
 .section-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   margin: 0 2px 9px;
 }
@@ -156,6 +227,20 @@ onShow(async () => {
   color: #65758a;
   font-size: 11.5px;
   font-weight: 800;
+}
+
+.read-all {
+  margin: 0;
+  padding: 0;
+  color: #0f766e;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.read-all::after {
+  display: none;
 }
 
 .message-list {
@@ -173,6 +258,12 @@ onShow(async () => {
 
 .message-card {
   padding: 14px;
+  position: relative;
+}
+
+.message-card.unread {
+  border-color: #9bded4;
+  box-shadow: 0 9px 22px rgba(15, 118, 110, .12);
 }
 
 .message-head {
@@ -183,12 +274,27 @@ onShow(async () => {
   margin-bottom: 8px;
 }
 
+.badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .badge {
   padding: 4px 8px;
   color: #0b5f59;
   background: #dff5ef;
   border-radius: 499.5px;
   font-size: 10.5px;
+  font-weight: 900;
+}
+
+.unread-dot {
+  padding: 3px 7px;
+  color: #fff;
+  background: #ef4444;
+  border-radius: 499.5px;
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -210,6 +316,28 @@ onShow(async () => {
   color: #65758a;
   font-size: 12px;
   line-height: 1.58;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.message-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid #e6efed;
+}
+
+.message-foot text {
+  color: #718096;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.message-foot text:last-child {
+  color: #0f766e;
 }
 
 .empty {

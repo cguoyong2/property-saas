@@ -40,6 +40,14 @@
       <text class="arrow">›</text>
     </button>
 
+    <button v-if="member.token && unreadCount" class="audit-card message-card" @click="go('/pages/notice/list')">
+      <view>
+        <text class="audit-title">{{ unreadCount }} 条未读消息</text>
+        <text class="audit-copy">包含审核结果、缴费提醒、工单进度和物业通知。</text>
+      </view>
+      <text class="arrow">›</text>
+    </button>
+
     <view class="section">
       <view class="section-head">
         <text>我的关系</text>
@@ -82,12 +90,13 @@
 import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/AppTabBar.vue'
-import { fetchHouses, fetchMine } from '@/api/app'
+import { fetchAppUnreadSummary, fetchHouses, fetchMine } from '@/api/app'
 import { useMemberStore } from '@/store/member'
 
 const member = useMemberStore()
 const mine = reactive<Record<string, unknown>>({})
 const bindings = ref<Record<string, unknown>[]>([])
+const unreadCount = ref(0)
 const avatarText = computed(() => String(mine.realName || member.realName || '访').slice(0, 1))
 const approvedCount = computed(() => bindings.value.filter((item) => item.status === 'APPROVED').length)
 const pendingCount = computed(() => bindings.value.filter((item) => item.status === 'PENDING').length)
@@ -117,6 +126,7 @@ onShow(async () => {
   if (!member.token) {
     Object.keys(mine).forEach((key) => delete mine[key])
     bindings.value = []
+    unreadCount.value = 0
     return
   }
   try {
@@ -128,6 +138,12 @@ onShow(async () => {
     bindings.value = (await fetchHouses()).records
   } catch (error) {
     bindings.value = []
+  }
+  try {
+    const summary = await fetchAppUnreadSummary(member.currentProjectId ? { projectId: member.currentProjectId } : {})
+    unreadCount.value = Number(summary.unreadCount || 0)
+  } catch (error) {
+    unreadCount.value = 0
   }
 })
 

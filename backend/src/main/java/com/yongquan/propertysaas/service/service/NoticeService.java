@@ -28,6 +28,7 @@ public class NoticeService {
     private static final Set<String> NOTICE_STATUSES = Set.of("DRAFT", "PUBLISHED", "WITHDRAWN");
     private static final Set<String> CHANNELS = Set.of("SITE", "SMS", "WECHAT");
     private static final Set<String> MESSAGE_STATUSES = Set.of("PENDING", "SENT", "FAILED");
+    private static final Set<String> READ_STATUSES = Set.of("UNREAD", "READ");
     private static final Set<String> TEMPLATE_STATUSES = Set.of("ACTIVE", "DISABLED");
 
     private final NoticeRepository repository;
@@ -211,6 +212,53 @@ public class NoticeService {
                 pageSize);
     }
 
+    public PageResult<MessageRecordView> pageAppMessages(Long projectId, String readStatus, long pageNo, long pageSize) {
+        validatePage(pageNo, pageSize);
+        validateReadStatus(readStatus);
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        String status = normalizeNullable(readStatus);
+        return new PageResult<>(
+                repository.findAppMessages(tenantId(), userId(), projectId, status, offset(pageNo, pageSize), pageSize),
+                repository.countAppMessages(tenantId(), userId(), projectId, status),
+                pageNo,
+                pageSize);
+    }
+
+    public MessageRecordView getAppMessage(Long messageId) {
+        MessageRecordView message = repository.getAppMessage(tenantId(), userId(), messageId);
+        if (message.projectId() != null) {
+            ensureProjectAllowed(message.projectId());
+        }
+        return message;
+    }
+
+    @Transactional
+    public void readAppMessage(Long messageId) {
+        MessageRecordView message = getAppMessage(messageId);
+        if (!"READ".equals(message.readStatus())) {
+            repository.markAppMessageRead(tenantId(), userId(), messageId);
+        }
+    }
+
+    @Transactional
+    public Map<String, Integer> readAllAppMessages(Long projectId) {
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        int affected = repository.markAllAppMessagesRead(tenantId(), userId(), projectId);
+        return Map.of("affected", affected);
+    }
+
+    public Map<String, Long> appUnreadSummary(Long projectId) {
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
+        long unread = repository.countAppMessages(tenantId(), userId(), projectId, "UNREAD");
+        return Map.of("unreadCount", unread);
+    }
+
     public PageResult<NoticeView> pagePublicNotices(Long tenantId, Long projectId, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (!repository.tenantExists(tenantId)) {
@@ -352,6 +400,12 @@ public class NoticeService {
     private void validateMessageStatus(String status) {
         if (status != null && !status.isBlank() && !MESSAGE_STATUSES.contains(status)) {
             throw new IllegalArgumentException("非法消息状态：" + status);
+        }
+    }
+
+    private void validateReadStatus(String status) {
+        if (status != null && !status.isBlank() && !READ_STATUSES.contains(status.toUpperCase())) {
+            throw new IllegalArgumentException("非法已读状态：" + status);
         }
     }
 

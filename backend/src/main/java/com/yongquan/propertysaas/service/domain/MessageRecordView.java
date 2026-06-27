@@ -14,6 +14,8 @@ public record MessageRecordView(
         String title,
         String content,
         String sendStatus,
+        String readStatus,
+        LocalDateTime readAt,
         String failReason,
         LocalDateTime sentAt,
         LocalDateTime createdAt
