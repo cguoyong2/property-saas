@@ -79,10 +79,11 @@ public class MemberController {
     @RequiresPermission("base:memberBinding:list")
     public ApiResponse<PageResult<MemberHouseBindingView>> pageBindings(@RequestParam(required = false) Long projectId,
                                                                         @RequestParam(required = false) Long memberId,
+                                                                        @RequestParam(required = false) String realName,
                                                                         @RequestParam(required = false) String status,
                                                                         @RequestParam(defaultValue = "1") long pageNo,
                                                                         @RequestParam(defaultValue = "20") long pageSize) {
-        return ApiResponse.success(service.pageBindings(projectId, memberId, status, pageNo, pageSize));
+        return ApiResponse.success(service.pageBindings(projectId, memberId, realName, status, pageNo, pageSize));
     }
 
     @PutMapping("/api/base/member-bindings/{bindId}/audit")

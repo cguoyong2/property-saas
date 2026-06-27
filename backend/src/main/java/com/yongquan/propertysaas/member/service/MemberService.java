@@ -108,7 +108,7 @@ public class MemberService {
         validateMember(request, null);
         Long memberId = newId();
         repository.insertBackofficeMember(tenantId, memberId, request, normalizedOpenid(tenantId, memberId, request.openid()));
-        repository.replaceApprovedBinding(tenantId, memberId, newId(), userId(), request);
+        repository.insertBackofficeBindingForAudit(tenantId, memberId, newId(), userId(), request);
         return memberId;
     }
 
@@ -120,10 +120,13 @@ public class MemberService {
             throw new IllegalArgumentException("业主/住户不存在：" + memberId);
         }
         repository.updateBackofficeMember(tenantId, memberId, request, blankToNull(request.openid()));
-        repository.replaceApprovedBinding(tenantId, memberId, newId(), userId(), request);
+        if (!repository.approvedBindingExists(tenantId, memberId, request.houseId())
+                && !repository.pendingBindingExists(tenantId, memberId, request.houseId())) {
+            repository.insertBackofficeBindingForAudit(tenantId, memberId, newId(), userId(), request);
+        }
     }
 
-    public PageResult<MemberHouseBindingView> pageBindings(Long projectId, Long memberId, String status,
+    public PageResult<MemberHouseBindingView> pageBindings(Long projectId, Long memberId, String realName, String status,
                                                            long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
         if (projectId != null) {
@@ -132,8 +135,8 @@ public class MemberService {
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         return new PageResult<>(
-                repository.findBindings(tenantId, scope, projectId, memberId, status, offset(pageNo, pageSize), pageSize),
-                repository.countBindings(tenantId, scope, projectId, memberId, status),
+                repository.findBindings(tenantId, scope, projectId, memberId, realName, status, offset(pageNo, pageSize), pageSize),
+                repository.countBindings(tenantId, scope, projectId, memberId, realName, status),
                 pageNo,
                 pageSize);
     }

@@ -142,6 +142,23 @@ public class MemberRepository {
                 userId);
     }
 
+    public void insertBackofficeBindingForAudit(Long tenantId, Long memberId, Long bindId, Long userId, MemberRequest request) {
+        jdbcTemplate.update("""
+                        INSERT INTO member_house_bind(bind_id, tenant_id, project_id, member_id, house_id, bind_role,
+                                                      real_name, mobile, status, effective_date, audit_remark, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_DATE, '物业端提交待审核', ?)
+                        """,
+                bindId,
+                tenantId,
+                request.projectId(),
+                memberId,
+                request.houseId(),
+                text(request.bindRole(), "OWNER"),
+                text(request.realName()),
+                text(request.mobile()),
+                userId);
+    }
+
     public List<MemberView> findMembers(Long tenantId, String keyword, Long projectId, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
@@ -180,28 +197,38 @@ public class MemberRepository {
     }
 
     public List<MemberHouseBindingView> findBindings(Long tenantId, List<Long> allowedProjectIds, Long projectId,
-                                                     Long memberId, String status, long offset, long pageSize) {
+                                                     Long memberId, String realName, String status, long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT bind_id, project_id, member_id, house_id, bind_role, real_name, mobile, status,
-                       effective_date, expire_date, audit_user_id, audit_at, audit_remark, created_at
-                FROM member_house_bind
-                WHERE tenant_id = ? AND deleted = 0
+                SELECT b.bind_id, b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id,
+                       u.unit_name, b.member_id, b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role, b.real_name, b.mobile,
+                       CASE WHEN b.created_by = b.member_id THEN '业主端提交' ELSE '物业端提交' END AS apply_source,
+                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       b.audit_remark, b.created_at
+                FROM member_house_bind b
+                LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = b.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE b.tenant_id = ? AND b.deleted = 0
                 """);
         args.add(tenantId);
-        appendBindingFilters(sql, args, projectId, memberId, status);
+        appendBindingFilters(sql, args, projectId, memberId, realName, status);
         appendProjectScope(sql, args, allowedProjectIds);
-        sql.append(" ORDER BY created_at DESC, bind_id DESC LIMIT ? OFFSET ?");
+        sql.append(" ORDER BY b.created_at DESC, b.bind_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapBinding, args.toArray());
     }
 
-    public long countBindings(Long tenantId, List<Long> allowedProjectIds, Long projectId, Long memberId, String status) {
+    public long countBindings(Long tenantId, List<Long> allowedProjectIds, Long projectId, Long memberId,
+                              String realName, String status) {
         List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM member_house_bind WHERE tenant_id = ? AND deleted = 0");
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM member_house_bind b WHERE b.tenant_id = ? AND b.deleted = 0");
         args.add(tenantId);
-        appendBindingFilters(sql, args, projectId, memberId, status);
+        appendBindingFilters(sql, args, projectId, memberId, realName, status);
         appendProjectScope(sql, args, allowedProjectIds);
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
@@ -209,10 +236,19 @@ public class MemberRepository {
 
     public MemberHouseBindingView getBinding(Long tenantId, Long bindId) {
         return jdbcTemplate.queryForObject("""
-                SELECT bind_id, project_id, member_id, house_id, bind_role, real_name, mobile, status,
-                       effective_date, expire_date, audit_user_id, audit_at, audit_remark, created_at
-                FROM member_house_bind
-                WHERE tenant_id = ? AND bind_id = ? AND deleted = 0
+                SELECT b.bind_id, b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id,
+                       u.unit_name, b.member_id, b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role, b.real_name, b.mobile,
+                       CASE WHEN b.created_by = b.member_id THEN '业主端提交' ELSE '物业端提交' END AS apply_source,
+                       b.status, b.effective_date, b.expire_date, b.audit_user_id, b.audit_at,
+                       b.audit_remark, b.created_at
+                FROM member_house_bind b
+                LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = b.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE b.tenant_id = ? AND b.bind_id = ? AND b.deleted = 0
                 """, this::mapBinding, tenantId, bindId);
     }
 
@@ -349,17 +385,24 @@ public class MemberRepository {
         }
     }
 
-    private void appendBindingFilters(StringBuilder sql, List<Object> args, Long projectId, Long memberId, String status) {
+    private void appendBindingFilters(StringBuilder sql, List<Object> args, Long projectId, Long memberId,
+                                      String realName, String status) {
         if (projectId != null) {
-            sql.append(" AND project_id = ?");
+            sql.append(" AND b.project_id = ?");
             args.add(projectId);
         }
         if (memberId != null) {
-            sql.append(" AND member_id = ?");
+            sql.append(" AND b.member_id = ?");
             args.add(memberId);
         }
+        if (realName != null && !realName.isBlank()) {
+            sql.append(" AND (b.real_name LIKE ? OR b.mobile LIKE ?)");
+            String like = "%" + realName.trim() + "%";
+            args.add(like);
+            args.add(like);
+        }
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND b.status = ?");
             args.add(status);
         }
     }
@@ -372,7 +415,7 @@ public class MemberRepository {
             sql.append(" AND 1 = 0");
             return;
         }
-        sql.append(" AND project_id IN (");
+        sql.append(" AND b.project_id IN (");
         sql.append("?,".repeat(allowedProjectIds.size()));
         sql.setLength(sql.length() - 1);
         sql.append(")");
@@ -408,11 +451,19 @@ public class MemberRepository {
         return new MemberHouseBindingView(
                 rs.getLong("bind_id"),
                 rs.getLong("project_id"),
+                rs.getString("project_name"),
+                (Long) rs.getObject("building_id"),
+                rs.getString("building_name"),
+                (Long) rs.getObject("unit_id"),
+                rs.getString("unit_name"),
                 rs.getLong("member_id"),
                 rs.getLong("house_id"),
+                rs.getString("house_no"),
+                rs.getString("room_no"),
                 rs.getString("bind_role"),
                 rs.getString("real_name"),
                 rs.getString("mobile"),
+                rs.getString("apply_source"),
                 rs.getString("status"),
                 rs.getObject("effective_date", java.time.LocalDate.class),
                 rs.getObject("expire_date", java.time.LocalDate.class),
