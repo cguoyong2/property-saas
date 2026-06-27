@@ -134,7 +134,7 @@ public class NoticeController {
 
     @GetMapping("/api/app/notices")
     @RequiresPermission("app:notice:list")
-    public ApiResponse<PageResult<NoticeView>> pageAppNotices(@RequestParam Long projectId,
+    public ApiResponse<PageResult<NoticeView>> pageAppNotices(@RequestParam(required = false) Long projectId,
                                                               @RequestParam(required = false) Long memberId,
                                                               @RequestParam(defaultValue = "1") long pageNo,
                                                               @RequestParam(defaultValue = "20") long pageSize) {

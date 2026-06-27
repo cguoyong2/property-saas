@@ -16,7 +16,7 @@
     <view class="section">
       <view class="section-head">
         <text>{{ member.token ? '最新消息' : '公开公告' }}</text>
-        <text>{{ member.currentHouseNo || '全部' }}</text>
+        <text>{{ member.currentHouseNo || (member.token ? '本人消息' : '全部') }}</text>
       </view>
       <view v-if="records.length" class="message-list">
         <view v-for="item in records" :key="String(item.noticeId)" class="message-card">
@@ -50,13 +50,16 @@ const records = ref<Record<string, unknown>[]>([])
 
 onShow(async () => {
   try {
-    if (member.token && member.currentProjectId) {
-      records.value = (await fetchNotices({
-        projectId: member.currentProjectId,
+    if (member.token) {
+      const params: Record<string, unknown> = {
         memberId: member.memberId,
         pageNo: 1,
         pageSize: 50,
-      })).records
+      }
+      if (member.currentProjectId) {
+        params.projectId = member.currentProjectId
+      }
+      records.value = (await fetchNotices(params)).records
       return
     }
     records.value = (await fetchPublicNotices({

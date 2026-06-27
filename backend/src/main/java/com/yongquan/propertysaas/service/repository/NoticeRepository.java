@@ -94,20 +94,30 @@ public class NoticeRepository {
                   AND m.receiver_type = 'MEMBER'
                   AND m.receiver_id = ?
                 WHERE n.tenant_id = ? AND n.deleted = 0 AND n.publish_status = 'PUBLISHED'
-                  AND (n.target_scope = 'ALL_TENANT' OR n.project_id = ? OR m.message_id IS NOT NULL)
-                ORDER BY n.published_at DESC, n.notice_id DESC
-                LIMIT ? OFFSET ?
+                  AND (n.target_scope = 'ALL_TENANT'
                 """);
         args.add(memberId);
         args.add(tenantId);
-        args.add(projectId);
+        if (projectId != null) {
+            sql.append(" OR n.project_id = ?");
+            args.add(projectId);
+        }
+        if (memberId != null) {
+            sql.append(" OR m.message_id IS NOT NULL");
+        }
+        sql.append("""
+                )
+                ORDER BY n.published_at DESC, n.notice_id DESC
+                LIMIT ? OFFSET ?
+                """);
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapNotice, args.toArray());
     }
 
     public long countAppNotices(Long tenantId, Long projectId, Long memberId) {
-        Long count = jdbcTemplate.queryForObject("""
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(DISTINCT n.notice_id)
                 FROM notice n
                 LEFT JOIN message_record m ON m.tenant_id = n.tenant_id
@@ -117,8 +127,19 @@ public class NoticeRepository {
                   AND m.receiver_type = 'MEMBER'
                   AND m.receiver_id = ?
                 WHERE n.tenant_id = ? AND n.deleted = 0 AND n.publish_status = 'PUBLISHED'
-                  AND (n.target_scope = 'ALL_TENANT' OR n.project_id = ? OR m.message_id IS NOT NULL)
-                """, Long.class, memberId, tenantId, projectId);
+                  AND (n.target_scope = 'ALL_TENANT'
+                """);
+        args.add(memberId);
+        args.add(tenantId);
+        if (projectId != null) {
+            sql.append(" OR n.project_id = ?");
+            args.add(projectId);
+        }
+        if (memberId != null) {
+            sql.append(" OR m.message_id IS NOT NULL");
+        }
+        sql.append(")");
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return value(count);
     }
 

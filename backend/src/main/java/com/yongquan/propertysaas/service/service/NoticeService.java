@@ -201,7 +201,9 @@ public class NoticeService {
 
     public PageResult<NoticeView> pageAppNotices(Long projectId, Long memberId, long pageNo, long pageSize) {
         validatePage(pageNo, pageSize);
-        ensureProjectAllowed(projectId);
+        if (projectId != null) {
+            ensureProjectAllowed(projectId);
+        }
         return new PageResult<>(
                 repository.findAppNotices(tenantId(), projectId, memberId, offset(pageNo, pageSize), pageSize),
                 repository.countAppNotices(tenantId(), projectId, memberId),

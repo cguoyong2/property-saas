@@ -32,6 +32,14 @@
       <button @click="go('/pages/house/bind')">绑定房屋</button>
     </view>
 
+    <button v-if="auditSummary.count" class="audit-card" @click="go('/pages/house/bind')">
+      <view>
+        <text class="audit-title">{{ auditSummary.title }}</text>
+        <text class="audit-copy">{{ auditSummary.copy }}</text>
+      </view>
+      <text class="arrow">›</text>
+    </button>
+
     <view class="section">
       <view class="section-head">
         <text>我的关系</text>
@@ -71,15 +79,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/AppTabBar.vue'
-import { fetchMine } from '@/api/app'
+import { fetchHouses, fetchMine } from '@/api/app'
 import { useMemberStore } from '@/store/member'
 
 const member = useMemberStore()
 const mine = reactive<Record<string, unknown>>({})
+const bindings = ref<Record<string, unknown>[]>([])
 const avatarText = computed(() => String(mine.realName || member.realName || '访').slice(0, 1))
+const auditSummary = computed(() => {
+  const pending = bindings.value.filter((item) => item.status === 'PENDING').length
+  const rejected = bindings.value.filter((item) => item.status === 'REJECTED').length
+  if (rejected > 0) {
+    return { count: rejected, title: `${rejected} 条绑定申请被驳回`, copy: '查看驳回原因，补充资料后重新提交。' }
+  }
+  if (pending > 0) {
+    return { count: pending, title: `${pending} 条房屋绑定待审核`, copy: '物业审核通过后会在消息里通知您。' }
+  }
+  return { count: 0, title: '', copy: '' }
+})
 const menuItems = [
   { title: '我的账单', sub: '待缴费用和缴费记录', url: '/pages/bill/list' },
   { title: '缴费记录', sub: '收款凭证、退款和支付记录', url: '/pages/payment/history' },
@@ -93,12 +113,18 @@ const menuItems = [
 onShow(async () => {
   if (!member.token) {
     Object.keys(mine).forEach((key) => delete mine[key])
+    bindings.value = []
     return
   }
   try {
     Object.assign(mine, await fetchMine())
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '加载失败', icon: 'none' })
+  }
+  try {
+    bindings.value = (await fetchHouses()).records
+  } catch (error) {
+    bindings.value = []
   }
 })
 
@@ -238,6 +264,7 @@ function logout() {
 }
 
 .bind-card,
+.audit-card,
 .wide-card,
 .row-list {
   background: rgba(255, 255, 255, .96);
@@ -274,6 +301,34 @@ function logout() {
   border-radius: 499.5px;
   font-size: 13px;
   font-weight: 900;
+}
+
+.audit-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border-color: #fed7aa;
+  box-shadow: 0 7px 17px rgba(180, 83, 9, .08);
+  text-align: left;
+}
+
+.audit-title {
+  display: block;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.audit-copy {
+  display: block;
+  margin-top: 4px;
+  color: #9a5b00;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .section {

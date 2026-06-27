@@ -11,6 +11,8 @@ import com.yongquan.propertysaas.member.dto.WxLoginRequest;
 import com.yongquan.propertysaas.member.repository.MemberRepository;
 import com.yongquan.propertysaas.security.domain.CurrentUser;
 import com.yongquan.propertysaas.security.service.JwtService;
+import com.yongquan.propertysaas.service.dto.NoticeCreateRequest;
+import com.yongquan.propertysaas.service.service.NoticeService;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +52,13 @@ public class MemberService {
 
     private final MemberRepository repository;
     private final JwtService jwtService;
+    private final NoticeService noticeService;
     private final AtomicLong idSequence = new AtomicLong(System.currentTimeMillis() * 1000);
 
-    public MemberService(MemberRepository repository, JwtService jwtService) {
+    public MemberService(MemberRepository repository, JwtService jwtService, NoticeService noticeService) {
         this.repository = repository;
         this.jwtService = jwtService;
+        this.noticeService = noticeService;
     }
 
     @Transactional
@@ -163,6 +167,7 @@ public class MemberService {
             throw new IllegalArgumentException("仅待审核绑定可审核");
         }
         repository.auditBinding(tenantId, bindId, request.auditResult(), userId(), request.auditRemark());
+        notifyBindingAuditResult(binding, request);
     }
 
     @Transactional
@@ -234,6 +239,44 @@ public class MemberService {
     private String normalizedOpenid(Long tenantId, Long memberId, String openid) {
         String value = blankToNull(openid);
         return value == null ? "BACKOFFICE-" + tenantId + "-" + memberId : value;
+    }
+
+    private void notifyBindingAuditResult(MemberHouseBindingView binding, MemberAuditRequest request) {
+        String approved = "APPROVED".equals(request.auditResult()) ? "通过" : "驳回";
+        String room = blankToNull(binding.roomNo()) == null ? binding.houseNo() : binding.roomNo();
+        String remark = blankToNull(request.auditRemark());
+        String content = "您提交的房屋绑定申请已" + approved + "。"
+                + "\n小区：" + text(binding.projectName())
+                + "\n房屋：" + text(room)
+                + "\n身份：" + bindRoleText(binding.bindRole())
+                + (remark == null ? "" : "\n说明：" + remark);
+        noticeService.createTenantNotice(new NoticeCreateRequest(
+                binding.projectId(),
+                "房屋绑定审核" + approved,
+                content,
+                "SYSTEM",
+                "MEMBER",
+                List.of(binding.memberId()),
+                null,
+                List.of("SITE"),
+                "HOUSE_BINDING_AUDIT",
+                true
+        ));
+    }
+
+    private String bindRoleText(String bindRole) {
+        return switch (bindRole == null ? "" : bindRole) {
+            case "OWNER" -> "业主";
+            case "FAMILY" -> "家属";
+            case "TENANT" -> "租户";
+            case "RESIDENT" -> "住户";
+            default -> text(bindRole);
+        };
+    }
+
+    private String text(String value) {
+        String normalized = blankToNull(value);
+        return normalized == null ? "-" : normalized;
     }
 
     private String blankToNull(String value) {
