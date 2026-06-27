@@ -1010,7 +1010,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       visible: (row) => row?.status !== 'HANDLED',
       fields: [
         { prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true },
-        { prop: 'attachmentFileIds', label: '处理凭证', type: 'fileUpload', moduleCode: 'reconcile', help: '可上传截图、PDF、表格等处理凭证；系统会自动保存附件 ID' },
+        { prop: 'attachmentFileIds', label: '处理凭证', type: 'fileUpload', moduleCode: 'reconcile', help: '高风险异常必须上传处理凭证；系统会自动保存附件 ID' },
       ],
       buildPayload: (_row, formData = {}) => ({
         handleRemark: formData.handleRemark,
@@ -2782,6 +2782,12 @@ async function submitAction() {
       return
     }
   }
+  if (currentAction.value.key === 'reconcile-exception-handle' && isHighRiskReconcileException(currentActionRow.value)) {
+    if (!attachmentIds(actionForm.attachmentFileIds).length) {
+      ElMessage.warning('高风险对账异常必须上传处理凭证后才能标记已处理')
+      return
+    }
+  }
   if (currentAction.value.confirm) {
     await ElMessageBox.confirm(currentAction.value.confirm, currentAction.value.label, {
       type: currentAction.value.type === 'danger' ? 'warning' : 'info',
@@ -2789,6 +2795,11 @@ async function submitAction() {
   }
   await executeAction(currentAction.value, currentActionRow.value, compactPayload(actionForm))
   actionDialogVisible.value = false
+}
+
+function isHighRiskReconcileException(row?: Record<string, unknown> | null) {
+  const level = String(row?.exceptionLevel ?? '').trim().toUpperCase()
+  return level === '高' || level === 'HIGH' || level === 'CRITICAL'
 }
 
 async function executeAction(action: BusinessAction, row?: Record<string, unknown>, formData: Record<string, unknown> = {}) {

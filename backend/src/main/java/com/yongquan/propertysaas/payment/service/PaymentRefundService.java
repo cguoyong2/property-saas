@@ -296,6 +296,9 @@ public class PaymentRefundService {
         ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
         ensureProjectAllowed(exception.projectId());
         String attachmentFileIds = normalize(request.attachmentFileIds());
+        if (isHighRiskReconcileException(exception.exceptionLevel()) && attachmentFileIds == null) {
+            throw new IllegalArgumentException("高风险对账异常必须上传处理凭证后才能标记已处理");
+        }
         repository.upsertReconcileExceptionHandle(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
                 exception.exceptionType(), exception.businessType(), exception.businessId(), userId(),
                 request.handleRemark(), attachmentFileIds);
@@ -307,6 +310,14 @@ public class PaymentRefundService {
                 Map.of("status", "HANDLED", "exceptionKey", exception.exceptionKey(),
                         "attachmentFileIds", request.attachmentFileIds() == null ? "" : request.attachmentFileIds()),
                 request.handleRemark()));
+    }
+
+    private boolean isHighRiskReconcileException(String exceptionLevel) {
+        if (exceptionLevel == null) {
+            return false;
+        }
+        String level = exceptionLevel.trim().toUpperCase();
+        return "高".equals(exceptionLevel.trim()) || "HIGH".equals(level) || "CRITICAL".equals(level);
     }
 
     @Transactional
