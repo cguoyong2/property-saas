@@ -117,7 +117,7 @@ const member = useMemberStore()
 const summary = reactive<Record<string, unknown>>({})
 const bindings = ref<Record<string, unknown>[]>([])
 const latestMessages = ref<Record<string, unknown>[]>([])
-const projectName = computed(() => member.currentHouseNo ? '清江花园' : '智慧物业')
+const projectName = computed(() => member.currentProjectName || '智慧物业')
 const heroCopy = computed(() => {
   if (!member.token) return '先浏览公共公告与服务说明，绑定房屋后开启专属缴费、报修和通知。'
   return `${member.currentHouseNo || '当前未选择房屋'}，欢迎回来。查看待缴、工单和物业通知。`

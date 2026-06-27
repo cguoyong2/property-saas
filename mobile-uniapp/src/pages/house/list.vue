@@ -65,6 +65,7 @@ function selectHouse(item: Record<string, unknown>) {
   member.setCurrentHouse({
     tenantId: Number(member.currentTenantId),
     projectId: Number(item.projectId),
+    projectName: String(item.projectName || ''),
     houseId: Number(item.houseId),
     houseNo: roomText(item),
     bindRole: String(item.bindRole ?? ''),

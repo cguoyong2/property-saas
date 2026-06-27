@@ -106,17 +106,13 @@ public class AppRepository {
     }
 
     public Map<String, Object> getBill(Long tenantId, Long memberId, Long billId) {
-        String sql = billSelectSql() + """
-                WHERE fb.tenant_id = ? AND fb.bill_id = ? AND fb.deleted = 0
-                  AND EXISTS (
-                    SELECT 1 FROM member_house_bind mhb
-                    WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
-                      AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
-                      AND (mhb.bind_role = 'OWNER' OR mhb.allow_bill = 1)
-                      AND mhb.deleted = 0
-                  )
-                """;
-        return jdbcTemplate.queryForMap(sql, tenantId, billId, memberId);
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(billSelectSql());
+        sql.append(" WHERE fb.tenant_id = ? AND fb.bill_id = ? AND fb.deleted = 0");
+        args.add(tenantId);
+        args.add(billId);
+        appendMemberBillAccessFilter(sql, args, memberId, "allow_bill");
+        return jdbcTemplate.queryForMap(sql.toString(), args.toArray());
     }
 
     public long countAccessiblePayableBills(Long tenantId, Long memberId, Long projectId, List<Long> billIds) {
@@ -133,21 +129,12 @@ public class AppRepository {
                 """);
         sql.append("?,".repeat(distinctBillIds.size()));
         sql.setLength(sql.length() - 1);
-        sql.append("""
-                )
-                  AND EXISTS (
-                    SELECT 1 FROM member_house_bind mhb
-                    WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
-                      AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
-                      AND (mhb.bind_role = 'OWNER' OR mhb.allow_payment = 1)
-                      AND mhb.deleted = 0
-                  )
-                """);
+        sql.append(")");
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
         args.add(projectId);
         args.addAll(distinctBillIds);
-        args.add(memberId);
+        appendMemberBillAccessFilter(sql, args, memberId, "allow_payment");
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
         return count == null ? 0 : count;
     }
@@ -276,13 +263,31 @@ public class AppRepository {
                 SELECT
                   (SELECT COUNT(*) FROM member_house_bind WHERE tenant_id = ? AND member_id = ? AND status = 'APPROVED' AND deleted = 0) AS houseCount,
                   (SELECT COUNT(*) FROM fee_bill fb WHERE fb.tenant_id = ? AND fb.deleted = 0 AND fb.status IN ('UNPAID','OVERDUE','PARTIAL_PAID')
-                    AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id AND b.project_id = fb.project_id
-                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED'
-                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0)) AS unpaidBillCount,
+                    AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id
+                      AND b.project_id = fb.project_id AND b.member_id = ? AND b.status = 'APPROVED'
+                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0
+                      AND (fb.house_id = b.house_id
+                        OR (fb.object_type = 'HOUSE' AND fb.object_id = b.house_id)
+                        OR EXISTS (SELECT 1 FROM base_parking_space s WHERE s.tenant_id = fb.tenant_id
+                          AND s.project_id = fb.project_id AND s.space_id = fb.object_id
+                          AND fb.object_type = 'SPACE' AND s.house_id = b.house_id AND s.deleted = 0)
+                        OR EXISTS (SELECT 1 FROM base_vehicle v WHERE v.tenant_id = fb.tenant_id
+                          AND v.project_id = fb.project_id AND v.vehicle_id = fb.object_id
+                          AND fb.object_type = 'VEHICLE' AND v.member_id = b.member_id AND v.deleted = 0)
+                        OR fb.member_id = b.member_id))) AS unpaidBillCount,
                   (SELECT COALESCE(SUM(fb.remaining_amount), 0) FROM fee_bill fb WHERE fb.tenant_id = ? AND fb.deleted = 0 AND fb.status IN ('UNPAID','OVERDUE','PARTIAL_PAID')
-                    AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id AND b.project_id = fb.project_id
-                      AND b.house_id = fb.house_id AND b.member_id = ? AND b.status = 'APPROVED'
-                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0)) AS unpaidAmount,
+                    AND EXISTS (SELECT 1 FROM member_house_bind b WHERE b.tenant_id = fb.tenant_id
+                      AND b.project_id = fb.project_id AND b.member_id = ? AND b.status = 'APPROVED'
+                      AND (b.bind_role = 'OWNER' OR b.allow_bill = 1) AND b.deleted = 0
+                      AND (fb.house_id = b.house_id
+                        OR (fb.object_type = 'HOUSE' AND fb.object_id = b.house_id)
+                        OR EXISTS (SELECT 1 FROM base_parking_space s WHERE s.tenant_id = fb.tenant_id
+                          AND s.project_id = fb.project_id AND s.space_id = fb.object_id
+                          AND fb.object_type = 'SPACE' AND s.house_id = b.house_id AND s.deleted = 0)
+                        OR EXISTS (SELECT 1 FROM base_vehicle v WHERE v.tenant_id = fb.tenant_id
+                          AND v.project_id = fb.project_id AND v.vehicle_id = fb.object_id
+                          AND fb.object_type = 'VEHICLE' AND v.member_id = b.member_id AND v.deleted = 0)
+                        OR fb.member_id = b.member_id))) AS unpaidAmount,
                   (SELECT COUNT(*) FROM work_order WHERE tenant_id = ? AND member_id = ? AND deleted = 0) AS workOrderCount,
                   (SELECT COUNT(*) FROM base_vehicle WHERE tenant_id = ? AND member_id = ? AND deleted = 0) AS vehicleCount
                 """, tenantId, memberId, tenantId, memberId, tenantId, memberId, tenantId, memberId, tenantId, memberId);
@@ -396,17 +401,68 @@ public class AppRepository {
 
     private void appendBillAccessFilter(StringBuilder sql, List<Object> args, Long tenantId, Long memberId, Long houseId) {
         sql.append("""
-                WHERE fb.tenant_id = ? AND fb.house_id = ? AND fb.deleted = 0
+                WHERE fb.tenant_id = ? AND fb.deleted = 0
                   AND EXISTS (
                     SELECT 1 FROM member_house_bind mhb
                     WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
-                      AND mhb.house_id = fb.house_id AND mhb.member_id = ? AND mhb.status = 'APPROVED'
+                      AND mhb.house_id = ? AND mhb.member_id = ? AND mhb.status = 'APPROVED'
                       AND (mhb.bind_role = 'OWNER' OR mhb.allow_bill = 1)
                       AND mhb.deleted = 0
+                      AND (
+                        fb.house_id = mhb.house_id
+                        OR (fb.object_type = 'HOUSE' AND fb.object_id = mhb.house_id)
+                        OR EXISTS (
+                          SELECT 1 FROM base_parking_space s
+                          WHERE s.tenant_id = fb.tenant_id AND s.project_id = fb.project_id
+                            AND s.space_id = fb.object_id AND fb.object_type = 'SPACE'
+                            AND s.house_id = mhb.house_id AND s.deleted = 0
+                        )
+                        OR EXISTS (
+                          SELECT 1 FROM base_vehicle v
+                          WHERE v.tenant_id = fb.tenant_id AND v.project_id = fb.project_id
+                            AND v.vehicle_id = fb.object_id AND fb.object_type = 'VEHICLE'
+                            AND v.member_id = mhb.member_id AND v.deleted = 0
+                        )
+                        OR fb.member_id = mhb.member_id
+                      )
                   )
                 """);
         args.add(tenantId);
         args.add(houseId);
+        args.add(memberId);
+    }
+
+    private void appendMemberBillAccessFilter(StringBuilder sql, List<Object> args, Long memberId, String permissionColumn) {
+        sql.append("""
+                  AND EXISTS (
+                    SELECT 1 FROM member_house_bind mhb
+                    WHERE mhb.tenant_id = fb.tenant_id AND mhb.project_id = fb.project_id
+                      AND mhb.member_id = ? AND mhb.status = 'APPROVED'
+                """);
+        sql.append("                      AND (mhb.bind_role = 'OWNER' OR mhb.")
+                .append(permissionColumn)
+                .append(" = 1)\n");
+        sql.append("""
+                      AND mhb.deleted = 0
+                      AND (
+                        fb.house_id = mhb.house_id
+                        OR (fb.object_type = 'HOUSE' AND fb.object_id = mhb.house_id)
+                        OR EXISTS (
+                          SELECT 1 FROM base_parking_space s
+                          WHERE s.tenant_id = fb.tenant_id AND s.project_id = fb.project_id
+                            AND s.space_id = fb.object_id AND fb.object_type = 'SPACE'
+                            AND s.house_id = mhb.house_id AND s.deleted = 0
+                        )
+                        OR EXISTS (
+                          SELECT 1 FROM base_vehicle v
+                          WHERE v.tenant_id = fb.tenant_id AND v.project_id = fb.project_id
+                            AND v.vehicle_id = fb.object_id AND fb.object_type = 'VEHICLE'
+                            AND v.member_id = mhb.member_id AND v.deleted = 0
+                        )
+                        OR fb.member_id = mhb.member_id
+                      )
+                  )
+                """);
         args.add(memberId);
     }
 

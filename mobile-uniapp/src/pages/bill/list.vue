@@ -156,6 +156,7 @@ function statusText(status: unknown) {
     OVERDUE: '逾期',
     PARTIAL_PAID: '部分缴',
     PAID: '已缴',
+    VOID: '作废',
     VOIDED: '作废',
   }
   return map[value] ?? value

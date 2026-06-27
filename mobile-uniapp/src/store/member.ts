@@ -8,6 +8,7 @@ export const useMemberStore = defineStore('member', {
     realName: uni.getStorageSync('member_real_name') || '',
     currentTenantId: Number(uni.getStorageSync('current_tenant_id')) || undefined,
     currentProjectId: Number(uni.getStorageSync('current_project_id')) || undefined,
+    currentProjectName: uni.getStorageSync('current_project_name') || '',
     currentHouseId: Number(uni.getStorageSync('current_house_id')) || undefined,
     currentHouseNo: uni.getStorageSync('current_house_no') || '',
     currentBindRole: uni.getStorageSync('current_bind_role') || '',
@@ -33,6 +34,7 @@ export const useMemberStore = defineStore('member', {
     setCurrentHouse(context: {
       tenantId: number
       projectId: number
+      projectName?: string
       houseId: number
       houseNo?: string
       bindRole: string
@@ -45,6 +47,7 @@ export const useMemberStore = defineStore('member', {
       const isOwner = context.bindRole === 'OWNER'
       this.currentTenantId = context.tenantId
       this.currentProjectId = context.projectId
+      this.currentProjectName = context.projectName ?? ''
       this.currentHouseId = context.houseId
       this.currentHouseNo = context.houseNo ?? ''
       this.currentBindRole = context.bindRole
@@ -55,6 +58,7 @@ export const useMemberStore = defineStore('member', {
       this.currentAllowVisitor = isOwner || context.allowVisitor !== false
       uni.setStorageSync('current_tenant_id', context.tenantId)
       uni.setStorageSync('current_project_id', context.projectId)
+      uni.setStorageSync('current_project_name', context.projectName ?? '')
       uni.setStorageSync('current_house_id', context.houseId)
       uni.setStorageSync('current_house_no', context.houseNo ?? '')
       uni.setStorageSync('current_bind_role', context.bindRole)
@@ -66,6 +70,7 @@ export const useMemberStore = defineStore('member', {
     },
     clearCurrentHouse() {
       this.currentProjectId = undefined
+      this.currentProjectName = ''
       this.currentHouseId = undefined
       this.currentHouseNo = ''
       this.currentBindRole = ''
@@ -76,6 +81,7 @@ export const useMemberStore = defineStore('member', {
       this.currentAllowVisitor = true
       ;[
         'current_project_id',
+        'current_project_name',
         'current_house_id',
         'current_house_no',
         'current_bind_role',
@@ -95,6 +101,7 @@ export const useMemberStore = defineStore('member', {
       this.realName = ''
       this.currentTenantId = undefined
       this.currentProjectId = undefined
+      this.currentProjectName = ''
       this.currentHouseId = undefined
       this.currentHouseNo = ''
       this.currentBindRole = ''
@@ -110,6 +117,7 @@ export const useMemberStore = defineStore('member', {
         'member_real_name',
         'current_tenant_id',
         'current_project_id',
+        'current_project_name',
         'current_house_id',
         'current_house_no',
         'current_bind_role',
