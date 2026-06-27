@@ -147,6 +147,10 @@ function removePhoto(index: number) {
 }
 
 async function submit() {
+  if (member.currentBindRole !== 'OWNER' && !member.currentAllowWorkOrder) {
+    uni.showToast({ title: '当前房屋未授权提交报修', icon: 'none' })
+    return
+  }
   if (!member.currentProjectId || !member.currentHouseId) {
     uni.showToast({ title: '请先选择房屋', icon: 'none' })
     return

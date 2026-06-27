@@ -106,7 +106,13 @@
           <text class="binding-room">{{ roomText(item) }}</text>
         </view>
         <text class="status" :class="String(item.status).toLowerCase()">{{ statusText(item.status) }}</text>
-        <text class="binding-meta">身份：{{ roleText(String(item.bindRole || '')) }} ｜ 申请：{{ formatTime(item.createdAt) }}</text>
+        <text class="binding-meta">身份：{{ roleText(String(item.bindRole || '')) }} ｜ 来源：{{ item.applySource || '业主端提交' }} ｜ 申请：{{ formatTime(item.createdAt) }}</text>
+        <text v-if="item.status === 'APPROVED'" class="audit-result approved">
+          审核通过后，可在“我的房屋”中设为当前房屋。
+        </text>
+        <text v-if="item.status === 'REJECTED'" class="audit-result rejected">
+          驳回原因：{{ item.auditRemark || '物业未填写原因' }}
+        </text>
       </view>
       <view v-if="!bindings.length" class="empty-card">
         <text>暂无绑定申请</text>
@@ -438,6 +444,21 @@ function formatTime(value: unknown) {
   color: #64748b;
   font-size: 24rpx;
   line-height: 1.45;
+}
+
+.audit-result {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.audit-result.approved {
+  color: #0f766e;
+}
+
+.audit-result.rejected {
+  color: #b91c1c;
 }
 
 .card-title,

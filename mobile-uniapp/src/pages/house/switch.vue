@@ -34,6 +34,11 @@ function selectHouse(item: Record<string, unknown>) {
     houseId: Number(item.houseId),
     houseNo: roomText(item),
     bindRole: String(item.bindRole ?? ''),
+    allowNotice: booleanFlag(item.allowNotice),
+    allowBill: booleanFlag(item.allowBill),
+    allowPayment: booleanFlag(item.allowPayment),
+    allowWorkOrder: booleanFlag(item.allowWorkOrder),
+    allowVisitor: booleanFlag(item.allowVisitor),
   })
   uni.switchTab({ url: '/pages/home/index' })
 }
@@ -48,6 +53,10 @@ function statusText(value: unknown) {
 
 function roleText(value: unknown) {
   return roleLabels[String(value)] ?? String(value || '-')
+}
+
+function booleanFlag(value: unknown) {
+  return value === true || value === 1 || value === '1' || value === 'true'
 }
 </script>
 

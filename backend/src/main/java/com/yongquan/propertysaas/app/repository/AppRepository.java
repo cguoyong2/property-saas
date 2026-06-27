@@ -22,7 +22,17 @@ public class AppRepository {
                        bd.building_name AS buildingName, h.unit_id AS unitId, u.unit_name AS unitName,
                        CONCAT_WS('', bd.building_name, u.unit_name, h.house_no) AS roomNo,
                        h.building_area AS buildingArea, h.house_status AS houseStatus,
-                       b.bind_role AS bindRole, b.status, b.created_at AS createdAt
+                       b.bind_role AS bindRole, b.relationship, b.invite_member_id AS inviteMemberId,
+                       b.allow_notice AS allowNotice, b.allow_bill AS allowBill,
+                       b.allow_payment AS allowPayment, b.allow_work_order AS allowWorkOrder,
+                       b.allow_visitor AS allowVisitor,
+                       CASE WHEN b.invite_member_id IS NOT NULL THEN '业主邀请'
+                            WHEN b.created_by = b.member_id THEN '业主端提交'
+                            ELSE '物业端提交' END AS applySource,
+                       COALESCE(NULLIF(b.status, ''), 'PENDING') AS status,
+                       b.effective_date AS effectiveDate, b.expire_date AS expireDate,
+                       b.audit_at AS auditAt, b.audit_remark AS auditRemark,
+                       b.created_at AS createdAt
                 FROM member_house_bind b
                 JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
                 JOIN base_house h ON h.tenant_id = b.tenant_id AND h.project_id = b.project_id
@@ -30,7 +40,9 @@ public class AppRepository {
                 LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                 LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 WHERE b.tenant_id = ? AND b.member_id = ? AND b.deleted = 0
-                ORDER BY b.status = 'APPROVED' DESC, b.created_at DESC
+                ORDER BY COALESCE(NULLIF(b.status, ''), 'PENDING') = 'APPROVED' DESC,
+                         COALESCE(NULLIF(b.status, ''), 'PENDING') = 'PENDING' DESC,
+                         b.created_at DESC
                 """, tenantId, memberId);
     }
 

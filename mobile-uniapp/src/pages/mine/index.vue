@@ -20,9 +20,9 @@
         </button>
       </view>
       <view class="family-strip">
-        <text>房屋 {{ member.token ? '2' : '-' }}</text>
-        <text>家属 {{ member.token ? '3' : '-' }}</text>
-        <text>车辆 {{ member.token ? '1' : '-' }}</text>
+        <text>已通过 {{ member.token ? approvedCount : '-' }}</text>
+        <text>待审核 {{ member.token ? pendingCount : '-' }}</text>
+        <text>被驳回 {{ member.token ? rejectedCount : '-' }}</text>
       </view>
     </view>
 
@@ -89,9 +89,12 @@ const member = useMemberStore()
 const mine = reactive<Record<string, unknown>>({})
 const bindings = ref<Record<string, unknown>[]>([])
 const avatarText = computed(() => String(mine.realName || member.realName || '访').slice(0, 1))
+const approvedCount = computed(() => bindings.value.filter((item) => item.status === 'APPROVED').length)
+const pendingCount = computed(() => bindings.value.filter((item) => item.status === 'PENDING').length)
+const rejectedCount = computed(() => bindings.value.filter((item) => item.status === 'REJECTED').length)
 const auditSummary = computed(() => {
-  const pending = bindings.value.filter((item) => item.status === 'PENDING').length
-  const rejected = bindings.value.filter((item) => item.status === 'REJECTED').length
+  const pending = pendingCount.value
+  const rejected = rejectedCount.value
   if (rejected > 0) {
     return { count: rejected, title: `${rejected} 条绑定申请被驳回`, copy: '查看驳回原因，补充资料后重新提交。' }
   }
@@ -101,10 +104,10 @@ const auditSummary = computed(() => {
   return { count: 0, title: '', copy: '' }
 })
 const menuItems = [
-  { title: '我的账单', sub: '待缴费用和缴费记录', url: '/pages/bill/list' },
-  { title: '缴费记录', sub: '收款凭证、退款和支付记录', url: '/pages/payment/history' },
-  { title: '预存款', sub: '超收余额和账单抵扣明细', url: '/pages/payment/prepayment' },
-  { title: '我的工单', sub: '报修、投诉、评价记录', url: '/pages/workorder/list' },
+  { title: '我的账单', sub: '待缴费用和缴费记录', url: '/pages/bill/list', permission: 'bill' },
+  { title: '缴费记录', sub: '收款凭证、退款和支付记录', url: '/pages/payment/history', permission: 'bill' },
+  { title: '预存款', sub: '超收余额和账单抵扣明细', url: '/pages/payment/prepayment', permission: 'bill' },
+  { title: '我的工单', sub: '报修、投诉、评价记录', url: '/pages/workorder/list', permission: 'workOrder' },
   { title: '我的车辆', sub: '车牌、车位、月租信息', url: '/pages/vehicle/list' },
   { title: '我的租赁', sub: '合同和到期提醒', url: '/pages/lease/contracts' },
   { title: '联系物业', sub: '客服电话、管家、服务时间', url: '/pages/notice/list' },
@@ -138,7 +141,26 @@ function goPrivate(url: string) {
     uni.navigateTo({ url: '/pages/house/bind' })
     return
   }
+  if (url === '/pages/family/list' && member.currentBindRole !== 'OWNER') {
+    uni.showToast({ title: '仅业主可管理家属/同住人', icon: 'none' })
+    return
+  }
+  const item = menuItems.find((menu) => menu.url === url)
+  if (item?.permission && !featureAllowed(item.permission)) {
+    uni.showToast({ title: '当前房屋未开通该授权，请联系业主或物业', icon: 'none' })
+    return
+  }
   uni.navigateTo({ url })
+}
+
+function featureAllowed(permission: string) {
+  if (member.currentBindRole === 'OWNER') return true
+  if (permission === 'bill') return member.currentAllowBill
+  if (permission === 'payment') return member.currentAllowPayment
+  if (permission === 'workOrder') return member.currentAllowWorkOrder
+  if (permission === 'visitor') return member.currentAllowVisitor
+  if (permission === 'notice') return member.currentAllowNotice
+  return true
 }
 
 function logout() {

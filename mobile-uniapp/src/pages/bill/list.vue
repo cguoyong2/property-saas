@@ -120,6 +120,12 @@ const paidCount = computed(() => summaryBills.value.filter((bill) => String(bill
 onShow(load)
 
 async function load() {
+  if (member.currentBindRole !== 'OWNER' && !member.currentAllowBill) {
+    bills.value = []
+    summaryBills.value = []
+    uni.showToast({ title: '当前房屋未授权查看账单', icon: 'none' })
+    return
+  }
   if (!member.currentHouseId) {
     bills.value = []
     summaryBills.value = []
@@ -169,6 +175,10 @@ function payFirst() {
 }
 
 function pay(bill: Record<string, unknown>) {
+  if (member.currentBindRole !== 'OWNER' && !member.currentAllowPayment) {
+    uni.showToast({ title: '当前房屋未授权缴费', icon: 'none' })
+    return
+  }
   uni.navigateTo({ url: `/pages-sub/payment/cashier?billId=${bill.billId}&amount=${bill.remainingAmount}` })
 }
 

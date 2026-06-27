@@ -54,6 +54,10 @@ const form = reactive({
 })
 
 async function submit() {
+  if (member.currentBindRole !== 'OWNER' && !member.currentAllowVisitor) {
+    uni.showToast({ title: '当前房屋未授权访客通行', icon: 'none' })
+    return
+  }
   if (!member.currentProjectId || !member.memberId) {
     uni.showToast({ title: '请先选择房屋', icon: 'none' })
     return

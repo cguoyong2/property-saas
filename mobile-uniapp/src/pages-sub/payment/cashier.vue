@@ -38,6 +38,10 @@ onLoad((query) => {
 })
 
 async function createOrder() {
+  if (member.currentBindRole !== 'OWNER' && !member.currentAllowPayment) {
+    uni.showToast({ title: '当前房屋未授权缴费', icon: 'none' })
+    return
+  }
   if (!billId.value) {
     uni.showToast({ title: '账单信息缺失', icon: 'none' })
     return

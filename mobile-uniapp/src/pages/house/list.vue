@@ -13,7 +13,11 @@
         <text class="title">{{ item.projectName }} {{ roomText(item) }}</text>
         <text class="badge" :class="String(item.status).toLowerCase()">{{ statusText(item.status) }}</text>
       </view>
-      <text class="meta">身份：{{ roleText(item.bindRole) }} ｜ 申请时间：{{ formatTime(item.createdAt) }}</text>
+      <text class="meta">身份：{{ roleText(item.bindRole) }} ｜ 来源：{{ item.applySource || '-' }} ｜ 申请时间：{{ formatTime(item.createdAt) }}</text>
+      <text v-if="item.status === 'APPROVED' && item.auditAt" class="result approved">审核通过：{{ formatTime(item.auditAt) }}</text>
+      <text v-if="item.status === 'REJECTED'" class="result rejected">
+        驳回原因：{{ item.auditRemark || '物业未填写原因' }}
+      </text>
       <text v-if="Number(item.houseId) === Number(member.currentHouseId)" class="current-text">当前使用中</text>
       <view v-if="item.status === 'APPROVED'" class="actions">
         <button @click="selectHouse(item)">设为当前房屋</button>
@@ -64,6 +68,11 @@ function selectHouse(item: Record<string, unknown>) {
     houseId: Number(item.houseId),
     houseNo: roomText(item),
     bindRole: String(item.bindRole ?? ''),
+    allowNotice: booleanFlag(item.allowNotice),
+    allowBill: booleanFlag(item.allowBill),
+    allowPayment: booleanFlag(item.allowPayment),
+    allowWorkOrder: booleanFlag(item.allowWorkOrder),
+    allowVisitor: booleanFlag(item.allowVisitor),
   })
   uni.showToast({ title: '已切换' })
 }
@@ -107,6 +116,10 @@ function roleText(value: unknown) {
 function formatTime(value: unknown) {
   return String(value || '').replace('T', ' ').slice(0, 16) || '-'
 }
+
+function booleanFlag(value: unknown) {
+  return value === true || value === 1 || value === '1' || value === 'true'
+}
 </script>
 
 <style scoped>
@@ -124,6 +137,9 @@ function formatTime(value: unknown) {
 .badge.pending { background: #fef3c7; color: #92400e; }
 .badge.rejected { background: #fee2e2; color: #991b1b; }
 .meta { display: block; margin: 14rpx 0 8rpx; color: #64748b; font-size: 24rpx; }
+.result { display: block; margin: 8rpx 0; font-size: 24rpx; line-height: 1.5; }
+.result.approved { color: #0f766e; }
+.result.rejected { color: #b91c1c; }
 .current-text { display: block; margin-bottom: 16rpx; color: #0f766e; font-size: 24rpx; font-weight: 800; }
 .actions { display: flex; gap: 16rpx; }
 .actions button { flex: 1; height: 72rpx; border-radius: 36rpx; background: #0f766e; color: #fff; font-size: 26rpx; }

@@ -35,12 +35,21 @@
             <text>{{ relationshipLabel(item.relationship) }}</text>
             <text>{{ item.applySource || '业主邀请' }}</text>
           </view>
+          <text v-if="item.status === 'APPROVED'" class="audit-note approved">
+            授权已生效{{ item.auditAt ? `：${formatTime(item.auditAt)}` : '' }}
+          </text>
+          <text v-if="item.status === 'REJECTED'" class="audit-note rejected">
+            驳回原因：{{ item.auditRemark || '物业未填写原因' }}
+          </text>
+          <text v-if="item.status === 'PENDING'" class="audit-note pending">
+            待物业审核，通过后授权范围才会生效。
+          </text>
           <view class="permission-row">
-            <text :class="{ on: item.allowNotice }">通知</text>
-            <text :class="{ on: item.allowBill }">账单</text>
-            <text :class="{ on: item.allowPayment }">缴费</text>
-            <text :class="{ on: item.allowWorkOrder }">报修</text>
-            <text :class="{ on: item.allowVisitor }">访客</text>
+            <text :class="permissionClass(item, 'allowNotice')">通知</text>
+            <text :class="permissionClass(item, 'allowBill')">账单</text>
+            <text :class="permissionClass(item, 'allowPayment')">缴费</text>
+            <text :class="permissionClass(item, 'allowWorkOrder')">报修</text>
+            <text :class="permissionClass(item, 'allowVisitor')">访客</text>
           </view>
         </view>
       </view>
@@ -262,6 +271,18 @@ function statusClass(value: unknown) {
     rejected: value === 'REJECTED',
   }
 }
+
+function permissionClass(item: Record<string, unknown>, key: PermissionKey) {
+  const enabled = item[key] === true || item[key] === 1 || item[key] === '1' || item[key] === 'true'
+  return {
+    on: item.status === 'APPROVED' && enabled,
+    pending: item.status === 'PENDING' && enabled,
+  }
+}
+
+function formatTime(value: unknown) {
+  return String(value || '').replace('T', ' ').slice(0, 16)
+}
 </script>
 
 <style scoped>
@@ -444,6 +465,25 @@ function statusClass(value: unknown) {
   margin-top: 10px;
 }
 
+.audit-note {
+  display: block;
+  margin-top: 9px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.audit-note.approved {
+  color: #0f766e;
+}
+
+.audit-note.pending {
+  color: #b45309;
+}
+
+.audit-note.rejected {
+  color: #b91c1c;
+}
+
 .member-meta text,
 .permission-row text {
   padding: 5px 8px;
@@ -457,6 +497,11 @@ function statusClass(value: unknown) {
 .permission-row text.on {
   color: #0b5f59;
   background: #e0f2f1;
+}
+
+.permission-row text.pending {
+  color: #b45309;
+  background: #fef3c7;
 }
 
 .empty-card {
