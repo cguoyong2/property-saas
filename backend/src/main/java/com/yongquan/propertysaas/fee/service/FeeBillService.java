@@ -190,10 +190,15 @@ public class FeeBillService {
                 throw new IllegalArgumentException("账单缺少可催缴接收人：" + bill.billNo());
             }
             String receiverType = receiverId == null ? "MOBILE" : "MEMBER";
+            String templateCode = text(request.templateCode(), "BILL_DUE");
             String content = text(request.content(), "您有待缴物业账单：" + bill.billNo() + "，待缴金额 "
                     + bill.remainingAmount() + " 元，请及时缴费。");
+            AppMessageService.RenderedMessage rendered = appMessageService.renderMessage(tenantId, channel, templateCode,
+                    "账单催缴", content, billVariables(bill, Map.of(
+                            "remainingAmount", money(bill.remainingAmount())
+                    )));
             repository.insertMessage(tenantId, bill.projectId(), newId(), receiverType, receiverId, mobile,
-                    channel, request.templateCode(), "账单催缴", content);
+                    channel, templateCode, rendered.title(), rendered.content());
             count++;
         }
         return count;
@@ -568,7 +573,34 @@ public class FeeBillService {
                 + "\n待缴：" + bill.remainingAmount() + " 元"
                 + (request.dueDate() == null ? "" : "\n到期日：" + request.dueDate());
         appMessageService.sendToMember(tenantId, request.projectId(), request.memberId(), "BILL_CREATED",
-                "账单已生成", content);
+                "账单已生成", content, billVariables(bill, Map.of(
+                        "dueDate", request.dueDate() == null ? "" : request.dueDate()
+                )));
+    }
+
+    private Map<String, Object> billVariables(FeeBillView bill, Map<String, ?> extra) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("billNo", bill.billNo());
+        variables.put("billPeriod", bill.billPeriod());
+        variables.put("projectName", bill.projectName());
+        variables.put("itemName", bill.itemName());
+        variables.put("memberName", bill.memberName());
+        variables.put("memberMobile", bill.memberMobile());
+        variables.put("houseNo", bill.houseNo());
+        variables.put("receivableAmount", money(bill.receivableAmount()));
+        variables.put("discountAmount", money(bill.discountAmount()));
+        variables.put("paidAmount", money(bill.paidAmount()));
+        variables.put("refundAmount", money(bill.refundAmount()));
+        variables.put("remainingAmount", money(bill.remainingAmount()));
+        variables.put("prepaymentAppliedAmount", money(bill.prepaymentAppliedAmount()));
+        if (bill.dueDate() != null) {
+            variables.put("dueDate", bill.dueDate());
+        }
+        variables.put("detailSummary", text(bill.detailSummary(), ""));
+        if (extra != null) {
+            variables.putAll(extra);
+        }
+        return variables;
     }
 
     private List<Long> projectScope(Long tenantId) {

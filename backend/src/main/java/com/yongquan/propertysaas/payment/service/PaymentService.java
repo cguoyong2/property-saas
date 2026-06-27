@@ -19,6 +19,7 @@ import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -391,6 +392,10 @@ public class PaymentService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private String text(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value;
+    }
+
     private void notifyPaymentSuccess(PayOrderView order, BigDecimal paidAmount) {
         if (order.memberId() == null) {
             return;
@@ -402,7 +407,14 @@ public class PaymentService {
                 + (order.billSummary() == null || order.billSummary().isBlank()
                 ? "" : "\n账单明细：" + order.billSummary());
         appMessageService.sendToMember(order.tenantId(), order.projectId(), order.memberId(), "PAYMENT_SUCCESS",
-                "缴费成功", content);
+                "缴费成功", content, Map.of(
+                        "orderNo", order.orderNo(),
+                        "memberName", text(order.memberName(), ""),
+                        "houseNo", text(order.houseNo(), ""),
+                        "paidAmount", money(paidAmount),
+                        "payChannel", payChannelText(order.payChannel()),
+                        "billSummary", text(order.billSummary(), "")
+                ));
     }
 
     private String payChannelText(String payChannel) {

@@ -23,6 +23,7 @@ import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,7 +117,9 @@ public class PaymentRefundService {
                         + "\n订单号：" + order.orderNo()
                         + "\n退款单号：" + refundNo
                         + "\n申请金额：" + refundAmount + " 元"
-                        + (request.reason() == null || request.reason().isBlank() ? "" : "\n原因：" + request.reason()));
+                        + (request.reason() == null || request.reason().isBlank() ? "" : "\n原因：" + request.reason()),
+                refundVariables("orderNo", order.orderNo(), "refundNo", refundNo,
+                        "refundAmount", refundAmount, "reason", request.reason()));
         return refundId;
     }
 
@@ -141,7 +144,10 @@ public class PaymentRefundService {
                 "您的退款申请已" + ("APPROVED".equals(request.auditResult()) ? "审核通过，等待退款到账。" : "被驳回。")
                         + "\n退款单号：" + refund.refundNo()
                         + "\n退款金额：" + refund.refundAmount() + " 元"
-                        + (request.auditRemark() == null || request.auditRemark().isBlank() ? "" : "\n说明：" + request.auditRemark()));
+                        + (request.auditRemark() == null || request.auditRemark().isBlank() ? "" : "\n说明：" + request.auditRemark()),
+                refundVariables("refundNo", refund.refundNo(), "refundAmount", refund.refundAmount(),
+                        "auditResult", "APPROVED".equals(request.auditResult()) ? "审核通过" : "审核驳回",
+                        "auditRemark", request.auditRemark()));
     }
 
     @Transactional
@@ -170,7 +176,9 @@ public class PaymentRefundService {
                 "您的退款已完成。"
                         + "\n退款单号：" + refund.refundNo()
                         + "\n退款金额：" + refund.refundAmount() + " 元"
-                        + "\n退款方式：线下退款");
+                        + "\n退款方式：线下退款",
+                refundVariables("refundNo", refund.refundNo(), "refundAmount", refund.refundAmount(),
+                        "refundChannel", "线下退款"));
         operationLogService.record(new OperationLogWrite(tenantId(), refund.projectId(), "payment", "OFFLINE_REFUND_CONFIRM",
                 "pay_refund", refundId, Map.of("status", refund.status()),
                 Map.of("status", "REFUNDED", "thirdRefundNo", thirdRefundNo, "refundAmount", refund.refundAmount()),
@@ -212,7 +220,9 @@ public class PaymentRefundService {
                 "您的退款已完成。"
                         + "\n退款单号：" + refund.refundNo()
                         + "\n退款金额：" + notifyAmount + " 元"
-                        + "\n退款方式：微信");
+                        + "\n退款方式：微信",
+                refundVariables("refundNo", refund.refundNo(), "refundAmount", notifyAmount,
+                        "refundChannel", "微信"));
         return new RefundNotifyResult(refund.refundNo(), "REFUNDED", false);
     }
 
@@ -351,6 +361,19 @@ public class PaymentRefundService {
     private void notifyRefund(Long tenantId, Long projectId, Long memberId, String templateCode,
                               String title, String content) {
         appMessageService.sendToMember(tenantId, projectId, memberId, templateCode, title, content);
+    }
+
+    private void notifyRefund(Long tenantId, Long projectId, Long memberId, String templateCode,
+                              String title, String content, Map<String, ?> variables) {
+        appMessageService.sendToMember(tenantId, projectId, memberId, templateCode, title, content, variables);
+    }
+
+    private Map<String, Object> refundVariables(Object... values) {
+        Map<String, Object> variables = new HashMap<>();
+        for (int i = 0; i + 1 < values.length; i += 2) {
+            variables.put(String.valueOf(values[i]), values[i + 1] == null ? "" : values[i + 1]);
+        }
+        return variables;
     }
 
     private long offset(long pageNo, long pageSize) {

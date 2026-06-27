@@ -339,7 +339,11 @@ public class WorkOrderService {
                 + "\n工单标题：" + title
                 + "\n当前状态：" + statusText;
         appMessageService.sendToMember(tenantId, projectId, memberId, "WORKORDER_STATUS",
-                "工单状态更新：" + statusText, content);
+                "工单状态更新：" + statusText, content, Map.of(
+                        "orderNo", orderNo,
+                        "workOrderTitle", title == null ? "" : title,
+                        "status", statusText
+                ));
     }
 
     private String workOrderStatusText(String status) {

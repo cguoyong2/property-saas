@@ -1,0 +1,35 @@
+INSERT INTO message_template(template_id, tenant_id, template_code, template_name, channel,
+                             title_template, content_template, status)
+VALUES
+(904001, 1, 'BILL_CREATED', '账单已生成站内信', 'SITE', '账单已生成：${billPeriod}', '您有一笔新的物业账单。\n小区：${projectName}\n房屋：${houseNo}\n收费项目：${itemName}\n账单号：${billNo}\n账期：${billPeriod}\n应收：${receivableAmount} 元\n优惠：${discountAmount} 元\n预存款抵扣：${prepaymentAppliedAmount} 元\n待缴：${remainingAmount} 元\n到期日：${dueDate}', 'ACTIVE'),
+(904002, 1, 'BILL_DUE', '账单催缴站内信', 'SITE', '账单催缴提醒：${billPeriod}', '您有待缴物业账单。\n小区：${projectName}\n房屋：${houseNo}\n收费项目：${itemName}\n账单号：${billNo}\n账期：${billPeriod}\n待缴金额：${remainingAmount} 元\n请及时缴费。', 'ACTIVE'),
+(904003, 1, 'PAYMENT_SUCCESS', '缴费成功站内信', 'SITE', '缴费成功', '您的物业缴费已入账。\n订单号：${orderNo}\n业主/住户：${memberName}\n房屋：${houseNo}\n本次收款：${paidAmount} 元\n支付方式：${payChannel}\n账单明细：${billSummary}', 'ACTIVE'),
+(904004, 1, 'REFUND_APPLY', '退款申请站内信', 'SITE', '退款申请已提交', '您的退款申请已提交。\n订单号：${orderNo}\n退款单号：${refundNo}\n申请金额：${refundAmount} 元\n原因：${reason}', 'ACTIVE'),
+(904005, 1, 'REFUND_AUDIT', '退款审核站内信', 'SITE', '退款${auditResult}', '您的退款申请已${auditResult}。\n退款单号：${refundNo}\n退款金额：${refundAmount} 元\n说明：${auditRemark}', 'ACTIVE'),
+(904006, 1, 'REFUND_SUCCESS', '退款完成站内信', 'SITE', '退款已完成', '您的退款已完成。\n退款单号：${refundNo}\n退款金额：${refundAmount} 元\n退款方式：${refundChannel}', 'ACTIVE'),
+(904007, 1, 'WORKORDER_STATUS', '工单状态更新站内信', 'SITE', '工单状态更新：${status}', '您的工单状态已更新。\n工单号：${orderNo}\n工单标题：${workOrderTitle}\n当前状态：${status}', 'ACTIVE'),
+(904008, 1, 'HOUSE_BINDING_AUDIT', '房屋绑定审核站内信', 'SITE', '房屋绑定审核${auditResult}', '您提交的房屋绑定申请已${auditResult}。\n小区：${projectName}\n房屋：${houseNo}\n身份：${bindRole}\n说明：${auditRemark}', 'ACTIVE'),
+(904009, 1, 'WORKORDER_DISPATCH', '工单派发站内信', 'SITE', '工单已派发：${orderNo}', '工单 ${orderNo} 已派发给您。\n工单标题：${workOrderTitle}\n请及时处理。', 'ACTIVE'),
+(904010, 1, 'BILL_DUE', '账单催缴短信模板', 'SMS', '账单催缴提醒', '您有待缴物业账单：${billNo}，待缴金额 ${remainingAmount} 元，请及时缴费。', 'DISABLED'),
+(904011, 1, 'PAYMENT_SUCCESS', '缴费成功短信模板', 'SMS', '缴费成功', '您的物业缴费已入账，本次收款 ${paidAmount} 元。', 'DISABLED'),
+(904012, 1, 'BILL_DUE', '账单催缴微信模板', 'WECHAT', '账单催缴提醒', '您有待缴物业账单：${billNo}，待缴金额 ${remainingAmount} 元，请及时缴费。', 'DISABLED'),
+(904013, 1, 'PAYMENT_SUCCESS', '缴费成功微信模板', 'WECHAT', '缴费成功', '您的物业缴费已入账，本次收款 ${paidAmount} 元。', 'DISABLED'),
+(904101, 2, 'BILL_CREATED', '账单已生成站内信', 'SITE', '账单已生成：${billPeriod}', '您有一笔新的物业账单。\n小区：${projectName}\n房屋：${houseNo}\n收费项目：${itemName}\n账单号：${billNo}\n账期：${billPeriod}\n应收：${receivableAmount} 元\n优惠：${discountAmount} 元\n预存款抵扣：${prepaymentAppliedAmount} 元\n待缴：${remainingAmount} 元\n到期日：${dueDate}', 'ACTIVE'),
+(904102, 2, 'BILL_DUE', '账单催缴站内信', 'SITE', '账单催缴提醒：${billPeriod}', '您有待缴物业账单。\n小区：${projectName}\n房屋：${houseNo}\n收费项目：${itemName}\n账单号：${billNo}\n账期：${billPeriod}\n待缴金额：${remainingAmount} 元\n请及时缴费。', 'ACTIVE'),
+(904103, 2, 'PAYMENT_SUCCESS', '缴费成功站内信', 'SITE', '缴费成功', '您的物业缴费已入账。\n订单号：${orderNo}\n业主/住户：${memberName}\n房屋：${houseNo}\n本次收款：${paidAmount} 元\n支付方式：${payChannel}\n账单明细：${billSummary}', 'ACTIVE'),
+(904104, 2, 'REFUND_APPLY', '退款申请站内信', 'SITE', '退款申请已提交', '您的退款申请已提交。\n订单号：${orderNo}\n退款单号：${refundNo}\n申请金额：${refundAmount} 元\n原因：${reason}', 'ACTIVE'),
+(904105, 2, 'REFUND_AUDIT', '退款审核站内信', 'SITE', '退款${auditResult}', '您的退款申请已${auditResult}。\n退款单号：${refundNo}\n退款金额：${refundAmount} 元\n说明：${auditRemark}', 'ACTIVE'),
+(904106, 2, 'REFUND_SUCCESS', '退款完成站内信', 'SITE', '退款已完成', '您的退款已完成。\n退款单号：${refundNo}\n退款金额：${refundAmount} 元\n退款方式：${refundChannel}', 'ACTIVE'),
+(904107, 2, 'WORKORDER_STATUS', '工单状态更新站内信', 'SITE', '工单状态更新：${status}', '您的工单状态已更新。\n工单号：${orderNo}\n工单标题：${workOrderTitle}\n当前状态：${status}', 'ACTIVE'),
+(904108, 2, 'HOUSE_BINDING_AUDIT', '房屋绑定审核站内信', 'SITE', '房屋绑定审核${auditResult}', '您提交的房屋绑定申请已${auditResult}。\n小区：${projectName}\n房屋：${houseNo}\n身份：${bindRole}\n说明：${auditRemark}', 'ACTIVE'),
+(904109, 2, 'WORKORDER_DISPATCH', '工单派发站内信', 'SITE', '工单已派发：${orderNo}', '工单 ${orderNo} 已派发给您。\n工单标题：${workOrderTitle}\n请及时处理。', 'ACTIVE'),
+(904110, 2, 'BILL_DUE', '账单催缴短信模板', 'SMS', '账单催缴提醒', '您有待缴物业账单：${billNo}，待缴金额 ${remainingAmount} 元，请及时缴费。', 'DISABLED'),
+(904111, 2, 'PAYMENT_SUCCESS', '缴费成功短信模板', 'SMS', '缴费成功', '您的物业缴费已入账，本次收款 ${paidAmount} 元。', 'DISABLED'),
+(904112, 2, 'BILL_DUE', '账单催缴微信模板', 'WECHAT', '账单催缴提醒', '您有待缴物业账单：${billNo}，待缴金额 ${remainingAmount} 元，请及时缴费。', 'DISABLED'),
+(904113, 2, 'PAYMENT_SUCCESS', '缴费成功微信模板', 'WECHAT', '缴费成功', '您的物业缴费已入账，本次收款 ${paidAmount} 元。', 'DISABLED')
+AS new
+ON DUPLICATE KEY UPDATE
+  template_name = new.template_name,
+  title_template = new.title_template,
+  content_template = new.content_template,
+  status = new.status;
