@@ -33,3 +33,9 @@ export function putAction(path: string, data?: Record<string, unknown>) {
 export function downloadFile(path: string) {
   return http.get(path, { responseType: 'blob' })
 }
+
+export function uploadFile(data: FormData) {
+  return http.post('/files', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}

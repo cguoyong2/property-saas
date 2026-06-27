@@ -441,7 +441,18 @@
                   状态：{{ reconcileStatusText(history.beforeStatus) }} -> {{ reconcileStatusText(history.afterStatus) }}
                   ｜复核：{{ reconcileReviewStatusText(history.beforeReviewStatus) }} -> {{ reconcileReviewStatusText(history.afterReviewStatus) }}
                 </small>
-                <small v-if="history.attachmentFileIds">附件：{{ history.attachmentFileIds }}</small>
+                <div v-if="attachmentIds(history.attachmentFileIds).length" class="reconcile-history__attachments">
+                  <span>附件：</span>
+                  <el-link
+                    v-for="fileId in attachmentIds(history.attachmentFileIds)"
+                    :key="fileId"
+                    type="primary"
+                    :href="`/api/files/${fileId}/content`"
+                    target="_blank"
+                  >
+                    #{{ fileId }}
+                  </el-link>
+                </div>
               </div>
             </el-timeline-item>
           </el-timeline>
@@ -608,6 +619,29 @@
             value-format="YYYY-MM-DDTHH:mm:ss"
             class="form-control"
           />
+          <template v-else-if="field.type === 'fileUpload'">
+            <el-upload
+              drag
+              multiple
+              :show-file-list="false"
+              :http-request="createActionAttachmentUploader(field)"
+            >
+              <div class="upload-placeholder">
+                <strong>上传处理凭证</strong>
+                <span>支持图片、PDF、表格等文件，上传后自动写入附件</span>
+              </div>
+            </el-upload>
+            <div v-if="uploadedActionFiles[field.prop]?.length" class="action-attachments">
+              <el-tag
+                v-for="file in uploadedActionFiles[field.prop]"
+                :key="file.fileId"
+                closable
+                @close="removeActionAttachment(field, file.fileId)"
+              >
+                <a :href="file.downloadUrl" target="_blank" rel="noreferrer">{{ file.originalName }}</a>
+              </el-tag>
+            </div>
+          </template>
           <el-input v-else-if="field.type === 'textarea'" v-model="actionForm[field.prop]" type="textarea" :rows="4" />
           <el-input v-else v-model="actionForm[field.prop]" />
           <p v-if="field.help" class="field-help">{{ field.help }}</p>
@@ -636,12 +670,23 @@ import { Bell, Download, Edit, Plus, Refresh, Search, SwitchButton, Tools, Uploa
 import { pcaTextArr } from 'element-china-area-data'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
-import { createRecord, downloadFile, fetchPage, postAction, putAction, updateRecord } from '@/api/admin'
+import { createRecord, downloadFile, fetchPage, postAction, putAction, updateRecord, uploadFile } from '@/api/admin'
 import { allPages, type FieldConfig, type PageConfig } from '@/config/pages'
 import { useAuthStore } from '@/store/auth'
 
 type ActionScope = 'page' | 'row'
 type ActionMethod = 'POST' | 'PUT' | 'DOWNLOAD' | 'CUSTOM'
+
+interface ActionFileField extends FieldConfig {
+  help?: string
+  moduleCode?: string
+}
+
+interface UploadedActionFile {
+  fileId: number
+  originalName: string
+  downloadUrl: string
+}
 
 interface BusinessAction {
   key: string
@@ -653,7 +698,7 @@ interface BusinessAction {
   icon?: unknown
   permission?: string
   confirm?: string
-  fields?: Array<FieldConfig & { help?: string }>
+  fields?: ActionFileField[]
   buildPayload?: (row?: Record<string, unknown>, form?: Record<string, unknown>) => Record<string, unknown>
   filename?: (row?: Record<string, unknown>) => string
   visible?: (row?: Record<string, unknown>) => boolean
@@ -672,6 +717,7 @@ const pageSize = ref(20)
 const filters = reactive<Record<string, string | number>>({})
 const form = reactive<Record<string, unknown>>({})
 const actionForm = reactive<Record<string, unknown>>({})
+const uploadedActionFiles = reactive<Record<string, UploadedActionFile[]>>({})
 const dialogVisible = ref(false)
 const actionDialogVisible = ref(false)
 const bulkBuildingDialogVisible = ref(false)
@@ -964,7 +1010,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       visible: (row) => row?.status !== 'HANDLED',
       fields: [
         { prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true },
-        { prop: 'attachmentFileIds', label: '附件文件ID', help: '多个附件 ID 用英文逗号分隔，用于保存处理凭证' },
+        { prop: 'attachmentFileIds', label: '处理凭证', type: 'fileUpload', moduleCode: 'reconcile', help: '可上传截图、PDF、表格等处理凭证；系统会自动保存附件 ID' },
       ],
       buildPayload: (_row, formData = {}) => ({
         handleRemark: formData.handleRemark,
@@ -2201,6 +2247,56 @@ function handleActionFieldChange(field: FieldConfig) {
   }
 }
 
+function syncActionAttachmentField(field: FieldConfig) {
+  actionForm[field.prop] = (uploadedActionFiles[field.prop] ?? []).map((file) => file.fileId).join(',')
+}
+
+function createActionAttachmentUploader(field: ActionFileField) {
+  return (options: { file: File; onSuccess?: (response: unknown) => void; onError?: (error: Error) => void }) =>
+    uploadActionAttachment(field, options)
+}
+
+async function uploadActionAttachment(field: ActionFileField, options: { file: File; onSuccess?: (response: unknown) => void; onError?: (error: Error) => void }) {
+  const projectId = Number(currentActionRow.value?.projectId ?? actionForm.projectId ?? filters.projectId)
+  if (!Number.isFinite(projectId) || projectId <= 0) {
+    const error = new Error('请先选择或确认小区后再上传附件')
+    ElMessage.warning(error.message)
+    options.onError?.(error)
+    return
+  }
+  const data = new FormData()
+  data.append('projectId', String(projectId))
+  data.append('moduleCode', field.moduleCode ?? 'reconcile')
+  data.append('sensitive', 'false')
+  data.append('file', options.file)
+  try {
+    const response = await uploadFile(data)
+    const payload = response.data?.data
+    const fileId = Number(payload?.fileId)
+    if (!Number.isFinite(fileId) || fileId <= 0) {
+      throw new Error('上传成功但未返回文件ID')
+    }
+    const file: UploadedActionFile = {
+      fileId,
+      originalName: String(payload?.originalName ?? options.file.name),
+      downloadUrl: String(payload?.downloadUrl ?? `/api/files/${fileId}/content`),
+    }
+    uploadedActionFiles[field.prop] = [...(uploadedActionFiles[field.prop] ?? []), file]
+    syncActionAttachmentField(field)
+    ElMessage.success('附件上传成功')
+    options.onSuccess?.(payload)
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('附件上传失败')
+    ElMessage.error(error.message)
+    options.onError?.(error)
+  }
+}
+
+function removeActionAttachment(field: FieldConfig, fileId: number) {
+  uploadedActionFiles[field.prop] = (uploadedActionFiles[field.prop] ?? []).filter((file) => file.fileId !== fileId)
+  syncActionAttachmentField(field)
+}
+
 function formFieldLabel(field: FieldConfig) {
   if (config.value.key === 'fee-standards' && field.prop === 'unitPrice') {
     if (form.chargeMethod === 'AREA') return '单价（元/㎡/月）'
@@ -2287,6 +2383,13 @@ function billObjectLabel(objectType: unknown, objectId: unknown) {
 function displayDetailCell(row: Record<string, unknown>, field: FieldConfig) {
   const value = displayCell(row, field)
   return value === '' ? '-' : value
+}
+
+function attachmentIds(value: unknown) {
+  return String(value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 function optionsForDisplay(field: FieldConfig) {
@@ -2630,6 +2733,7 @@ async function runAction(action: BusinessAction, row?: Record<string, unknown>) 
   currentAction.value = action
   currentActionRow.value = row
   Object.keys(actionForm).forEach((key) => delete actionForm[key])
+  Object.keys(uploadedActionFiles).forEach((key) => delete uploadedActionFiles[key])
   ;(action.fields ?? []).forEach((field) => {
     actionForm[field.prop] = undefined
   })
@@ -2771,6 +2875,35 @@ onMounted(loadProjects)
   color: #64748b;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.upload-placeholder {
+  display: grid;
+  gap: 4px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.upload-placeholder strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.upload-placeholder span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.action-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-attachments a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .member-picker {
@@ -3057,6 +3190,15 @@ onMounted(loadProjects)
 .reconcile-history__card p {
   margin: 0;
   color: #334155;
+}
+
+.reconcile-history__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .receipt-print-area {

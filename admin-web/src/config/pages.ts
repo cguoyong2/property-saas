@@ -42,6 +42,7 @@ export interface FieldConfig {
     | 'vehicleBrandId'
     | 'vehicleBrand'
     | 'vehicleModel'
+    | 'fileUpload'
   options?: Array<string | { label: string; value: string | number | boolean }>
   required?: boolean
   inFilter?: boolean
