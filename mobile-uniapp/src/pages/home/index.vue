@@ -85,21 +85,19 @@
         <text>{{ member.token ? '最新消息' : '社区动态' }}</text>
         <text @click="go('/pages/notice/list')">更多</text>
       </view>
-      <view class="card notice-list">
-        <view class="notice-line">
-          <text class="badge green">公告</text>
+      <view v-if="latestMessages.length" class="card notice-list">
+        <view v-for="item in latestMessages" :key="messageKey(item)" class="notice-line" @click="openMessage(item)">
+          <text :class="['badge', badgeClass(item)]">{{ messageCategoryText(item) }}</text>
           <view>
-            <text class="line-title">端午节物业服务安排</text>
-            <text class="line-sub">客服、保洁、秩序值班时间说明</text>
+            <text class="line-title">{{ item.title || '物业消息' }}</text>
+            <text class="line-sub">{{ shortMessageContent(item.content, 34) }}</text>
           </view>
+          <text v-if="item.readStatus === 'UNREAD'" class="message-new">未读</text>
         </view>
-        <view class="notice-line">
-          <text class="badge orange">提醒</text>
-          <view>
-            <text class="line-title">地下车库清洗通知</text>
-            <text class="line-sub">请车主提前移车，避免影响施工</text>
-          </view>
-        </view>
+      </view>
+      <view v-else class="card notice-empty" @click="go('/pages/notice/list')">
+        <text class="line-title">{{ member.token ? '暂无最新消息' : '暂无社区公告' }}</text>
+        <text class="line-sub">{{ member.token ? '新的缴费、工单、房屋审核消息会在这里显示。' : '物业发布公告后会在这里显示。' }}</text>
       </view>
     </view>
 
@@ -111,12 +109,14 @@
 import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/AppTabBar.vue'
-import { fetchHome, fetchHouses } from '@/api/app'
+import { fetchAppMessages, fetchHome, fetchHouses, fetchPublicNotices } from '@/api/app'
 import { useMemberStore } from '@/store/member'
+import { messageCategory, messageCategoryText, shortMessageContent } from '@/utils/message'
 
 const member = useMemberStore()
 const summary = reactive<Record<string, unknown>>({})
 const bindings = ref<Record<string, unknown>[]>([])
+const latestMessages = ref<Record<string, unknown>[]>([])
 const projectName = computed(() => member.currentHouseNo ? '清江花园' : '智慧物业')
 const heroCopy = computed(() => {
   if (!member.token) return '先浏览公共公告与服务说明，绑定房屋后开启专属缴费、报修和通知。'
@@ -148,6 +148,7 @@ onShow(async () => {
   if (!member.token) {
     Object.keys(summary).forEach((key) => delete summary[key])
     bindings.value = []
+    await loadPublicMessages()
     return
   }
   try {
@@ -160,6 +161,7 @@ onShow(async () => {
   } catch (error) {
     bindings.value = []
   }
+  await loadLatestMessages()
 })
 
 function go(url: string) {
@@ -182,6 +184,50 @@ function openEntry(item: { url: string, public?: boolean }) {
     return
   }
   go(item.url)
+}
+
+async function loadLatestMessages() {
+  try {
+    const params: Record<string, unknown> = { pageNo: 1, pageSize: 3 }
+    if (member.currentProjectId) {
+      params.projectId = member.currentProjectId
+    }
+    latestMessages.value = (await fetchAppMessages(params)).records
+  } catch {
+    latestMessages.value = []
+  }
+}
+
+async function loadPublicMessages() {
+  try {
+    latestMessages.value = (await fetchPublicNotices({
+      tenantId: member.currentTenantId || 1,
+      pageNo: 1,
+      pageSize: 3,
+    })).records
+  } catch {
+    latestMessages.value = []
+  }
+}
+
+function openMessage(item: Record<string, unknown>) {
+  uni.setStorageSync('current_message_detail', JSON.stringify(item))
+  if (item.messageId) {
+    go(`/pages/notice/detail?messageId=${item.messageId}`)
+    return
+  }
+  go(`/pages/notice/detail?noticeId=${item.noticeId || ''}`)
+}
+
+function messageKey(item: Record<string, unknown>) {
+  return String(item.messageId || item.noticeId || item.createdAt || item.title)
+}
+
+function badgeClass(item: Record<string, unknown>) {
+  const category = messageCategory(item)
+  if (category === 'payment' || category === 'refund') return 'orange'
+  if (category === 'workorder') return 'blue'
+  return 'green'
 }
 </script>
 
@@ -519,6 +565,10 @@ function openEntry(item: { url: string, public?: boolean }) {
   padding: 4px 15px;
 }
 
+.notice-empty {
+  padding: 17px 15px;
+}
+
 .notice-line {
   display: flex;
   align-items: center;
@@ -581,5 +631,16 @@ function openEntry(item: { url: string, public?: boolean }) {
   color: #dc2626;
   font-size: 14px;
   font-weight: 950;
+}
+
+.message-new {
+  flex: none;
+  margin-left: auto;
+  padding: 3px 7px;
+  color: #fff;
+  background: #ef4444;
+  border-radius: 499.5px;
+  font-size: 10px;
+  font-weight: 900;
 }
 </style>

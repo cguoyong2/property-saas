@@ -2,7 +2,7 @@
   <view class="page">
     <view class="detail-card">
       <view class="detail-head">
-        <text class="badge">{{ typeText(message.noticeType || message.templateCode) }}</text>
+        <text :class="['badge', `badge-${messageCategory(message)}`]">{{ messageCategoryText(message) }}</text>
         <text class="date">{{ formatTime(message.createdAt || message.publishedAt) }}</text>
       </view>
       <text class="title">{{ message.title || '消息详情' }}</text>
@@ -27,16 +27,25 @@
       </view>
     </view>
 
+    <button v-if="action" class="primary" @click="goAction">{{ action.text }}</button>
     <button class="primary" @click="back">返回消息列表</button>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { fetchAppMessageDetail, markAppMessageRead } from '@/api/app'
+import {
+  formatMessageTime,
+  messageAction,
+  messageCategory,
+  messageCategoryText,
+  messageTemplateText,
+} from '@/utils/message'
 
 const message = ref<Record<string, unknown>>({})
+const action = computed(() => messageAction(message.value))
 
 onLoad(async (query) => {
   const cached = uni.getStorageSync('current_message_detail')
@@ -67,30 +76,17 @@ function back() {
   })
 }
 
-function formatTime(value: unknown) {
-  if (!value) return ''
-  return String(value).replace('T', ' ').slice(0, 16)
+function goAction() {
+  if (!action.value) return
+  uni.navigateTo({ url: action.value.url })
 }
 
-function typeText(value: unknown) {
-  const map: Record<string, string> = {
-    PROPERTY: '公告',
-    SYSTEM: '系统',
-    PAYMENT: '缴费',
-    WORKORDER: '工单',
-    EMERGENCY: '紧急',
-    HOUSE_BINDING_AUDIT: '审核',
-  }
-  return map[String(value || '').toUpperCase()] || '消息'
+function formatTime(value: unknown) {
+  return formatMessageTime(value)
 }
 
 function templateText(value: unknown) {
-  const map: Record<string, string> = {
-    HOUSE_BINDING_AUDIT: '房屋绑定审核结果',
-    BILL_DUE: '账单提醒',
-    WORKORDER_DISPATCH: '工单进度',
-  }
-  return map[String(value || '').toUpperCase()] || '站内通知'
+  return messageTemplateText(value)
 }
 </script>
 
@@ -131,6 +127,26 @@ function templateText(value: unknown) {
   border-radius: 499.5px;
   font-size: 11px;
   font-weight: 900;
+}
+
+.badge-payment {
+  color: #b45309;
+  background: #fff4dd;
+}
+
+.badge-refund {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.badge-workorder {
+  color: #1d4ed8;
+  background: #e8f0ff;
+}
+
+.badge-notice {
+  color: #475569;
+  background: #eef2f7;
 }
 
 .date,
@@ -198,6 +214,13 @@ function templateText(value: unknown) {
   font-weight: 900;
   line-height: 46px;
   box-shadow: 0 10px 22px rgba(15, 118, 110, .18);
+}
+
+.primary + .primary {
+  margin-top: 10px;
+  color: #334155;
+  background: #e8f0f2;
+  box-shadow: none;
 }
 
 .primary::after {

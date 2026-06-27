@@ -19,31 +19,43 @@
         <button v-if="member.token && unreadCount" class="read-all" @click="readAll">全部已读</button>
         <text v-else>{{ member.currentHouseNo || (member.token ? '本人消息' : '全部') }}</text>
       </view>
-      <view v-if="records.length" class="message-list">
+      <scroll-view v-if="member.token" scroll-x class="filter-scroll">
+        <view class="filter-row">
+          <button
+            v-for="item in messageCategories"
+            :key="item.key"
+            :class="['filter-chip', activeCategory === item.key ? 'active' : '']"
+            @click="activeCategory = item.key"
+          >
+            {{ item.label }}
+          </button>
+        </view>
+      </scroll-view>
+      <view v-if="filteredRecords.length" class="message-list">
         <view
-          v-for="item in records"
+          v-for="item in filteredRecords"
           :key="messageKey(item)"
           :class="['message-card', item.readStatus === 'UNREAD' ? 'unread' : '']"
           @click="openDetail(item)"
         >
           <view class="message-head">
             <view class="badge-wrap">
-              <text class="badge">{{ typeText(item.noticeType || item.templateCode) }}</text>
+              <text :class="['badge', `badge-${messageCategory(item)}`]">{{ messageCategoryText(item) }}</text>
               <text v-if="item.readStatus === 'UNREAD'" class="unread-dot">未读</text>
             </view>
             <text class="date">{{ formatTime(item.publishedAt || item.createdAt) }}</text>
           </view>
           <text class="title">{{ item.title }}</text>
-          <text class="content">{{ item.content }}</text>
+          <text class="content">{{ shortMessageContent(item.content) }}</text>
           <view v-if="item.templateCode" class="message-foot">
             <text>{{ templateText(item.templateCode) }}</text>
-            <text>查看详情</text>
+            <text>{{ messageAction(item)?.text || '查看详情' }}</text>
           </view>
         </view>
       </view>
       <view v-else class="empty">
-        <text class="empty-title">{{ member.token ? '暂无公告' : '暂无公共公告' }}</text>
-        <text class="empty-text">物业发布公告后会在这里展示。</text>
+        <text class="empty-title">{{ emptyTitle }}</text>
+        <text class="empty-text">{{ emptyText }}</text>
       </view>
     </view>
 
@@ -52,15 +64,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/AppTabBar.vue'
 import { fetchAppMessages, fetchAppUnreadSummary, fetchPublicNotices, markAllAppMessagesRead } from '@/api/app'
 import { useMemberStore } from '@/store/member'
+import {
+  formatMessageTime,
+  messageAction,
+  messageCategories,
+  messageCategory,
+  messageCategoryText,
+  messageTemplateText,
+  shortMessageContent,
+  type MessageCategory,
+} from '@/utils/message'
 
 const member = useMemberStore()
 const records = ref<Record<string, unknown>[]>([])
 const unreadCount = ref(0)
+const activeCategory = ref<MessageCategory>('all')
+
+const filteredRecords = computed(() => {
+  if (!member.token || activeCategory.value === 'all') {
+    return records.value
+  }
+  return records.value.filter((item) => messageCategory(item) === activeCategory.value)
+})
+
+const emptyTitle = computed(() => {
+  if (!member.token) return '暂无公共公告'
+  return activeCategory.value === 'all' ? '暂无消息' : `暂无${messageCategories.find((item) => item.key === activeCategory.value)?.label || ''}消息`
+})
+
+const emptyText = computed(() => {
+  if (!member.token) return '物业发布公告后会在这里展示。'
+  return activeCategory.value === 'all' ? '新的房屋、缴费、工单消息会在这里展示。' : '该分类暂时没有消息。'
+})
 
 async function load() {
   try {
@@ -117,29 +157,11 @@ function messageKey(item: Record<string, unknown>) {
 }
 
 function formatTime(value: unknown) {
-  if (!value) return ''
-  return String(value).replace('T', ' ').slice(0, 16)
-}
-
-function typeText(value: unknown) {
-  const map: Record<string, string> = {
-    PROPERTY: '公告',
-    SYSTEM: '系统',
-    PAYMENT: '缴费',
-    WORKORDER: '工单',
-    EMERGENCY: '紧急',
-    HOUSE_BINDING_AUDIT: '审核',
-  }
-  return map[String(value || '').toUpperCase()] || '消息'
+  return formatMessageTime(value)
 }
 
 function templateText(value: unknown) {
-  const map: Record<string, string> = {
-    HOUSE_BINDING_AUDIT: '房屋绑定审核结果',
-    BILL_DUE: '账单提醒',
-    WORKORDER_DISPATCH: '工单进度',
-  }
-  return map[String(value || '').toUpperCase()] || '站内通知'
+  return messageTemplateText(value)
 }
 </script>
 
@@ -243,6 +265,43 @@ function templateText(value: unknown) {
   display: none;
 }
 
+.filter-scroll {
+  width: 100%;
+  margin: 0 0 10px;
+  white-space: nowrap;
+}
+
+.filter-row {
+  display: inline-flex;
+  gap: 8px;
+  padding: 1px 1px 3px;
+}
+
+.filter-chip {
+  margin: 0;
+  height: 31px;
+  min-height: 31px;
+  padding: 0 13px;
+  color: #65758a;
+  background: rgba(255, 255, 255, .9);
+  border: 0.5px solid #dfe9e6;
+  border-radius: 499.5px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 31px;
+}
+
+.filter-chip.active {
+  color: #fff;
+  background: #0f766e;
+  border-color: #0f766e;
+  box-shadow: 0 6px 14px rgba(15, 118, 110, .16);
+}
+
+.filter-chip::after {
+  display: none;
+}
+
 .message-list {
   display: grid;
   gap: 9px;
@@ -287,6 +346,31 @@ function templateText(value: unknown) {
   border-radius: 499.5px;
   font-size: 10.5px;
   font-weight: 900;
+}
+
+.badge-payment {
+  color: #b45309;
+  background: #fff4dd;
+}
+
+.badge-refund {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.badge-workorder {
+  color: #1d4ed8;
+  background: #e8f0ff;
+}
+
+.badge-house {
+  color: #0b5f59;
+  background: #dff5ef;
+}
+
+.badge-notice {
+  color: #475569;
+  background: #eef2f7;
 }
 
 .unread-dot {
