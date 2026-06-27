@@ -16,7 +16,7 @@ public class AppService {
 
     private static final Set<String> BILL_STATUSES = Set.of("ALL", "UNPAID", "OVERDUE", "PARTIAL_PAID", "PAID", "VOIDED");
     private static final Set<String> PAY_ORDER_STATUSES = Set.of(
-            "ALL", "PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED");
+            "ALL", "SUCCESS", "PENDING", "PAYING", "PAID", "CLOSED", "FAILED", "REFUNDING", "REFUNDED", "PARTIAL_REFUNDED");
 
     private final AppRepository repository;
     private final PaymentService paymentService;

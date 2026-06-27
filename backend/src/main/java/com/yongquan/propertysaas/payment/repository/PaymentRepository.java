@@ -371,12 +371,12 @@ public class PaymentRepository {
     }
 
     public void insertPrepayment(Long prepaymentId, Long tenantId, Long projectId, Long memberId, Long orderId,
-                                 String orderNo, BigDecimal amount, Long userId, String remark) {
+                                 String orderNo, BigDecimal amount, String source, Long userId, String remark) {
         jdbcTemplate.update("""
                         INSERT INTO member_prepayment(prepayment_id, tenant_id, project_id, member_id, order_id,
                                                       order_no, amount, remaining_amount, source, remark, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OFFLINE_OVERPAY', ?, ?)
-                        """, prepaymentId, tenantId, projectId, memberId, orderId, orderNo, amount, amount, remark, userId);
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, prepaymentId, tenantId, projectId, memberId, orderId, orderNo, amount, amount, source, remark, userId);
     }
 
     public void markOrderPaid(Long tenantId, Long orderId, String thirdTradeNo, LocalDateTime paidAt) {

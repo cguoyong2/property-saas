@@ -11,7 +11,7 @@
     <view class="summary-card">
       <text class="summary-label">已收合计</text>
       <text class="summary-amount">¥{{ money(paidTotal) }}</text>
-      <text class="summary-copy">包含现金、收款码和小程序支付成功的记录。</text>
+      <text class="summary-copy">包含现金、收款码、小程序支付及后续退款状态。</text>
     </view>
 
     <view class="tabs">
@@ -73,9 +73,9 @@ import { fetchPayOrders } from '@/api/app'
 const orders = ref<Record<string, unknown>[]>([])
 const total = ref(0)
 const loading = ref(false)
-const statusFilter = ref('PAID')
+const statusFilter = ref('SUCCESS')
 const tabs = [
-  { label: '已支付', value: 'PAID' },
+  { label: '已完成', value: 'SUCCESS' },
   { label: '退款中', value: 'REFUNDING' },
   { label: '已退款', value: 'REFUNDED' },
   { label: '全部', value: 'ALL' },

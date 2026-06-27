@@ -485,6 +485,10 @@ public class AppRepository {
         args.add(tenantId);
         args.add(memberId);
         if (status != null && !status.isBlank()) {
+            if ("SUCCESS".equals(status)) {
+                sql.append(" AND o.status IN ('PAID', 'REFUNDING', 'PARTIAL_REFUNDED', 'REFUNDED')");
+                return;
+            }
             sql.append(" AND o.status = ?");
             args.add(status);
         }

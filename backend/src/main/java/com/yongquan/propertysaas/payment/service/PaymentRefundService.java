@@ -202,6 +202,7 @@ public class PaymentRefundService {
         }
         if (repository.refundTransactionExists(tenantId, "WECHAT", request.thirdRefundNo())) {
             repository.markRefundRefunded(tenantId, refund.refundId(), request.thirdRefundNo(), request.refundedAt(), toJson(request));
+            repository.markOrderRefundStatus(tenantId, refund.orderId());
             return new RefundNotifyResult(refund.refundNo(), "REFUNDED", true);
         }
         String rawNotify = toJson(request);
@@ -210,6 +211,7 @@ public class PaymentRefundService {
                 request.refundedAt(), rawNotify);
         if (!inserted) {
             repository.markRefundRefunded(tenantId, refund.refundId(), request.thirdRefundNo(), request.refundedAt(), rawNotify);
+            repository.markOrderRefundStatus(tenantId, refund.orderId());
             return new RefundNotifyResult(refund.refundNo(), "REFUNDED", true);
         }
         allocateRefundToBills(tenantId, refund.orderId(), notifyAmount);

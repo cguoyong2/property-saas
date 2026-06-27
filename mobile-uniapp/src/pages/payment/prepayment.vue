@@ -90,6 +90,9 @@ function title(record: Record<string, unknown>) {
 function sourceText(source: unknown) {
   const map: Record<string, string> = {
     OFFLINE_OVERPAY: '超收转入预存款',
+    WECHAT_OVERPAY: '微信超收转入预存款',
+    POS_OVERPAY: 'POS超收转入预存款',
+    BANK_TRANSFER_OVERPAY: '转账超收转入预存款',
     AUTO_BILL_OFFSET: '账单自动抵扣',
   }
   return map[String(source)] ?? String(source ?? '预存款')

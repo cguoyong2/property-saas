@@ -159,7 +159,7 @@ public class PaymentService {
         String thirdTradeNo = request.payChannel() + "-" + orderNo;
         repository.insertTransactionIfAbsent(newId(), tenantId(), request.projectId(), orderId, orderNo,
                 thirdTradeNo, request.payChannel(), payment.amount(), paidAt, "{\"source\":\"PC_OFFLINE_COLLECTION\"}");
-        settlePaidOrder(tenantId(), request.projectId(), orderId, orderNo, payment.memberId(), payment.amount(),
+        settlePaidOrder(tenantId(), request.projectId(), orderId, orderNo, payment.memberId(), request.payChannel(), payment.amount(),
                 "现金收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId(), orderId, thirdTradeNo, paidAt);
         notifyPaymentSuccess(repository.getOrderByNo(orderNo), payment.amount());
@@ -191,7 +191,7 @@ public class PaymentService {
             repository.markOrderPaid(tenantId, order.orderId(), request.thirdTradeNo(), request.paidAt());
             return new PaymentNotifyResult(order.orderNo(), "PAID", true);
         }
-        settlePaidOrder(tenantId, order.projectId(), order.orderId(), order.orderNo(), order.memberId(), notifyAmount,
+        settlePaidOrder(tenantId, order.projectId(), order.orderId(), order.orderNo(), order.memberId(), "WECHAT", notifyAmount,
                 "收款码收款超出应收金额，自动转入预存款");
         repository.markOrderPaid(tenantId, order.orderId(), request.thirdTradeNo(), request.paidAt());
         notifyPaymentSuccess(order, notifyAmount);
@@ -226,7 +226,7 @@ public class PaymentService {
                 order.orderId(), order.orderNo(), thirdTradeNo, "WECHAT", order.amount(), paidAt,
                 "{\"source\":\"APP_DEMO_PAYMENT\"}");
         if (inserted) {
-            settlePaidOrder(order.tenantId(), order.projectId(), order.orderId(), order.orderNo(), order.memberId(),
+            settlePaidOrder(order.tenantId(), order.projectId(), order.orderId(), order.orderNo(), order.memberId(), "WECHAT",
                     order.amount(), "业主端模拟支付超出应收金额，自动转入预存款");
             notifyPaymentSuccess(order, order.amount());
         }
@@ -234,7 +234,7 @@ public class PaymentService {
         return new PaymentNotifyResult(order.orderNo(), "PAID", !inserted);
     }
 
-    private void settlePaidOrder(Long tenantId, Long projectId, Long orderId, String orderNo, Long memberId,
+    private void settlePaidOrder(Long tenantId, Long projectId, Long orderId, String orderNo, Long memberId, String payChannel,
                                  BigDecimal paidAmount, String prepaymentRemark) {
         BigDecimal unappliedAmount = money(paidAmount);
         BigDecimal appliedAmount = BigDecimal.ZERO;
@@ -258,8 +258,17 @@ public class PaymentService {
         BigDecimal prepaymentAmount = paidAmount.subtract(appliedAmount).setScale(2, RoundingMode.HALF_UP);
         if (prepaymentAmount.compareTo(BigDecimal.ZERO) > 0) {
             repository.insertPrepayment(newId(), tenantId, projectId, memberId, orderId, orderNo,
-                    prepaymentAmount, userId(), prepaymentRemark);
+                    prepaymentAmount, prepaymentSource(payChannel), userId(), prepaymentRemark);
         }
+    }
+
+    private String prepaymentSource(String payChannel) {
+        return switch (payChannel) {
+            case "WECHAT" -> "WECHAT_OVERPAY";
+            case "POS" -> "POS_OVERPAY";
+            case "BANK_TRANSFER" -> "BANK_TRANSFER_OVERPAY";
+            default -> "OFFLINE_OVERPAY";
+        };
     }
 
     private Long validatePayableBills(List<PayableBill> bills) {
