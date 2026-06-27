@@ -176,6 +176,7 @@ public class AppRepository {
                   SELECT p.created_at AS createdAt, p.project_id AS projectId, bp.project_name AS projectName,
                          p.order_no AS businessNo, 'IN' AS direction, p.source AS source,
                          p.amount AS amount, p.remaining_amount AS remainingAmount,
+                         COALESCE(p.refunded_amount, 0) AS refundedAmount,
                          NULL AS billNo, NULL AS feeItemName, NULL AS billPeriod,
                          ob.house_no AS houseNo, ob.bill_summary AS billSummary, p.order_no AS orderNo,
                          p.remark AS remark
@@ -200,7 +201,7 @@ public class AppRepository {
                   UNION ALL
                   SELECT u.created_at AS createdAt, u.project_id AS projectId, bp.project_name AS projectName,
                          u.bill_no AS businessNo, 'OUT' AS direction, u.usage_type AS source,
-                         u.amount AS amount, NULL AS remainingAmount,
+                         u.amount AS amount, NULL AS remainingAmount, NULL AS refundedAmount,
                          fb.bill_no AS billNo, fi.item_name AS feeItemName, fb.bill_period AS billPeriod,
                          CONCAT_WS('', bd.building_name, bu.unit_name, h.house_no) AS houseNo,
                          CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', u.amount, '元') AS billSummary,
@@ -238,11 +239,13 @@ public class AppRepository {
                 SELECT
                   COALESCE((SELECT SUM(amount) FROM member_prepayment
                             WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS totalAmount,
-                  COALESCE((SELECT SUM(amount - remaining_amount) FROM member_prepayment
+                  COALESCE((SELECT SUM(amount - remaining_amount - COALESCE(refunded_amount, 0)) FROM member_prepayment
                             WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS usedAmount,
+                  COALESCE((SELECT SUM(COALESCE(refunded_amount, 0)) FROM member_prepayment
+                            WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS refundedAmount,
                   COALESCE((SELECT SUM(remaining_amount) FROM member_prepayment
                             WHERE tenant_id = ? AND member_id = ? AND deleted = 0), 0) AS remainingAmount
-                """, tenantId, memberId, tenantId, memberId, tenantId, memberId);
+                """, tenantId, memberId, tenantId, memberId, tenantId, memberId, tenantId, memberId);
     }
 
     public List<Map<String, Object>> findVehicles(Long tenantId, Long memberId, long offset, long pageSize) {

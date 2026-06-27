@@ -173,7 +173,7 @@ public class PaymentRefundService {
                 refund.refundId(), refund.refundNo(), thirdRefundNo, "OFFLINE", refund.refundAmount(),
                 refundedAt, rawNotify);
         if (inserted) {
-            allocateRefundToBills(tenantId(), refund.orderId(), refund.refundAmount());
+            allocateRefundToAssets(tenantId(), refund.orderId(), refund.refundAmount());
         }
         repository.markRefundRefunded(tenantId(), refund.refundId(), thirdRefundNo, refundedAt, rawNotify);
         repository.markOrderRefundStatus(tenantId(), refund.orderId());
@@ -220,7 +220,7 @@ public class PaymentRefundService {
             repository.markOrderRefundStatus(tenantId, refund.orderId());
             return new RefundNotifyResult(refund.refundNo(), "REFUNDED", true);
         }
-        allocateRefundToBills(tenantId, refund.orderId(), notifyAmount);
+        allocateRefundToAssets(tenantId, refund.orderId(), notifyAmount);
         repository.markRefundRefunded(tenantId, refund.refundId(), request.thirdRefundNo(), request.refundedAt(), rawNotify);
         repository.markOrderRefundStatus(tenantId, refund.orderId());
         notifyRefund(tenantId, refund.projectId(), refund.memberId(), "REFUND_SUCCESS",
@@ -439,7 +439,7 @@ public class PaymentRefundService {
                 pageSize);
     }
 
-    private void allocateRefundToBills(Long tenantId, Long orderId, BigDecimal refundAmount) {
+    private void allocateRefundToAssets(Long tenantId, Long orderId, BigDecimal refundAmount) {
         BigDecimal remaining = refundAmount;
         for (PayableBill bill : repository.findOrderBills(tenantId, orderId)) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
@@ -448,6 +448,13 @@ public class PaymentRefundService {
             BigDecimal amount = bill.remainingAmount().min(remaining).setScale(2, RoundingMode.HALF_UP);
             repository.refundBill(tenantId, bill.billId(), amount);
             remaining = remaining.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        }
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal refundedPrepayment = repository.refundPrepayments(tenantId, orderId, remaining);
+            remaining = remaining.subtract(refundedPrepayment).setScale(2, RoundingMode.HALF_UP);
+        }
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("退款金额超过订单当前可退账单和预存款余额");
         }
     }
 

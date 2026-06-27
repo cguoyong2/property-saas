@@ -183,8 +183,10 @@ public class PaymentRefundRepository {
                        GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
                                     ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
                        o.amount,
-                       COALESCE(r.refund_amount, 0) AS refunded_amount,
-                       GREATEST(COALESCE(t.paid_amount, 0) - COALESCE(r.refund_amount, 0), 0) AS refundable_amount,
+                       COALESCE(rr.refunded_amount, 0) AS refunded_amount,
+                       GREATEST(COALESCE(ba.bill_refundable_amount, 0)
+                           + COALESCE(pp.prepayment_remaining_amount, 0)
+                           - COALESCE(pr.pending_refund_amount, 0), 0) AS refundable_amount,
                        GROUP_CONCAT(DISTINCT CONCAT(fi.item_name, ' ', fb.bill_period, ' ', ob.amount, '元')
                                     ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary,
                        o.paid_at
@@ -197,16 +199,30 @@ public class PaymentRefundRepository {
                 LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                 LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 LEFT JOIN (
-                    SELECT tenant_id, order_id, COALESCE(SUM(amount), 0) AS paid_amount
-                    FROM pay_transaction
-                    GROUP BY tenant_id, order_id
-                ) t ON t.tenant_id = o.tenant_id AND t.order_id = o.order_id
+                    SELECT ob.tenant_id, ob.order_id,
+                           SUM(LEAST(ob.amount, GREATEST(fb.paid_amount - fb.refund_amount, 0))) AS bill_refundable_amount
+                    FROM pay_order_bill ob
+                    JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) ba ON ba.tenant_id = o.tenant_id AND ba.order_id = o.order_id
                 LEFT JOIN (
-                    SELECT tenant_id, order_id, COALESCE(SUM(refund_amount), 0) AS refund_amount
-                    FROM pay_refund
-                    WHERE deleted = 0 AND status NOT IN ('AUDIT_REJECTED', 'FAILED', 'CLOSED')
+                    SELECT tenant_id, order_id, COALESCE(SUM(remaining_amount), 0) AS prepayment_remaining_amount
+                    FROM member_prepayment
+                    WHERE deleted = 0
                     GROUP BY tenant_id, order_id
-                ) r ON r.tenant_id = o.tenant_id AND r.order_id = o.order_id
+                ) pp ON pp.tenant_id = o.tenant_id AND pp.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COALESCE(SUM(refund_amount), 0) AS pending_refund_amount
+                    FROM pay_refund
+                    WHERE deleted = 0 AND status IN ('APPLYING', 'AUDIT_PASSED', 'REFUNDING')
+                    GROUP BY tenant_id, order_id
+                ) pr ON pr.tenant_id = o.tenant_id AND pr.order_id = o.order_id
+                LEFT JOIN (
+                    SELECT tenant_id, order_id, COALESCE(SUM(refund_amount), 0) AS refunded_amount
+                    FROM pay_refund
+                    WHERE deleted = 0 AND status = 'REFUNDED'
+                    GROUP BY tenant_id, order_id
+                ) rr ON rr.tenant_id = o.tenant_id AND rr.order_id = o.order_id
                 WHERE o.tenant_id = ? AND o.deleted = 0 AND o.status IN ('PAID', 'PARTIAL_REFUNDED')
                 """);
         args.add(tenantId);
@@ -222,7 +238,8 @@ public class PaymentRefundRepository {
         sql.append("""
 
                 GROUP BY o.order_id, o.order_no, o.project_id, o.member_id, m.real_name, m.mobile,
-                         o.amount, r.refund_amount, t.paid_amount, o.paid_at
+                         o.amount, rr.refunded_amount, ba.bill_refundable_amount, pp.prepayment_remaining_amount,
+                         pr.pending_refund_amount, o.paid_at
                 HAVING refundable_amount > 0
                 ORDER BY o.paid_at DESC, o.order_id DESC
                 LIMIT 100
@@ -241,18 +258,26 @@ public class PaymentRefundRepository {
     }
 
     public BigDecimal refundableAmount(Long tenantId, Long orderId) {
-        BigDecimal paid = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(amount), 0)
-                FROM pay_transaction
-                WHERE tenant_id = ? AND order_id = ?
-                """, BigDecimal.class, tenantId, orderId);
-        BigDecimal frozenOrRefunded = jdbcTemplate.queryForObject("""
+        BigDecimal available = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(SUM(refundable_amount), 0)
+                FROM (
+                    SELECT LEAST(ob.amount, GREATEST(fb.paid_amount - fb.refund_amount, 0)) AS refundable_amount
+                    FROM pay_order_bill ob
+                    JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    WHERE ob.tenant_id = ? AND ob.order_id = ?
+                    UNION ALL
+                    SELECT remaining_amount AS refundable_amount
+                    FROM member_prepayment
+                    WHERE tenant_id = ? AND order_id = ? AND deleted = 0 AND remaining_amount > 0
+                ) a
+                """, BigDecimal.class, tenantId, orderId, tenantId, orderId);
+        BigDecimal pending = jdbcTemplate.queryForObject("""
                 SELECT COALESCE(SUM(refund_amount), 0)
                 FROM pay_refund
                 WHERE tenant_id = ? AND order_id = ? AND deleted = 0
-                  AND status NOT IN ('AUDIT_REJECTED', 'FAILED', 'CLOSED')
+                  AND status IN ('APPLYING', 'AUDIT_PASSED', 'REFUNDING')
                 """, BigDecimal.class, tenantId, orderId);
-        return paid.subtract(frozenOrRefunded);
+        return available.subtract(pending).max(BigDecimal.ZERO);
     }
 
     public void insertRefund(Long tenantId, Long projectId, Long refundId, String refundNo, Long orderId,
@@ -328,6 +353,34 @@ public class PaymentRefundRepository {
                             END
                         WHERE tenant_id = ? AND bill_id = ? AND deleted = 0
                         """, amount, amount, tenantId, billId);
+    }
+
+    public BigDecimal refundPrepayments(Long tenantId, Long orderId, BigDecimal refundAmount) {
+        BigDecimal remaining = refundAmount;
+        for (PrepaymentForRefund prepayment : jdbcTemplate.query("""
+                SELECT prepayment_id, remaining_amount
+                FROM member_prepayment
+                WHERE tenant_id = ? AND order_id = ? AND deleted = 0 AND remaining_amount > 0
+                ORDER BY created_at ASC, prepayment_id ASC
+                """, (rs, rowNum) -> new PrepaymentForRefund(
+                rs.getLong("prepayment_id"),
+                rs.getBigDecimal("remaining_amount")), tenantId, orderId)) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal amount = prepayment.remainingAmount().min(remaining).setScale(2, java.math.RoundingMode.HALF_UP);
+            int updated = jdbcTemplate.update("""
+                            UPDATE member_prepayment
+                            SET refunded_amount = refunded_amount + ?,
+                                remaining_amount = remaining_amount - ?
+                            WHERE tenant_id = ? AND prepayment_id = ? AND deleted = 0 AND remaining_amount >= ?
+                            """, amount, amount, tenantId, prepayment.prepaymentId(), amount);
+            if (updated != 1) {
+                throw new IllegalStateException("预存款退款失败，余额已变化：" + prepayment.prepaymentId());
+            }
+            remaining = remaining.subtract(amount).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        return refundAmount.subtract(remaining).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     public void markOrderRefundStatus(Long tenantId, Long orderId) {
@@ -958,8 +1011,8 @@ public class PaymentRefundRepository {
                            p.order_no AS business_no,
                            m.real_name AS member_name,
                            m.mobile AS member_mobile,
-                           ABS(p.amount - p.remaining_amount - COALESCE(u.used_amount, 0)) AS amount,
-                           '预存款余额与已抵扣金额不一致，或余额超出合理范围' AS reason,
+                           ABS(p.amount - p.remaining_amount - COALESCE(p.refunded_amount, 0) - COALESCE(u.used_amount, 0)) AS amount,
+                           '预存款余额与已抵扣金额、已退款金额不一致，或余额超出合理范围' AS reason,
                            p.created_at
                     FROM member_prepayment p
                     LEFT JOIN member_user m ON m.tenant_id = p.tenant_id AND m.member_id = p.member_id AND m.deleted = 0
@@ -972,7 +1025,9 @@ public class PaymentRefundRepository {
                     WHERE p.tenant_id = ? AND p.deleted = 0
                       AND (p.remaining_amount < 0
                            OR p.remaining_amount > p.amount
-                           OR ABS(p.amount - p.remaining_amount - COALESCE(u.used_amount, 0)) >= 0.01)
+                           OR COALESCE(p.refunded_amount, 0) < 0
+                           OR COALESCE(p.refunded_amount, 0) > p.amount
+                           OR ABS(p.amount - p.remaining_amount - COALESCE(p.refunded_amount, 0) - COALESCE(u.used_amount, 0)) >= 0.01)
                     UNION ALL
                     SELECT CONCAT('BILL_AMOUNT_STATUS_MISMATCH:', b.bill_id) AS exception_key,
                            b.project_id,
@@ -1164,5 +1219,8 @@ public class PaymentRefundRepository {
                 rs.getString("attachment_file_ids"),
                 (Long) rs.getObject("operator_id"),
                 rs.getTimestamp("created_at").toLocalDateTime());
+    }
+
+    private record PrepaymentForRefund(Long prepaymentId, BigDecimal remainingAmount) {
     }
 }

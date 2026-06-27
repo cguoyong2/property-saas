@@ -14,6 +14,7 @@ public record MemberPrepaymentView(
         String orderNo,
         BigDecimal amount,
         BigDecimal usedAmount,
+        BigDecimal refundedAmount,
         BigDecimal remainingAmount,
         String source,
         String remark,

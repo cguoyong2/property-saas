@@ -190,7 +190,9 @@ public class PaymentRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT p.prepayment_id, p.project_id, bp.project_name, p.member_id,
                        m.real_name AS member_name, m.mobile, p.order_id, p.order_no, p.amount,
-                       p.amount - p.remaining_amount AS used_amount, p.remaining_amount,
+                       p.amount - p.remaining_amount - COALESCE(p.refunded_amount, 0) AS used_amount,
+                       COALESCE(p.refunded_amount, 0) AS refunded_amount,
+                       p.remaining_amount,
                        p.source, p.remark, ob.house_no, ob.bill_summary, p.created_at
                 FROM member_prepayment p
                 LEFT JOIN base_project bp ON bp.tenant_id = p.tenant_id
@@ -563,7 +565,8 @@ public class PaymentRepository {
         return new MemberPrepaymentView(rs.getLong("prepayment_id"), rs.getLong("project_id"),
                 rs.getString("project_name"), (Long) rs.getObject("member_id"), rs.getString("member_name"),
                 rs.getString("mobile"), (Long) rs.getObject("order_id"), rs.getString("order_no"),
-                rs.getBigDecimal("amount"), rs.getBigDecimal("used_amount"), rs.getBigDecimal("remaining_amount"),
+                rs.getBigDecimal("amount"), rs.getBigDecimal("used_amount"), rs.getBigDecimal("refunded_amount"),
+                rs.getBigDecimal("remaining_amount"),
                 rs.getString("source"), rs.getString("remark"), rs.getString("house_no"),
                 rs.getString("bill_summary"), rs.getTimestamp("created_at").toLocalDateTime());
     }
