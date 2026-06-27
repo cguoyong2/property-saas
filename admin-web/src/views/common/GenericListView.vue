@@ -356,7 +356,67 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailDialogVisible" :title="`${config.title}详情`" width="620px" draggable>
+    <el-dialog
+      v-model="detailDialogVisible"
+      :title="`${config.title}详情`"
+      :width="isReconcileExceptionDetail ? '760px' : '620px'"
+      draggable
+    >
+      <div v-if="isReconcileExceptionDetail && detailRow" class="reconcile-detail">
+        <div class="reconcile-detail__summary">
+          <div>
+            <span>差异金额</span>
+            <strong>{{ moneyText(detailRow.amount) }}</strong>
+          </div>
+          <el-tag :type="detailRow.exceptionLevel === '高' ? 'danger' : 'warning'" effect="light">
+            {{ detailRow.exceptionLevel }}
+          </el-tag>
+          <el-tag :type="detailRow.status === 'HANDLED' ? 'success' : 'danger'" effect="light">
+            {{ reconcileStatusText(detailRow.status) }}
+          </el-tag>
+        </div>
+        <div class="reconcile-detail__grid">
+          <div>
+            <span>异常类型</span>
+            <strong>{{ detailRow.exceptionType }}</strong>
+          </div>
+          <div>
+            <span>业务类型</span>
+            <strong>{{ detailRow.businessType }}</strong>
+          </div>
+          <div>
+            <span>业务单号</span>
+            <strong>{{ detailRow.businessNo || '-' }}</strong>
+          </div>
+          <div>
+            <span>业主/住户</span>
+            <strong>{{ [detailRow.memberName, detailRow.memberMobile].filter(Boolean).join(' / ') || '-' }}</strong>
+          </div>
+        </div>
+        <div class="reconcile-detail__section">
+          <h3>异常原因</h3>
+          <p>{{ detailRow.reason || '-' }}</p>
+        </div>
+        <div class="reconcile-detail__section">
+          <h3>系统计算口径</h3>
+          <p>{{ reconcileCalculationText(detailRow) }}</p>
+        </div>
+        <div class="reconcile-detail__section">
+          <h3>建议处理动作</h3>
+          <p>{{ reconcileSuggestionText(detailRow) }}</p>
+        </div>
+        <div class="reconcile-detail__actions">
+          <el-button
+            v-for="target in reconcileTargets(detailRow)"
+            :key="target.label"
+            type="primary"
+            plain
+            @click="goToReconcileTarget(target.path)"
+          >
+            {{ target.label }}
+          </el-button>
+        </div>
+      </div>
       <el-form v-if="detailRow" label-position="top" class="detail-form">
         <el-form-item v-for="field in detailFields" :key="field.prop" :label="field.label">
           <el-input :model-value="displayDetailCell(detailRow, field)" disabled />
@@ -541,7 +601,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Bell, Download, Edit, Plus, Refresh, Search, SwitchButton, Tools, Upload } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
@@ -570,6 +630,7 @@ interface BusinessAction {
 }
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
@@ -1109,6 +1170,7 @@ const availableActions = computed(() => (businessActions[config.value.key] ?? []
 const pageActions = computed(() => availableActions.value.filter((action) => action.scope === 'page'))
 const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
 const detailFields = computed(() => config.value.detailFields ?? config.value.columns)
+const isReconcileExceptionDetail = computed(() => config.value.key === 'payment-reconcile-exceptions')
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
   if (config.value.showDetails && config.value.updatePath && canUpdate.value) return 180
@@ -1167,6 +1229,10 @@ function reset() {
     filters[key] = ''
   })
   pageNo.value = 1
+  if (Object.keys(route.query).length) {
+    router.replace({ path: route.path, query: {} })
+    return
+  }
   load()
 }
 
@@ -1196,6 +1262,73 @@ function openEdit(row: Record<string, unknown>) {
 function openDetail(row: Record<string, unknown>) {
   detailRow.value = row
   detailDialogVisible.value = true
+}
+
+function reconcileStatusText(status: unknown) {
+  return status === 'HANDLED' ? '已处理' : '未处理'
+}
+
+function reconcileCalculationText(row: Record<string, unknown>) {
+  const type = String(row.exceptionType ?? '')
+  if (type === '订单缺少支付流水') return '系统发现订单处于已支付、退款中、已退款或部分退款状态，但支付流水合计为 0。'
+  if (type === '支付流水订单异常') return '系统发现支付流水无法匹配有效的已支付订单，可能是订单状态异常、重复流水或孤立流水。'
+  if (type === '退款缺少退款流水') return '系统发现退款单已标记为已退款，但没有对应的退款流水。'
+  if (type === '订单金额不一致') return '系统按“订单金额 = 订单账单核销金额 + 订单转入预存款金额”校验。'
+  if (type === '订单实收核销不平') return '系统按“实收流水金额 = 账单核销金额 + 预存款转入金额”校验。'
+  if (type === '退款流水金额不平') return '系统按“退款单金额 = 退款流水金额”校验已完成退款。'
+  if (type === '预存款余额异常') return '系统按“预存款金额 = 剩余金额 + 已抵扣金额”校验，并检查余额是否小于 0 或大于原始金额。'
+  if (type === '账单金额状态异常') return '系统校验账单状态与待收金额是否一致，例如已缴账单待收应为 0，未缴或部分缴费账单待收应大于 0。'
+  return '系统按当前收费账务规则自动计算异常，建议结合业务单号和相关流水核对。'
+}
+
+function reconcileSuggestionText(row: Record<string, unknown>) {
+  const type = String(row.exceptionType ?? '')
+  if (type === '订单缺少支付流水') return '先核对收款订单是否真实收款；若确已收款，补齐或修复支付流水；若未收款，应修正订单状态。'
+  if (type === '支付流水订单异常') return '先核对第三方或现金收款记录，再检查订单是否被误作废、误关闭或重复创建。'
+  if (type === '退款缺少退款流水') return '先核对实际退款凭证；若已退款，补齐退款流水；若未退款，应恢复退款单状态。'
+  if (type === '订单金额不一致' || type === '订单实收核销不平') return '重点检查该订单关联账单、核销金额和预存款转入记录，确认是否存在少核销、重复核销或超收未转预存。'
+  if (type === '退款流水金额不平') return '核对退款单、退款流水和原收款订单，确认是否部分退款、重复退款或退款流水金额录入错误。'
+  if (type === '预存款余额异常') return '核对预存款生成来源和抵扣明细，必要时修正抵扣记录或预存款余额。'
+  if (type === '账单金额状态异常') return '核对该账单的应收、已收、已退、待收和状态；金额正确后再修正账单状态。'
+  return '打开关联业务记录，核对金额、状态和流水后再标记为已处理。'
+}
+
+function reconcileTargets(row: Record<string, unknown>) {
+  const businessType = String(row.businessType ?? '')
+  const businessNo = encodeURIComponent(String(row.businessNo ?? ''))
+  const memberName = encodeURIComponent(String(row.memberName ?? ''))
+  const targets: Array<{ label: string; path: string }> = []
+  if (businessType === '支付订单') {
+    targets.push({ label: '查看收款订单', path: `/payment/orders?orderNo=${businessNo}` })
+  } else if (businessType === '支付流水') {
+    targets.push({ label: '查看支付流水', path: `/payment/transactions?orderNo=${businessNo}` })
+    targets.push({ label: '查看收款订单', path: `/payment/orders?orderNo=${businessNo}` })
+  } else if (businessType === '退款单') {
+    targets.push({ label: '查看退款管理', path: `/payment/refunds?refundNo=${businessNo}` })
+  } else if (businessType === '收费账单') {
+    targets.push({ label: '查看账单管理', path: `/fee/bills?billNo=${businessNo}` })
+  } else if (businessType === '业主预存款') {
+    targets.push({ label: '查看预存款', path: `/payment/prepayments?orderNo=${businessNo}` })
+  }
+  if (memberName) {
+    targets.push({ label: '查看业主/住户', path: `/base/members?realName=${memberName}` })
+  }
+  return targets
+}
+
+function goToReconcileTarget(path: string) {
+  detailDialogVisible.value = false
+  router.push(path)
+}
+
+function applyRouteQueryFilters() {
+  const allowed = new Set(['projectId', ...filterFields.value.map((field) => field.prop)])
+  Object.entries(route.query).forEach(([key, value]) => {
+    if (!allowed.has(key)) return
+    const firstValue = Array.isArray(value) ? value[0] : value
+    if (firstValue === undefined || firstValue === null) return
+    filters[key] = String(firstValue)
+  })
 }
 
 async function save() {
@@ -2370,10 +2503,14 @@ function saveBlob(blob: Blob, filename: string) {
 }
 
 watch(
-  () => route.meta.pageKey,
+  () => route.fullPath,
   () => {
     pageNo.value = 1
-    reset()
+    Object.keys(filters).forEach((key) => {
+      filters[key] = ''
+    })
+    applyRouteQueryFilters()
+    load()
   },
 )
 
@@ -2382,7 +2519,10 @@ watch(memberSearchKeyword, () => {
   scheduleMemberSearch()
 })
 
-onMounted(load)
+onMounted(() => {
+  applyRouteQueryFilters()
+  load()
+})
 onMounted(loadProjects)
 </script>
 
@@ -2577,6 +2717,82 @@ onMounted(loadProjects)
 .detail-form :deep(.el-input.is-disabled .el-input__inner) {
   color: #303133;
   -webkit-text-fill-color: #303133;
+}
+
+.reconcile-detail {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.reconcile-detail__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d8e4e1;
+  border-radius: 8px;
+  background: #f7fbfa;
+}
+
+.reconcile-detail__summary div {
+  display: grid;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.reconcile-detail__summary span,
+.reconcile-detail__grid span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.reconcile-detail__summary strong {
+  color: #dc2626;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.reconcile-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reconcile-detail__grid div,
+.reconcile-detail__section {
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reconcile-detail__grid div {
+  display: grid;
+  gap: 6px;
+}
+
+.reconcile-detail__grid strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.reconcile-detail__section h3 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.reconcile-detail__section p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.reconcile-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .receipt-print-area {
