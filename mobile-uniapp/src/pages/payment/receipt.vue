@@ -20,7 +20,9 @@
       <view class="line"><text>订单金额</text><text>¥{{ money(order.amount) }}</text></view>
       <view class="line"><text>实收金额</text><text>¥{{ money(order.transactionAmount) }}</text></view>
       <view class="line"><text>已退金额</text><text>¥{{ money(order.refundedAmount) }}</text></view>
+      <view class="line"><text>可退金额</text><text>¥{{ money(order.refundableAmount) }}</text></view>
       <view class="line"><text>转预存款</text><text>¥{{ money(order.prepaymentAmount) }}</text></view>
+      <view class="line"><text>预存款余额</text><text>¥{{ money(order.prepaymentRemainingAmount) }}</text></view>
       <view class="line"><text>支付时间</text><text>{{ order.paidAt || '-' }}</text></view>
     </view>
 
@@ -37,7 +39,7 @@
         <text>凭证说明</text>
         <text>系统生成</text>
       </view>
-      <text class="summary">本凭证根据物业系统收款记录生成，可用于核对缴费、退款和预存款。正式接入微信支付后，第三方流水号会同步展示。</text>
+      <text class="summary">{{ receiptRemark }}</text>
     </view>
 
     <view v-else class="empty">凭证加载中</view>
@@ -46,11 +48,21 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { fetchPayOrderDetail } from '@/api/app'
 
 const orderNo = ref('')
 const order = reactive<Record<string, unknown>>({})
+const receiptRemark = computed(() => {
+  const refunded = Number(order.refundedAmount ?? 0)
+  const prepayment = Number(order.prepaymentAmount ?? 0)
+  const parts = ['本凭证根据物业系统收款记录生成，可用于核对缴费、退款和预存款。']
+  if (refunded > 0) parts.push(`当前已退款 ${money(refunded)} 元。`)
+  if (prepayment > 0) parts.push(`超收转入预存款 ${money(prepayment)} 元，可在后续账单中抵扣。`)
+  parts.push('正式接入微信支付后，第三方流水号会同步展示。')
+  return parts.join('')
+})
 
 onLoad((query) => {
   orderNo.value = String(query?.orderNo ?? '')

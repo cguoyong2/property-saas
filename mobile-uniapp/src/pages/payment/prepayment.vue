@@ -34,7 +34,7 @@
           </text>
         </view>
         <view class="ledger-detail">
-          <text>{{ record.houseNo || record.businessNo || '-' }}</text>
+          <text>{{ ledgerDetail(record) }}</text>
           <text v-if="record.remainingAmount !== null && record.remainingAmount !== undefined">
             剩余 ¥{{ money(record.remainingAmount) }}
           </text>
@@ -96,6 +96,14 @@ function sourceText(source: unknown) {
     AUTO_BILL_OFFSET: '账单自动抵扣',
   }
   return map[String(source)] ?? String(source ?? '预存款')
+}
+
+function ledgerDetail(record: Record<string, unknown>) {
+  return [
+    record.houseNo,
+    record.billSummary,
+    record.businessNo || record.orderNo,
+  ].filter(Boolean).join(' · ') || '-'
 }
 
 function money(value: unknown) {

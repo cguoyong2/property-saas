@@ -191,12 +191,26 @@ public class PaymentRepository {
                 SELECT p.prepayment_id, p.project_id, bp.project_name, p.member_id,
                        m.real_name AS member_name, m.mobile, p.order_id, p.order_no, p.amount,
                        p.amount - p.remaining_amount AS used_amount, p.remaining_amount,
-                       p.source, p.remark, p.created_at
+                       p.source, p.remark, ob.house_no, ob.bill_summary, p.created_at
                 FROM member_prepayment p
                 LEFT JOIN base_project bp ON bp.tenant_id = p.tenant_id
                     AND bp.project_id = p.project_id AND bp.deleted = 0
                 LEFT JOIN member_user m ON m.tenant_id = p.tenant_id
                     AND m.member_id = p.member_id AND m.deleted = 0
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                ) ob ON ob.tenant_id = p.tenant_id AND ob.order_id = p.order_id
                 WHERE p.tenant_id = ? AND p.deleted = 0
                 """);
         args.add(tenantId);
@@ -550,7 +564,8 @@ public class PaymentRepository {
                 rs.getString("project_name"), (Long) rs.getObject("member_id"), rs.getString("member_name"),
                 rs.getString("mobile"), (Long) rs.getObject("order_id"), rs.getString("order_no"),
                 rs.getBigDecimal("amount"), rs.getBigDecimal("used_amount"), rs.getBigDecimal("remaining_amount"),
-                rs.getString("source"), rs.getString("remark"), rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getString("source"), rs.getString("remark"), rs.getString("house_no"),
+                rs.getString("bill_summary"), rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     private PayableBill mapPayableBill(ResultSet rs, int rowNum) throws SQLException {

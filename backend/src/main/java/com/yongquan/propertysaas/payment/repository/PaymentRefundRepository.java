@@ -41,7 +41,7 @@ public class PaymentRefundRepository {
                        r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
                        r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
                        o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
-                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       hs.house_no, hs.bill_summary, o.pay_channel, o.amount AS order_amount,
                        COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
                 FROM pay_refund r
                 LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
@@ -49,9 +49,12 @@ public class PaymentRefundRepository {
                 LEFT JOIN (
                     SELECT ob.tenant_id, ob.order_id,
                            GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
-                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
                     FROM pay_order_bill ob
                     LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
                     LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
                     LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                     LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
@@ -96,7 +99,7 @@ public class PaymentRefundRepository {
                        r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
                        r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
                        o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
-                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       hs.house_no, hs.bill_summary, o.pay_channel, o.amount AS order_amount,
                        COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
                 FROM pay_refund r
                 LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
@@ -104,9 +107,12 @@ public class PaymentRefundRepository {
                 LEFT JOIN (
                     SELECT ob.tenant_id, ob.order_id,
                            GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
-                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
                     FROM pay_order_bill ob
                     LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
                     LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
                     LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                     LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
@@ -127,7 +133,7 @@ public class PaymentRefundRepository {
                        r.refund_amount, r.reason, r.status, r.third_refund_no, r.refunded_at,
                        r.apply_user_id, r.audit_user_id, r.audit_at, r.created_at,
                        o.member_id, m.real_name AS member_name, m.mobile AS member_mobile,
-                       hs.house_no, o.pay_channel, o.amount AS order_amount,
+                       hs.house_no, hs.bill_summary, o.pay_channel, o.amount AS order_amount,
                        COALESCE(rt.refunded_transaction_amount, 0) AS refunded_transaction_amount
                 FROM pay_refund r
                 LEFT JOIN pay_order o ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id AND o.deleted = 0
@@ -135,9 +141,12 @@ public class PaymentRefundRepository {
                 LEFT JOIN (
                     SELECT ob.tenant_id, ob.order_id,
                            GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)
-                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no
+                                        ORDER BY bd.building_name, u.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
                     FROM pay_order_bill ob
                     LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
                     LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
                     LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
                     LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
@@ -529,7 +538,7 @@ public class PaymentRefundRepository {
                 (Long) rs.getObject("audit_user_id"), toLocalDateTime(rs, "audit_at"),
                 rs.getTimestamp("created_at").toLocalDateTime(), (Long) rs.getObject("member_id"),
                 rs.getString("member_name"), rs.getString("member_mobile"), rs.getString("house_no"),
-                rs.getString("pay_channel"), rs.getBigDecimal("order_amount"),
+                rs.getString("bill_summary"), rs.getString("pay_channel"), rs.getBigDecimal("order_amount"),
                 rs.getBigDecimal("refunded_transaction_amount"));
     }
 

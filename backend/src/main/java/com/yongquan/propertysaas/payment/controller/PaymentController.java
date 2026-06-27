@@ -161,11 +161,11 @@ public class PaymentController {
                                                 @RequestParam(required = false) String status) {
         List<PayRefundView> rows = exportPages(pageNo -> refundService.pageRefunds(projectId, refundNo, orderNo,
                 memberName, status, pageNo, 200));
-        StringBuilder csv = csvHeader("退款单号", "小区ID", "原订单号", "业主/住户", "手机号", "房号", "原支付方式",
+        StringBuilder csv = csvHeader("退款单号", "小区ID", "原订单号", "业主/住户", "手机号", "房号", "原账单明细", "原支付方式",
                 "原订单金额", "申请退款金额", "已退流水", "状态", "原因", "退款时间", "创建时间");
         for (PayRefundView row : rows) {
             csvRow(csv, row.refundNo(), row.projectId(), row.orderNo(), row.memberName(), row.memberMobile(),
-                    row.houseNo(), payChannelLabel(row.payChannel()), row.orderAmount(), row.refundAmount(),
+                    row.houseNo(), row.billSummary(), payChannelLabel(row.payChannel()), row.orderAmount(), row.refundAmount(),
                     row.refundedTransactionAmount(), refundStatusLabel(row.status()), row.reason(), row.refundedAt(), row.createdAt());
         }
         return csv("payment-refunds.csv", csv);

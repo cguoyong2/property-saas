@@ -17,6 +17,8 @@ public record MemberPrepaymentView(
         BigDecimal remainingAmount,
         String source,
         String remark,
+        String houseNo,
+        String billSummary,
         LocalDateTime createdAt
 ) {
 }

@@ -176,11 +176,26 @@ public class AppRepository {
                   SELECT p.created_at AS createdAt, p.project_id AS projectId, bp.project_name AS projectName,
                          p.order_no AS businessNo, 'IN' AS direction, p.source AS source,
                          p.amount AS amount, p.remaining_amount AS remainingAmount,
-                         NULL AS billNo, NULL AS feeItemName, NULL AS billPeriod, NULL AS houseNo,
+                         NULL AS billNo, NULL AS feeItemName, NULL AS billPeriod,
+                         ob.house_no AS houseNo, ob.bill_summary AS billSummary, p.order_no AS orderNo,
                          p.remark AS remark
                   FROM member_prepayment p
                   LEFT JOIN base_project bp ON bp.tenant_id = p.tenant_id
                       AND bp.project_id = p.project_id AND bp.deleted = 0
+                  LEFT JOIN (
+                    SELECT ob.tenant_id, ob.order_id,
+                           GROUP_CONCAT(DISTINCT CONCAT_WS('', bd.building_name, bu.unit_name, h.house_no)
+                                        ORDER BY bd.building_name, bu.unit_name, h.house_no SEPARATOR '、') AS house_no,
+                           GROUP_CONCAT(DISTINCT CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', ob.amount, '元')
+                                        ORDER BY fb.bill_period, fi.item_name SEPARATOR '；') AS bill_summary
+                    FROM pay_order_bill ob
+                    LEFT JOIN fee_bill fb ON fb.tenant_id = ob.tenant_id AND fb.bill_id = ob.bill_id AND fb.deleted = 0
+                    LEFT JOIN fee_item fi ON fi.tenant_id = fb.tenant_id AND fi.item_id = fb.item_id AND fi.deleted = 0
+                    LEFT JOIN base_house h ON h.tenant_id = fb.tenant_id AND h.house_id = fb.house_id AND h.deleted = 0
+                    LEFT JOIN base_building bd ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                    LEFT JOIN base_unit bu ON bu.tenant_id = h.tenant_id AND bu.unit_id = h.unit_id AND bu.deleted = 0
+                    GROUP BY ob.tenant_id, ob.order_id
+                  ) ob ON ob.tenant_id = p.tenant_id AND ob.order_id = p.order_id
                   WHERE p.tenant_id = ? AND p.member_id = ? AND p.deleted = 0
                   UNION ALL
                   SELECT u.created_at AS createdAt, u.project_id AS projectId, bp.project_name AS projectName,
@@ -188,6 +203,8 @@ public class AppRepository {
                          u.amount AS amount, NULL AS remainingAmount,
                          fb.bill_no AS billNo, fi.item_name AS feeItemName, fb.bill_period AS billPeriod,
                          CONCAT_WS('', bd.building_name, bu.unit_name, h.house_no) AS houseNo,
+                         CONCAT(COALESCE(fi.item_name, '费用'), ' ', fb.bill_period, ' ', u.amount, '元') AS billSummary,
+                         NULL AS orderNo,
                          u.remark AS remark
                   FROM member_prepayment_usage u
                   LEFT JOIN base_project bp ON bp.tenant_id = u.tenant_id

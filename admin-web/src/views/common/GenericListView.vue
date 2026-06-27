@@ -419,6 +419,18 @@
             <strong>{{ moneyText(receiptRow.refundedAmount) }} 元</strong>
           </div>
           <div>
+            <span>可退金额</span>
+            <strong>{{ moneyText(receiptRow.refundableAmount) }} 元</strong>
+          </div>
+          <div>
+            <span>转预存款</span>
+            <strong>{{ moneyText(receiptRow.prepaymentAmount) }} 元</strong>
+          </div>
+          <div>
+            <span>预存款余额</span>
+            <strong>{{ moneyText(receiptRow.prepaymentRemainingAmount) }} 元</strong>
+          </div>
+          <div>
             <span>收款时间</span>
             <strong>{{ receiptRow.paidAt ?? '-' }}</strong>
           </div>

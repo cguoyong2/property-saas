@@ -23,6 +23,7 @@ public record PayRefundView(
         String memberName,
         String memberMobile,
         String houseNo,
+        String billSummary,
         String payChannel,
         BigDecimal orderAmount,
         BigDecimal refundedTransactionAmount
