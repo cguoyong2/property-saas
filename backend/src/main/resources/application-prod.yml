@@ -19,6 +19,7 @@ spring:
     locations: classpath:db/migration-prod
     baseline-on-migrate: false
     validate-on-migrate: true
+    placeholder-replacement: false
   servlet:
     multipart:
       max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:10MB}

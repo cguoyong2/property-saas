@@ -29,7 +29,10 @@ public class MemberRepository {
     public Optional<MemberView> findMemberByOpenid(Long tenantId, String openid) {
         List<MemberView> members = jdbcTemplate.query("""
                 SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
-                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id, u.unit_name,
+                       b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role,
                        m.last_login_at, m.created_at
                 FROM member_user m
                 LEFT JOIN member_house_bind b
@@ -43,6 +46,12 @@ public class MemberRepository {
                        )
                 LEFT JOIN base_house h
                        ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_project p
+                       ON p.tenant_id = m.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_building bd
+                       ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 WHERE m.tenant_id = ? AND m.openid = ? AND m.deleted = 0
                 LIMIT 1
                 """, this::mapMember, tenantId, openid);
@@ -52,7 +61,10 @@ public class MemberRepository {
     public Optional<MemberView> findMemberByMobile(Long tenantId, String mobile) {
         List<MemberView> members = jdbcTemplate.query("""
                 SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
-                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id, u.unit_name,
+                       b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role,
                        m.last_login_at, m.created_at
                 FROM member_user m
                 LEFT JOIN member_house_bind b
@@ -66,6 +78,12 @@ public class MemberRepository {
                        )
                 LEFT JOIN base_house h
                        ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_project p
+                       ON p.tenant_id = m.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_building bd
+                       ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 WHERE m.tenant_id = ? AND m.mobile = ? AND m.deleted = 0
                 LIMIT 1
                 """, this::mapMember, tenantId, mobile);
@@ -196,7 +214,10 @@ public class MemberRepository {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT m.member_id, m.openid, m.unionid, m.mobile, m.real_name, m.avatar_url, m.status,
-                       b.project_id, h.building_id, h.unit_id, b.house_id, h.house_no, b.bind_role,
+                       b.project_id, p.project_name, h.building_id, bd.building_name, h.unit_id, u.unit_name,
+                       b.house_id, h.house_no,
+                       CONCAT(COALESCE(bd.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS room_no,
+                       b.bind_role,
                        m.last_login_at, m.created_at
                 FROM member_user m
                 LEFT JOIN member_house_bind b
@@ -210,6 +231,12 @@ public class MemberRepository {
                        )
                 LEFT JOIN base_house h
                        ON h.tenant_id = m.tenant_id AND h.house_id = b.house_id AND h.deleted = 0
+                LEFT JOIN base_project p
+                       ON p.tenant_id = m.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
+                LEFT JOIN base_building bd
+                       ON bd.tenant_id = h.tenant_id AND bd.building_id = h.building_id AND bd.deleted = 0
+                LEFT JOIN base_unit u
+                       ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
                 WHERE m.tenant_id = ? AND m.deleted = 0
                 """);
         args.add(tenantId);
@@ -553,10 +580,14 @@ public class MemberRepository {
                 rs.getString("avatar_url"),
                 rs.getString("status"),
                 (Long) rs.getObject("project_id"),
+                rs.getString("project_name"),
                 (Long) rs.getObject("building_id"),
+                rs.getString("building_name"),
                 (Long) rs.getObject("unit_id"),
+                rs.getString("unit_name"),
                 (Long) rs.getObject("house_id"),
                 rs.getString("house_no"),
+                rs.getString("room_no"),
                 rs.getString("bind_role"),
                 rs.getTimestamp("last_login_at") == null ? null : rs.getTimestamp("last_login_at").toLocalDateTime(),
                 rs.getTimestamp("created_at").toLocalDateTime()
