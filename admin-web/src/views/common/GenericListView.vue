@@ -979,7 +979,14 @@ const businessActions: Record<string, BusinessAction[]> = {
       type: 'success',
       permission: 'payment:reconcile:view',
       visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
-      fields: [{ prop: 'reviewRemark', label: '复核备注', type: 'textarea' }],
+      fields: [
+        {
+          prop: 'reviewRemark',
+          label: '复核备注',
+          type: 'textarea',
+          help: '复核通过前系统会重新复算；若该异常仍存在，系统会阻止通过。',
+        },
+      ],
       buildPayload: (_row, formData = {}) => ({ reviewResult: 'APPROVED', reviewRemark: formData.reviewRemark }),
     },
     {

@@ -287,19 +287,25 @@ public class PaymentRefundService {
             case "REJECTED" -> "REJECTED";
             default -> throw new IllegalArgumentException("非法复核结果：" + request.reviewResult());
         };
-        ReconcileExceptionView exception = repository.getReconcileException(tenantId(), projectScope(tenantId()), exceptionKey);
+        Long tenantId = tenantId();
+        List<Long> scope = projectScope(tenantId);
+        ReconcileExceptionView exception = repository.getReconcileException(tenantId, scope, exceptionKey);
         ensureProjectAllowed(exception.projectId());
         if (!"HANDLED".equals(exception.status())) {
             throw new IllegalArgumentException("只有已处理的账务异常可以复核");
         }
-        repository.reviewReconcileExceptionHandle(tenantId(), exception.exceptionKey(), reviewStatus, userId(),
+        if ("APPROVED".equals(reviewStatus)
+                && repository.currentReconcileExceptionExists(tenantId, scope, exception.exceptionKey())) {
+            throw new IllegalArgumentException("处理后系统复算仍存在该异常，不能复核通过：" + exception.reason());
+        }
+        repository.reviewReconcileExceptionHandle(tenantId, exception.exceptionKey(), reviewStatus, userId(),
                 request.reviewRemark());
         String newStatus = "APPROVED".equals(reviewStatus) ? "HANDLED" : "OPEN";
-        repository.insertReconcileExceptionHistory(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
+        repository.insertReconcileExceptionHistory(newId(), tenantId, exception.projectId(), exception.exceptionKey(),
                 "APPROVED".equals(reviewStatus) ? "REVIEW_APPROVE" : "REVIEW_REJECT",
                 exception.status(), newStatus, exception.reviewStatus(), reviewStatus, request.reviewRemark(),
                 exception.attachmentFileIds(), userId());
-        operationLogService.record(new OperationLogWrite(tenantId(), exception.projectId(), "payment", "RECONCILE_EXCEPTION_REVIEW",
+        operationLogService.record(new OperationLogWrite(tenantId, exception.projectId(), "payment", "RECONCILE_EXCEPTION_REVIEW",
                 exception.businessType(), exception.businessId(), Map.of("status", exception.status(),
                 "reviewStatus", exception.reviewStatus()), Map.of("status", newStatus, "reviewStatus", reviewStatus,
                 "exceptionKey", exception.exceptionKey()), request.reviewRemark()));

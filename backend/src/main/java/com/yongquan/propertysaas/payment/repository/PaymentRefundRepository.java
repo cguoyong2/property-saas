@@ -432,6 +432,17 @@ public class PaymentRefundRepository {
                 this::mapReconcileException, args.toArray());
     }
 
+    public boolean currentReconcileExceptionExists(Long tenantId, List<Long> allowedProjectIds, String exceptionKey) {
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        addExceptionSqlArgs(args, allowedProjectIds, null, null, null, null, null);
+        args.add(exceptionKey);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + exceptionSql(allowedProjectIds)
+                        + ") e WHERE e.exception_key = ?",
+                Long.class, args.toArray());
+        return value(count) > 0;
+    }
+
     public void upsertReconcileExceptionHandle(Long handleId, Long tenantId, Long projectId, String exceptionKey,
                                                String exceptionType, String businessType, Long businessId,
                                                Long userId, String remark, String attachmentFileIds) {
