@@ -484,25 +484,31 @@ public class PaymentRefundRepository {
 
     public void upsertReconcileExceptionHandle(Long handleId, Long tenantId, Long projectId, String exceptionKey,
                                                String exceptionType, String businessType, Long businessId,
-                                               Long userId, String remark, String attachmentFileIds) {
+                                               Long userId, String remark, String attachmentFileIds,
+                                               String reviewStatus) {
         jdbcTemplate.update("""
                         INSERT INTO payment_reconcile_exception_handle(handle_id, tenant_id, project_id, exception_key,
                                                                        exception_type, business_type, business_id,
                                                                        status, handle_remark, attachment_file_ids,
-                                                                       handled_by, handled_at, review_status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'HANDLED', ?, ?, ?, NOW(), 'PENDING')
+                                                                       handled_by, handled_at, review_status,
+                                                                       reviewed_by, reviewed_at, review_remark)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'HANDLED', ?, ?, ?, NOW(), ?,
+                                CASE WHEN ? = 'APPROVED' THEN ? ELSE NULL END,
+                                CASE WHEN ? = 'APPROVED' THEN NOW() ELSE NULL END,
+                                CASE WHEN ? = 'APPROVED' THEN '低风险异常处理后自动归档' ELSE NULL END)
                         ON DUPLICATE KEY UPDATE status = 'HANDLED',
                                                 handle_remark = VALUES(handle_remark),
                                                 attachment_file_ids = VALUES(attachment_file_ids),
                                                 handled_by = VALUES(handled_by),
                                                 handled_at = NOW(),
-                                                review_status = 'PENDING',
-                                                reviewed_by = NULL,
-                                                reviewed_at = NULL,
-                                                review_remark = NULL,
+                                                review_status = VALUES(review_status),
+                                                reviewed_by = CASE WHEN VALUES(review_status) = 'APPROVED' THEN VALUES(handled_by) ELSE NULL END,
+                                                reviewed_at = CASE WHEN VALUES(review_status) = 'APPROVED' THEN NOW() ELSE NULL END,
+                                                review_remark = CASE WHEN VALUES(review_status) = 'APPROVED' THEN '低风险异常处理后自动归档' ELSE NULL END,
                                                 deleted = 0
                         """, handleId, tenantId, projectId, exceptionKey, exceptionType, businessType,
-                businessId, remark, attachmentFileIds, userId);
+                businessId, remark, attachmentFileIds, userId, reviewStatus,
+                reviewStatus, userId, reviewStatus, reviewStatus);
     }
 
     public void reviewReconcileExceptionHandle(Long tenantId, String exceptionKey, String reviewStatus, Long userId,

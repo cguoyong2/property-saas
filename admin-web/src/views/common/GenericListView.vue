@@ -1010,7 +1010,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       visible: (row) => row?.status !== 'HANDLED',
       fields: [
         { prop: 'handleRemark', label: '处理备注', type: 'textarea', required: true },
-        { prop: 'attachmentFileIds', label: '处理凭证', type: 'fileUpload', moduleCode: 'reconcile', help: '高风险异常必须上传处理凭证；系统会自动保存附件 ID' },
+        { prop: 'attachmentFileIds', label: '处理凭证', type: 'fileUpload', moduleCode: 'reconcile', help: '高风险异常必须上传处理凭证；高/中风险处理后进入复核，低风险处理后自动归档。' },
       ],
       buildPayload: (_row, formData = {}) => ({
         handleRemark: formData.handleRemark,
@@ -1025,7 +1025,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
       type: 'success',
       permission: 'payment:reconcile:view',
-      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      visible: (row) => needsReconcileReview(row),
       fields: [
         {
           prop: 'reviewRemark',
@@ -1044,7 +1044,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
       type: 'warning',
       permission: 'payment:reconcile:view',
-      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      visible: (row) => needsReconcileReview(row),
       fields: [{ prop: 'reviewRemark', label: '退回原因', type: 'textarea', required: true }],
       buildPayload: (_row, formData = {}) => ({ reviewResult: 'REJECTED', reviewRemark: formData.reviewRemark }),
     },
@@ -1058,7 +1058,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
       type: 'success',
       permission: 'payment:reconcile:view',
-      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      visible: (row) => needsReconcileReview(row),
       fields: [
         {
           prop: 'reviewRemark',
@@ -1077,7 +1077,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       path: (row) => `/payment/reconcile/exceptions/${encodeURIComponent(String(row?.exceptionKey ?? ''))}/review`,
       type: 'warning',
       permission: 'payment:reconcile:view',
-      visible: (row) => row?.status === 'HANDLED' && row?.reviewStatus !== 'APPROVED',
+      visible: (row) => needsReconcileReview(row),
       fields: [{ prop: 'reviewRemark', label: '退回原因', type: 'textarea', required: true }],
       buildPayload: (_row, formData = {}) => ({ reviewResult: 'REJECTED', reviewRemark: formData.reviewRemark }),
     },
@@ -1435,6 +1435,7 @@ function reconcileHistoryActionText(actionType: unknown) {
     HANDLE: '标记已处理',
     REVIEW_APPROVE: '复核通过',
     REVIEW_REJECT: '退回重办',
+    AUTO_ARCHIVE: '自动归档',
   }
   return labels[String(actionType ?? '')] ?? String(actionType ?? '-')
 }
@@ -2800,6 +2801,15 @@ async function submitAction() {
 function isHighRiskReconcileException(row?: Record<string, unknown> | null) {
   const level = String(row?.exceptionLevel ?? '').trim().toUpperCase()
   return level === '高' || level === 'HIGH' || level === 'CRITICAL'
+}
+
+function needsReconcileReview(row?: Record<string, unknown>) {
+  return row?.status === 'HANDLED' && row?.reviewStatus === 'PENDING' && !isLowRiskReconcileException(row)
+}
+
+function isLowRiskReconcileException(row?: Record<string, unknown> | null) {
+  const level = String(row?.exceptionLevel ?? '').trim().toUpperCase()
+  return level === '低' || level === 'LOW'
 }
 
 async function executeAction(action: BusinessAction, row?: Record<string, unknown>, formData: Record<string, unknown> = {}) {

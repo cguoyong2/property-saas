@@ -299,17 +299,33 @@ public class PaymentRefundService {
         if (isHighRiskReconcileException(exception.exceptionLevel()) && attachmentFileIds == null) {
             throw new IllegalArgumentException("高风险对账异常必须上传处理凭证后才能标记已处理");
         }
+        String reviewStatus = requiresManualReconcileReview(exception.exceptionLevel()) ? "PENDING" : "APPROVED";
+        String reviewRemark = "APPROVED".equals(reviewStatus) ? "低风险异常处理后自动归档" : null;
         repository.upsertReconcileExceptionHandle(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
                 exception.exceptionType(), exception.businessType(), exception.businessId(), userId(),
-                request.handleRemark(), attachmentFileIds);
+                request.handleRemark(), attachmentFileIds, reviewStatus);
         repository.insertReconcileExceptionHistory(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
-                "HANDLE", exception.status(), "HANDLED", exception.reviewStatus(), "PENDING",
+                "HANDLE", exception.status(), "HANDLED", exception.reviewStatus(), reviewStatus,
                 request.handleRemark(), attachmentFileIds, userId());
+        if ("APPROVED".equals(reviewStatus)) {
+            repository.insertReconcileExceptionHistory(newId(), tenantId(), exception.projectId(), exception.exceptionKey(),
+                    "AUTO_ARCHIVE", "HANDLED", "HANDLED", reviewStatus, reviewStatus,
+                    reviewRemark, attachmentFileIds, userId());
+        }
         operationLogService.record(new OperationLogWrite(tenantId(), exception.projectId(), "payment", "RECONCILE_EXCEPTION_HANDLE",
                 exception.businessType(), exception.businessId(), Map.of("status", exception.status()),
                 Map.of("status", "HANDLED", "exceptionKey", exception.exceptionKey(),
+                        "reviewStatus", reviewStatus,
                         "attachmentFileIds", request.attachmentFileIds() == null ? "" : request.attachmentFileIds()),
                 request.handleRemark()));
+    }
+
+    private boolean requiresManualReconcileReview(String exceptionLevel) {
+        if (exceptionLevel == null) {
+            return true;
+        }
+        String level = exceptionLevel.trim().toUpperCase();
+        return !"低".equals(exceptionLevel.trim()) && !"LOW".equals(level);
     }
 
     private boolean isHighRiskReconcileException(String exceptionLevel) {
