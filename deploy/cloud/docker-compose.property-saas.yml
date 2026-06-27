@@ -12,12 +12,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-property_saas}
-      MYSQL_USER: ${MYSQL_USER:-property_saas}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - property_saas_mysql_data:/var/lib/mysql
-      - ./sql/schema_mysql8.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./sql/seed_demo_data.sql:/docker-entrypoint-initdb.d/02-seed-demo.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
@@ -45,21 +43,25 @@ services:
     restart: unless-stopped
     working_dir: /app
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:mysql://property-saas-mysql:3306/property_saas?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-property_saas}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
-      SPRING_DATA_REDIS_HOST: property-saas-redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      SPRING_FLYWAY_ENABLED: "false"
+      DB_URL: ${DB_URL:?DB_URL is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      REDIS_HOST: ${REDIS_HOST:-property-saas-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       PROPERTY_SAAS_JWT_SECRET: ${PROPERTY_SAAS_JWT_SECRET:?PROPERTY_SAAS_JWT_SECRET is required}
       PROPERTY_SAAS_JWT_TTL_SECONDS: ${PROPERTY_SAAS_JWT_TTL_SECONDS:-7200}
       PROPERTY_SAAS_FILE_LOCAL_ROOT_DIR: /data/property-saas/uploads
       PROPERTY_SAAS_FILE_MAX_SIZE_BYTES: ${PROPERTY_SAAS_FILE_MAX_SIZE_BYTES:-10485760}
       PROPERTY_SAAS_JOB_ENABLED: ${PROPERTY_SAAS_JOB_ENABLED:-false}
-      WECHAT_PAY_MODE: DEV_SIMULATED
+      WECHAT_PAY_MODE: ${WECHAT_PAY_MODE:-DEV_SIMULATED}
+      WECHAT_PAY_CALLBACK_TOLERANCE_SECONDS: ${WECHAT_PAY_CALLBACK_TOLERANCE_SECONDS:-300}
+      WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH: ${WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH:-}
+      WECHAT_PAY_MERCHANT_CERTIFICATE_PATH: ${WECHAT_PAY_MERCHANT_CERTIFICATE_PATH:-}
+      WECHAT_PAY_PLATFORM_CERTIFICATE_PATH: ${WECHAT_PAY_PLATFORM_CERTIFICATE_PATH:-}
+      WECHAT_PAY_API_V3_KEY_REF: ${WECHAT_PAY_API_V3_KEY_REF:-}
     volumes:
       - ./backend/backend.jar:/app/backend.jar:ro
       - property_saas_uploads:/data/property-saas/uploads
