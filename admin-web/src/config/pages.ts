@@ -64,6 +64,7 @@ export interface PageConfig {
   projectScoped?: boolean
   menuOrder?: number
   showDetails?: boolean
+  defaultFilters?: Record<string, string | number>
   columns: FieldConfig[]
   detailFields?: FieldConfig[]
   fields?: FieldConfig[]
@@ -801,6 +802,7 @@ const billingPages: PageConfig[] = [
     permission: 'fee:item:list',
     createPermission: 'fee:item:create',
     updatePermission: 'fee:item:update',
+    menuOrder: 100,
     columns: [
       { prop: 'itemCode', label: '编码', inFilter: true },
       { prop: 'itemName', label: '收费项目' },
@@ -823,6 +825,7 @@ const billingPages: PageConfig[] = [
     idProp: 'billId',
     permission: 'fee:bill:list',
     projectScoped: true,
+    menuOrder: 200,
     columns: [
       { prop: 'billNo', label: '账单号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -849,6 +852,7 @@ const billingPages: PageConfig[] = [
     permission: 'payment:order:list',
     projectScoped: true,
     showDetails: true,
+    menuOrder: 300,
     columns: [
       { prop: 'orderNo', label: '订单号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -903,6 +907,7 @@ const billingPages: PageConfig[] = [
     permission: 'payment:refund:list',
     createPermission: 'payment:refund:create',
     projectScoped: true,
+    menuOrder: 400,
     columns: [
       { prop: 'refundNo', label: '退款单号', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -967,6 +972,7 @@ const billingExtraPages: PageConfig[] = [
     createPermission: 'fee:standard:create',
     updatePermission: 'fee:standard:update',
     projectScoped: true,
+    menuOrder: 500,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'itemId', label: '收费项目', type: 'feeItem', inFilter: true },
@@ -1001,6 +1007,7 @@ const billingExtraPages: PageConfig[] = [
     permission: 'fee:standardBind:list',
     createPermission: 'fee:standardBind:create',
     projectScoped: true,
+    menuOrder: 600,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'standardId', label: '收费标准', type: 'feeStandard' },
@@ -1030,6 +1037,7 @@ const billingExtraPages: PageConfig[] = [
     permission: 'payment:transaction:list',
     projectScoped: true,
     showDetails: true,
+    menuOrder: 700,
     columns: [
       { prop: 'transactionId', label: '流水ID', inFilter: true },
       { prop: 'projectId', label: '小区名称', type: 'project' },
@@ -1077,6 +1085,7 @@ const billingExtraPages: PageConfig[] = [
     permission: 'payment:prepayment:list',
     projectScoped: true,
     showDetails: true,
+    menuOrder: 800,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'memberName', label: '业主/住户', inFilter: true },
@@ -1115,6 +1124,7 @@ const billingExtraPages: PageConfig[] = [
     listPath: '/payment/reconcile',
     permission: 'payment:reconcile:view',
     projectScoped: true,
+    menuOrder: 900,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'startDate', label: '开始日期', type: 'date', inFilter: true, tableHidden: true },
@@ -1145,6 +1155,7 @@ const billingExtraPages: PageConfig[] = [
     permission: 'payment:reconcile:view',
     projectScoped: true,
     showDetails: true,
+    menuOrder: 910,
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'exceptionType', label: '异常类型', type: 'select', options: reconcileExceptionTypeOptions, inFilter: true },
@@ -1195,7 +1206,9 @@ const billingExtraPages: PageConfig[] = [
     listPath: '/payment/reconcile/reviews',
     permission: 'payment:reconcile:view',
     projectScoped: true,
+    menuOrder: 920,
     showDetails: true,
+    defaultFilters: { reviewStatus: 'PENDING' },
     columns: [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'exceptionType', label: '异常类型', type: 'select', options: reconcileExceptionTypeOptions, inFilter: true },

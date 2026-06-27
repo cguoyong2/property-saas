@@ -1329,6 +1329,7 @@ function reset() {
   Object.keys(filters).forEach((key) => {
     filters[key] = ''
   })
+  applyDefaultFilters()
   pageNo.value = 1
   if (Object.keys(route.query).length) {
     router.replace({ path: route.path, query: {} })
@@ -1470,6 +1471,12 @@ function applyRouteQueryFilters() {
     const firstValue = Array.isArray(value) ? value[0] : value
     if (firstValue === undefined || firstValue === null) return
     filters[key] = String(firstValue)
+  })
+}
+
+function applyDefaultFilters() {
+  Object.entries(config.value.defaultFilters ?? {}).forEach(([key, value]) => {
+    filters[key] = value
   })
 }
 
@@ -2651,6 +2658,7 @@ watch(
     Object.keys(filters).forEach((key) => {
       filters[key] = ''
     })
+    applyDefaultFilters()
     applyRouteQueryFilters()
     load()
   },
@@ -2662,6 +2670,7 @@ watch(memberSearchKeyword, () => {
 })
 
 onMounted(() => {
+  applyDefaultFilters()
   applyRouteQueryFilters()
   load()
 })
