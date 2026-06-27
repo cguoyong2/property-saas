@@ -12,6 +12,7 @@ import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
+import com.yongquan.propertysaas.payment.domain.ReconcileReviewStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.domain.RefundNotifyResult;
@@ -255,6 +256,18 @@ public class PaymentController {
             @RequestParam(defaultValue = "20") long pageSize) {
         return ApiResponse.success(refundService.pageReconcileExceptionReviews(projectId, exceptionType, memberName,
                 reviewStatus, currentCheckStatus, pageNo, pageSize));
+    }
+
+    @GetMapping("/api/payment/reconcile/reviews/stats")
+    @RequiresPermission("payment:reconcile:view")
+    public ApiResponse<ReconcileReviewStatsView> reconcileReviewStats(
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String exceptionType,
+            @RequestParam(required = false) String memberName,
+            @RequestParam(required = false) String reviewStatus,
+            @RequestParam(required = false) String currentCheckStatus) {
+        return ApiResponse.success(refundService.reconcileReviewStats(projectId, exceptionType, memberName,
+                reviewStatus, currentCheckStatus));
     }
 
     @PostMapping("/api/payment/reconcile/exceptions/{exceptionKey}/handle")

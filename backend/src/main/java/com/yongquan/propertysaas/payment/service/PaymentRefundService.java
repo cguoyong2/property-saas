@@ -10,6 +10,7 @@ import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
+import com.yongquan.propertysaas.payment.domain.ReconcileReviewStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import com.yongquan.propertysaas.payment.dto.ReconcileExceptionHandleRequest;
@@ -306,6 +307,16 @@ public class PaymentRefundService {
                 pageSize);
     }
 
+    public ReconcileReviewStatsView reconcileReviewStats(Long projectId, String exceptionType, String memberName,
+                                                         String reviewStatus, String currentCheckStatus) {
+        validateReconcileReviewStatus(reviewStatus);
+        validateReconcileCurrentCheckStatus(currentCheckStatus);
+        Long tenantId = tenantId();
+        return repository.reconcileReviewStats(tenantId, projectScope(tenantId), projectId,
+                normalize(exceptionType), normalize(memberName), normalize(reviewStatus),
+                normalize(currentCheckStatus));
+    }
+
     private void validateReconcileExceptionLevel(String exceptionLevel) {
         if (exceptionLevel != null && !exceptionLevel.isBlank()
                 && !Set.of("高", "中", "低", "HIGH", "MEDIUM", "LOW").contains(exceptionLevel)) {
@@ -316,6 +327,20 @@ public class PaymentRefundService {
     private void validateReconcileExceptionStatus(String status) {
         if (status != null && !status.isBlank() && !Set.of("OPEN", "HANDLED").contains(status)) {
             throw new IllegalArgumentException("非法处理状态：" + status);
+        }
+    }
+
+    private void validateReconcileReviewStatus(String reviewStatus) {
+        if (reviewStatus != null && !reviewStatus.isBlank()
+                && !Set.of("PENDING", "APPROVED", "REJECTED").contains(reviewStatus)) {
+            throw new IllegalArgumentException("非法复核状态：" + reviewStatus);
+        }
+    }
+
+    private void validateReconcileCurrentCheckStatus(String currentCheckStatus) {
+        if (currentCheckStatus != null && !currentCheckStatus.isBlank()
+                && !Set.of("RESOLVED", "STILL_ABNORMAL").contains(currentCheckStatus)) {
+            throw new IllegalArgumentException("非法复算状态：" + currentCheckStatus);
         }
     }
 

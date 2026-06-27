@@ -114,6 +114,33 @@
       </div>
     </div>
 
+    <div v-if="isReconcileReviewPage" class="reconcile-stats reconcile-stats--review">
+      <button class="reconcile-stats__card reconcile-stats__card--link" type="button" @click="setReconcileReviewStatusFilter('PENDING')">
+        <span>待复核</span>
+        <strong>{{ reconcileReviewStats.pendingCount }}</strong>
+      </button>
+      <button class="reconcile-stats__card reconcile-stats__card--success" type="button" @click="setReconcileReviewStatusFilter('APPROVED')">
+        <span>已通过</span>
+        <strong>{{ reconcileReviewStats.approvedCount }}</strong>
+      </button>
+      <button class="reconcile-stats__card reconcile-stats__card--warning" type="button" @click="setReconcileReviewStatusFilter('REJECTED')">
+        <span>已退回</span>
+        <strong>{{ reconcileReviewStats.rejectedCount }}</strong>
+      </button>
+      <button class="reconcile-stats__card reconcile-stats__card--success" type="button" @click="setReconcileCurrentCheckFilter('RESOLVED')">
+        <span>复算已解决</span>
+        <strong>{{ reconcileReviewStats.resolvedCount }}</strong>
+      </button>
+      <button class="reconcile-stats__card reconcile-stats__card--danger" type="button" @click="setReconcileCurrentCheckFilter('STILL_ABNORMAL')">
+        <span>复算仍异常</span>
+        <strong>{{ reconcileReviewStats.stillAbnormalCount }}</strong>
+      </button>
+      <div class="reconcile-stats__total">
+        <span>{{ reconcileReviewStatsLoading ? '统计刷新中' : '当前口径合计' }}</span>
+        <strong>{{ reconcileReviewStats.totalCount }}</strong>
+      </div>
+    </div>
+
     <el-alert
       v-if="error"
       class="page-alert"
@@ -750,6 +777,15 @@ interface ReconcileExceptionStats {
   handledCount: number
 }
 
+interface ReconcileReviewStats {
+  totalCount: number
+  pendingCount: number
+  approvedCount: number
+  rejectedCount: number
+  resolvedCount: number
+  stillAbnormalCount: number
+}
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -788,6 +824,15 @@ const reconcileStats = reactive<ReconcileExceptionStats>({
   openCount: 0,
   pendingReviewCount: 0,
   handledCount: 0,
+})
+const reconcileReviewStatsLoading = ref(false)
+const reconcileReviewStats = reactive<ReconcileReviewStats>({
+  totalCount: 0,
+  pendingCount: 0,
+  approvedCount: 0,
+  rejectedCount: 0,
+  resolvedCount: 0,
+  stillAbnormalCount: 0,
 })
 const chinaAreaOptions = pcaTextArr
 const plateProvinceOptions = '京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼'.split('')
@@ -1385,6 +1430,7 @@ const pageActions = computed(() => availableActions.value.filter((action) => act
 const rowActions = computed(() => availableActions.value.filter((action) => action.scope === 'row'))
 const detailFields = computed(() => config.value.detailFields ?? config.value.columns)
 const isReconcileExceptionPage = computed(() => config.value.key === 'payment-reconcile-exceptions')
+const isReconcileReviewPage = computed(() => config.value.key === 'payment-reconcile-reviews')
 const isReconcileExceptionDetail = computed(() => ['payment-reconcile-exceptions', 'payment-reconcile-reviews'].includes(config.value.key))
 const hasOperationColumn = computed(() => Boolean((config.value.updatePath && canUpdate.value) || config.value.showDetails || rowActions.value.length))
 const operationWidth = computed(() => {
@@ -1433,6 +1479,7 @@ async function load() {
     }
     await loadVisibleRemoteOptions()
     await loadReconcileStats()
+    await loadReconcileReviewStats()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -1457,6 +1504,23 @@ async function loadReconcileStats() {
   }
 }
 
+async function loadReconcileReviewStats() {
+  if (!isReconcileReviewPage.value) return
+  reconcileReviewStatsLoading.value = true
+  try {
+    const params: Record<string, string | number> = {}
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== '') params[key] = value
+    })
+    const { data } = await fetchPage('/payment/reconcile/reviews/stats', params)
+    Object.assign(reconcileReviewStats, normalizeReconcileReviewStats(data.data))
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '复核统计加载失败'
+  } finally {
+    reconcileReviewStatsLoading.value = false
+  }
+}
+
 function normalizeReconcileStats(value: unknown): ReconcileExceptionStats {
   const item = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
   return {
@@ -1467,6 +1531,18 @@ function normalizeReconcileStats(value: unknown): ReconcileExceptionStats {
     openCount: numberValue(item.openCount),
     pendingReviewCount: numberValue(item.pendingReviewCount),
     handledCount: numberValue(item.handledCount),
+  }
+}
+
+function normalizeReconcileReviewStats(value: unknown): ReconcileReviewStats {
+  const item = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
+  return {
+    totalCount: numberValue(item.totalCount),
+    pendingCount: numberValue(item.pendingCount),
+    approvedCount: numberValue(item.approvedCount),
+    rejectedCount: numberValue(item.rejectedCount),
+    resolvedCount: numberValue(item.resolvedCount),
+    stillAbnormalCount: numberValue(item.stillAbnormalCount),
   }
 }
 
@@ -1695,6 +1771,18 @@ function goToPendingReconcileReviews(row?: Record<string, unknown>) {
 
 function setReconcileStatusFilter(status: string) {
   filters.status = status
+  pageNo.value = 1
+  load()
+}
+
+function setReconcileReviewStatusFilter(status: string) {
+  filters.reviewStatus = status
+  pageNo.value = 1
+  load()
+}
+
+function setReconcileCurrentCheckFilter(status: string) {
+  filters.currentCheckStatus = status
   pageNo.value = 1
   load()
 }
@@ -3270,6 +3358,10 @@ onMounted(loadProjects)
   grid-template-columns: repeat(6, minmax(108px, 1fr)) minmax(138px, 1.2fr);
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.reconcile-stats--review {
+  grid-template-columns: repeat(5, minmax(118px, 1fr)) minmax(138px, 1.2fr);
 }
 
 .reconcile-stats__card,

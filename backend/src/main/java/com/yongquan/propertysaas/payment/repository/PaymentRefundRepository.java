@@ -7,6 +7,7 @@ import com.yongquan.propertysaas.payment.domain.ReconcileExceptionHistoryView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionReviewView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileExceptionView;
+import com.yongquan.propertysaas.payment.domain.ReconcileReviewStatsView;
 import com.yongquan.propertysaas.payment.domain.ReconcileSummaryView;
 import com.yongquan.propertysaas.payment.domain.RefundableOrderView;
 import java.math.BigDecimal;
@@ -502,6 +503,30 @@ public class PaymentRefundRepository {
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + reviewSql(allowedProjectIds) + ") r",
                 Long.class, args.toArray());
         return value(count);
+    }
+
+    public ReconcileReviewStatsView reconcileReviewStats(Long tenantId, List<Long> allowedProjectIds, Long projectId,
+                                                         String exceptionType, String memberName, String reviewStatus,
+                                                         String currentCheckStatus) {
+        List<Object> args = reviewArgs(tenantId, allowedProjectIds, projectId, exceptionType, memberName,
+                reviewStatus, currentCheckStatus);
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) AS total_count,
+                       COALESCE(SUM(CASE WHEN review_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count,
+                       COALESCE(SUM(CASE WHEN review_status = 'APPROVED' THEN 1 ELSE 0 END), 0) AS approved_count,
+                       COALESCE(SUM(CASE WHEN review_status = 'REJECTED' THEN 1 ELSE 0 END), 0) AS rejected_count,
+                       COALESCE(SUM(CASE WHEN current_check_status = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved_count,
+                       COALESCE(SUM(CASE WHEN current_check_status = 'STILL_ABNORMAL' THEN 1 ELSE 0 END), 0) AS still_abnormal_count
+                FROM (
+                """ + reviewSql(allowedProjectIds) + """
+                ) r
+                """, (rs, rowNum) -> new ReconcileReviewStatsView(
+                rs.getLong("total_count"),
+                rs.getLong("pending_count"),
+                rs.getLong("approved_count"),
+                rs.getLong("rejected_count"),
+                rs.getLong("resolved_count"),
+                rs.getLong("still_abnormal_count")), args.toArray());
     }
 
     public ReconcileExceptionReviewView getReconcileExceptionReview(Long tenantId, List<Long> allowedProjectIds,
