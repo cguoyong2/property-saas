@@ -1451,6 +1451,11 @@ function reconcileTargets(row: Record<string, unknown>) {
   }
   const queryPath = (path: string, params: Record<string, unknown>) => {
     const search = new URLSearchParams()
+    const exceptionKey = String(row.exceptionKey ?? '').trim()
+    if (exceptionKey) {
+      search.set('reconcileExceptionKey', exceptionKey)
+      search.set('reconcileReturnPath', route.path)
+    }
     Object.entries(params).forEach(([key, value]) => {
       if (value === undefined || value === null || value === '') return
       search.set(key, String(value))
@@ -1490,6 +1495,48 @@ function reconcileTargets(row: Record<string, unknown>) {
 function goToReconcileTarget(path: string) {
   detailDialogVisible.value = false
   router.push(path)
+}
+
+function reconcileFollowUpQuery(row?: Record<string, unknown>) {
+  const query: Record<string, string> = {}
+  const memberName = String(row?.memberName ?? '').trim()
+  if (memberName) query.memberName = memberName
+  return query
+}
+
+async function handleReconcileActionSuccess(action: BusinessAction, row?: Record<string, unknown>) {
+  if (action.key === 'reconcile-exception-handle') {
+    try {
+      await ElMessageBox.confirm('该异常已进入复核池，是否现在去“异常复核”继续处理？', '处理完成', {
+        confirmButtonText: '去复核',
+        cancelButtonText: '留在当前页',
+        type: 'success',
+      })
+      await router.push({
+        path: '/payment/reconcile/reviews',
+        query: { reviewStatus: 'PENDING', ...reconcileFollowUpQuery(row) },
+      })
+    } catch {
+      // User chose to stay on the current page.
+    }
+    return
+  }
+
+  if (action.key.startsWith('reconcile-review-') || action.key.startsWith('reconcile-exception-review-')) {
+    try {
+      await ElMessageBox.confirm('复核结果已记录，是否返回“账务异常”查看最新状态？', '复核完成', {
+        confirmButtonText: '返回异常池',
+        cancelButtonText: '留在当前页',
+        type: 'success',
+      })
+      await router.push({
+        path: '/payment/reconcile/exceptions',
+        query: reconcileFollowUpQuery(row),
+      })
+    } catch {
+      // User chose to stay on the current page.
+    }
+  }
 }
 
 function applyRouteQueryFilters() {
@@ -2659,6 +2706,7 @@ async function executeAction(action: BusinessAction, row?: Record<string, unknow
     }
     ElMessage.success('操作成功')
     await load()
+    await handleReconcileActionSuccess(action, row)
   } catch (err) {
     if (err !== 'cancel') {
       ElMessage.error(err instanceof Error ? err.message : '操作失败')
