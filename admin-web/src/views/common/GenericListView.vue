@@ -1380,7 +1380,7 @@ const businessActions: Record<string, BusinessAction[]> = {
       icon: SwitchButton,
       permission: 'device:access:sync',
       fields: [
-        { prop: 'projectId', label: '项目ID', type: 'number' },
+        { prop: 'projectId', label: '小区名称', type: 'project' },
         { prop: 'deviceId', label: '设备ID', type: 'number' },
         { prop: 'limit', label: '处理上限', type: 'number' },
       ],

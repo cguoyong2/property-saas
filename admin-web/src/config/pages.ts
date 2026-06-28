@@ -87,6 +87,40 @@ const roleDataScopeOptions = [
   { label: '仅本人数据', value: 'SELF' },
   { label: '自定义数据', value: 'CUSTOM' },
 ]
+const packageBillingCycleOptions = [
+  { label: '按月', value: 'MONTH' },
+  { label: '按年', value: 'YEAR' },
+]
+const publishStatusOptions = [
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待发布', value: 'PENDING' },
+  { label: '已发布', value: 'PUBLISHED' },
+  { label: '已下线', value: 'OFFLINE' },
+]
+const noticeTypeOptions = [
+  { label: '物业公告', value: 'PROPERTY' },
+  { label: '系统通知', value: 'SYSTEM' },
+  { label: '活动通知', value: 'ACTIVITY' },
+  { label: '账单通知', value: 'BILL' },
+]
+const noticeTargetScopeOptions = [
+  { label: '租户', value: 'TENANT' },
+  { label: '小区', value: 'PROJECT' },
+  { label: '业主/住户', value: 'MEMBER' },
+  { label: '房屋', value: 'HOUSE' },
+]
+const importStatusOptions = [
+  { label: '待导入', value: 'PENDING' },
+  { label: '导入中', value: 'RUNNING' },
+  { label: '处理中', value: 'PROCESSING' },
+  { label: '导入成功', value: 'SUCCESS' },
+  { label: '已完成', value: 'COMPLETED' },
+  { label: '部分成功', value: 'PARTIAL_SUCCESS' },
+  { label: '导入失败', value: 'FAILED' },
+  { label: '已回滚', value: 'ROLLED_BACK' },
+  { label: '已回滚', value: 'ROLLBACKED' },
+  { label: '回滚失败', value: 'ROLLBACK_FAILED' },
+]
 const memberStatusOptions = enabledStatusOptions
 const memberBindRoleOptions = [
   { label: '业主', value: 'OWNER' },
@@ -440,14 +474,14 @@ export const pages: PageConfig[] = [
       { prop: 'packageName', label: '套餐名称', inFilter: true },
       { prop: 'packageCode', label: '编码' },
       { prop: 'price', label: '价格' },
-      { prop: 'billingCycle', label: '周期' },
-      { prop: 'status', label: '状态' },
+      { prop: 'billingCycle', label: '周期', type: 'select', options: packageBillingCycleOptions },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
     fields: [
       { prop: 'packageName', label: '套餐名称', required: true },
       { prop: 'packageCode', label: '套餐编码', required: true },
       { prop: 'price', label: '价格', type: 'number', required: true },
-      { prop: 'billingCycle', label: '计费周期', type: 'select', options: ['MONTH', 'YEAR'], required: true },
+      { prop: 'billingCycle', label: '计费周期', type: 'select', options: packageBillingCycleOptions, required: true },
       { prop: 'enabledModules', label: '模块JSON', type: 'textarea' },
       { prop: 'quotas', label: '额度JSON', type: 'textarea' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
@@ -872,16 +906,16 @@ const platformExtraPages: PageConfig[] = [
     createPermission: 'platform:notice:create',
     columns: [
       { prop: 'title', label: '标题', inFilter: true },
-      { prop: 'noticeType', label: '类型' },
-      { prop: 'targetScope', label: '范围' },
-      { prop: 'publishStatus', label: '状态' },
+      { prop: 'noticeType', label: '类型', type: 'select', options: noticeTypeOptions },
+      { prop: 'targetScope', label: '范围', type: 'select', options: noticeTargetScopeOptions },
+      { prop: 'publishStatus', label: '状态', type: 'select', options: publishStatusOptions },
       { prop: 'publishedAt', label: '发布时间' },
     ],
     fields: [
       { prop: 'title', label: '标题', required: true },
       { prop: 'content', label: '内容', type: 'textarea', required: true },
-      { prop: 'noticeType', label: '类型', type: 'select', options: ['PROPERTY', 'SYSTEM', 'ACTIVITY', 'BILL'] },
-      { prop: 'targetScope', label: '范围', type: 'select', options: ['TENANT', 'PROJECT', 'MEMBER', 'HOUSE'] },
+      { prop: 'noticeType', label: '类型', type: 'select', options: noticeTypeOptions },
+      { prop: 'targetScope', label: '范围', type: 'select', options: noticeTargetScopeOptions },
     ],
   },
   {
@@ -910,7 +944,7 @@ const platformExtraPages: PageConfig[] = [
     permission: 'system:operationLog:list',
     columns: [
       { prop: 'tenantId', label: '租户ID', inFilter: true },
-      { prop: 'projectId', label: '项目ID', inFilter: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', inFilter: true },
       { prop: 'operatorType', label: '操作者类型' },
       { prop: 'operatorId', label: '操作者ID' },
       { prop: 'moduleCode', label: '模块', inFilter: true },
@@ -1431,17 +1465,17 @@ const servicePages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'title', label: '标题', inFilter: true },
-      { prop: 'noticeType', label: '类型' },
-      { prop: 'targetScope', label: '范围' },
-      { prop: 'publishStatus', label: '状态' },
+      { prop: 'noticeType', label: '类型', type: 'select', options: noticeTypeOptions },
+      { prop: 'targetScope', label: '范围', type: 'select', options: noticeTargetScopeOptions },
+      { prop: 'publishStatus', label: '状态', type: 'select', options: publishStatusOptions },
       { prop: 'publishedAt', label: '发布时间' },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number' },
+      { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'title', label: '标题', required: true },
       { prop: 'content', label: '内容', type: 'textarea', required: true },
-      { prop: 'noticeType', label: '类型', type: 'select', options: ['PROPERTY', 'SYSTEM', 'ACTIVITY', 'BILL'] },
-      { prop: 'targetScope', label: '范围', type: 'select', options: ['TENANT', 'PROJECT', 'MEMBER', 'HOUSE'] },
+      { prop: 'noticeType', label: '类型', type: 'select', options: noticeTypeOptions },
+      { prop: 'targetScope', label: '范围', type: 'select', options: noticeTargetScopeOptions },
     ],
   },
   {
@@ -2004,7 +2038,7 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'batchNo', label: '批次号', inFilter: true },
       { prop: 'importType', label: '导入类型', inFilter: true },
-      { prop: 'importStatus', label: '状态', inFilter: true },
+      { prop: 'importStatus', label: '状态', type: 'select', options: importStatusOptions, inFilter: true },
       { prop: 'totalCount', label: '总数' },
       { prop: 'successCount', label: '成功' },
       { prop: 'failCount', label: '失败' },

@@ -9,8 +9,10 @@
     </div>
 
     <el-form class="filter-bar" :inline="true">
-      <el-form-item label="项目ID">
-        <el-input v-model="filters.projectId" clearable placeholder="项目ID" />
+      <el-form-item label="小区名称">
+        <el-select v-model="filters.projectId" clearable filterable placeholder="小区名称">
+          <el-option v-for="option in projectOptions" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="开始日期">
         <el-date-picker v-model="filters.startDate" type="date" value-format="YYYY-MM-DD" />
@@ -40,6 +42,7 @@ const loading = ref(false)
 const error = ref('')
 const data = ref<Record<string, any> | null>(null)
 const filters = reactive({ projectId: '', startDate: '', endDate: '' })
+const projectOptions = ref<Array<{ label: string; value: string }>>([])
 
 const metrics = computed(() => {
   const value = data.value ?? {}
@@ -69,6 +72,16 @@ async function load() {
   }
 }
 
+async function loadProjects() {
+  const response = await fetchPage('/base/projects', { pageNo: 1, pageSize: 200 })
+  const payload = response.data.data
+  const records = Array.isArray(payload) ? payload : payload?.records ?? []
+  projectOptions.value = records.map((item: Record<string, any>) => ({
+    label: item.projectName ?? item.name ?? String(item.projectId ?? ''),
+    value: String(item.projectId),
+  }))
+}
+
 function money(value: unknown) {
   return `¥${Number(value ?? 0).toFixed(2)}`
 }
@@ -77,5 +90,8 @@ function percent(value: unknown) {
   return `${(Number(value ?? 0) * 100).toFixed(2)}%`
 }
 
-onMounted(load)
+onMounted(() => {
+  loadProjects()
+  load()
+})
 </script>
