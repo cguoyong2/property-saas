@@ -223,8 +223,6 @@ public class FeeBillRepository {
                         WHERE bx.tenant_id = s.tenant_id
                           AND bx.project_id = h.project_id
                           AND bx.standard_id = s.standard_id
-                          AND bx.object_type = 'HOUSE'
-                          AND bx.object_id = h.house_id
                           AND bx.deleted = 0
                       )
                 """);
