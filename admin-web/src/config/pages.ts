@@ -79,6 +79,13 @@ const systemUserTypeOptions = [
   { label: '平台用户', value: 'PLATFORM' },
   { label: '业主/住户', value: 'MEMBER' },
 ]
+const roleDataScopeOptions = [
+  { label: '全租户数据', value: 'ALL_TENANT' },
+  { label: '指定小区数据', value: 'PROJECT' },
+  { label: '本部门数据', value: 'DEPT' },
+  { label: '仅本人数据', value: 'SELF' },
+  { label: '自定义数据', value: 'CUSTOM' },
+]
 const memberStatusOptions = enabledStatusOptions
 const memberBindRoleOptions = [
   { label: '业主', value: 'OWNER' },
@@ -1554,13 +1561,12 @@ const systemPages: PageConfig[] = [
     columns: [
       { prop: 'roleName', label: '角色名称', inFilter: true },
       { prop: 'roleCode', label: '角色编码' },
-      { prop: 'dataScope', label: '数据范围' },
+      { prop: 'dataScope', label: '数据范围', type: 'select', options: roleDataScopeOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'roleName', label: '角色名称', required: true },
-      { prop: 'roleCode', label: '角色编码', required: true },
-      { prop: 'dataScope', label: '数据范围', type: 'select', options: ['ALL', 'PROJECT', 'SELF'] },
+      { prop: 'dataScope', label: '数据范围', type: 'select', options: roleDataScopeOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },

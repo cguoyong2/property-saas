@@ -207,7 +207,7 @@ public class SystemManagementRepository {
         return value(count, 0L);
     }
 
-    public void insertRole(Long tenantId, Long roleId, RoleRequest request) {
+    public void insertRole(Long tenantId, Long roleId, String roleCode, RoleRequest request) {
         jdbcTemplate.update("""
                         INSERT INTO sys_role(role_id, tenant_id, role_name, role_code, role_level, data_scope, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -215,20 +215,20 @@ public class SystemManagementRepository {
                 roleId,
                 tenantId,
                 request.roleName(),
-                request.roleCode(),
+                roleCode,
                 text(request.roleLevel(), "TENANT"),
                 text(request.dataScope(), "SELF"),
                 text(request.status(), "ACTIVE"));
     }
 
-    public void updateRole(Long tenantId, Long roleId, RoleRequest request) {
+    public void updateRole(Long tenantId, Long roleId, String roleCode, RoleRequest request) {
         jdbcTemplate.update("""
                         UPDATE sys_role
                         SET role_name = ?, role_code = ?, role_level = ?, data_scope = ?, status = ?
                         WHERE tenant_id = ? AND role_id = ? AND deleted = 0
                         """,
                 request.roleName(),
-                request.roleCode(),
+                roleCode,
                 text(request.roleLevel(), "TENANT"),
                 text(request.dataScope(), "SELF"),
                 text(request.status(), "ACTIVE"),

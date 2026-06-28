@@ -17,6 +17,7 @@ import com.yongquan.propertysaas.system.audit.service.OperationLogService;
 import com.yongquan.propertysaas.system.repository.SystemManagementRepository;
 import com.yongquan.propertysaas.tenant.context.TenantContext;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -161,7 +162,7 @@ public class SystemManagementService {
         Long tenantId = tenantId();
         validateRole(request);
         Long roleId = newId();
-        repository.insertRole(tenantId, roleId, request);
+        repository.insertRole(tenantId, roleId, autoRoleCode(request.roleName(), roleId), request);
         return roleId;
     }
 
@@ -170,7 +171,7 @@ public class SystemManagementService {
         Long tenantId = tenantId();
         ensureRole(tenantId, roleId);
         validateRole(request);
-        repository.updateRole(tenantId, roleId, request);
+        repository.updateRole(tenantId, roleId, autoRoleCode(request.roleName(), roleId), request);
     }
 
     @Transactional
@@ -223,6 +224,24 @@ public class SystemManagementService {
         if (!DATA_SCOPES.contains(dataScope)) {
             throw new IllegalArgumentException("非法数据范围：" + dataScope);
         }
+    }
+
+    private String autoRoleCode(String roleName, Long roleId) {
+        String prefix = roleCodePrefix(roleName);
+        return "%s_%06d".formatted(prefix, Math.abs(roleId % 1_000_000));
+    }
+
+    private String roleCodePrefix(String roleName) {
+        String name = roleName == null ? "" : roleName.trim();
+        if (name.contains("管理员") || name.contains("管理")) return "ADMIN_ROLE";
+        if (name.contains("财务") || name.contains("收费") || name.contains("会计")) return "FINANCE_ROLE";
+        if (name.contains("客服") || name.contains("前台")) return "SERVICE_ROLE";
+        if (name.contains("工程") || name.contains("维修")) return "ENGINEERING_ROLE";
+        if (name.contains("保安") || name.contains("安保") || name.contains("秩序")) return "SECURITY_ROLE";
+        String asciiPrefix = name.toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+        return asciiPrefix.isBlank() ? "ROLE" : asciiPrefix;
     }
 
     private void validateStatus(String status) {
