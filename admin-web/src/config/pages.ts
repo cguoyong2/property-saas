@@ -590,7 +590,7 @@ const baseArchiveExtraPages: PageConfig[] = [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'buildingName', label: '楼栋名称', inFilter: true },
       { prop: 'floorCount', label: '层数' },
-      { prop: 'status', label: '状态', type: 'select', options: workOrderStatusOptions, inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
