@@ -1743,14 +1743,14 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'planName', label: '计划名称', inFilter: true },
       { prop: 'cycleType', label: '周期', type: 'select', options: patrolCycleTypeOptions },
-      { prop: 'executorUserId', label: '执行人ID' },
+      { prop: 'executorUserId', label: '执行人', type: 'user' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'planName', label: '计划名称', required: true },
       { prop: 'cycleType', label: '周期', type: 'select', options: patrolCycleTypeOptions },
-      { prop: 'executorUserId', label: '执行人ID', type: 'number' },
+      { prop: 'executorUserId', label: '执行人', type: 'user' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
