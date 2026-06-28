@@ -94,9 +94,22 @@ public class WorkOrderService {
         repository.insertWorkOrder(tenantId, workOrderId, orderNo(workOrderId), userId(), normalized, priority, slaDeadline);
         repository.insertEvent(newId(), tenantId, normalized.projectId(), workOrderId, null, "SUBMITTED",
                 "CREATE", operatorType(), operatorId(normalized.memberId()), normalized.description(), normalized.imageFileIds());
+        if (normalized.handlerUserId() != null) {
+            repository.updateStatus(tenantId, workOrderId, "SUBMITTED", "ACCEPTED", userId(),
+                    userId(), null, null, false, false);
+            repository.insertEvent(newId(), tenantId, normalized.projectId(), workOrderId, "SUBMITTED", "ACCEPTED",
+                    "ACCEPT", "USER", userId(), "创建工单时自动受理", null);
+            repository.updateStatus(tenantId, workOrderId, "ACCEPTED", "DISPATCHED", userId(),
+                    null, userId(), normalized.handlerUserId(), false, false);
+            repository.insertEvent(newId(), tenantId, normalized.projectId(), workOrderId, "ACCEPTED", "DISPATCHED",
+                    "DISPATCH", "USER", userId(), "创建工单时指派处理人", null);
+            repository.insertMessage(newId(), tenantId, normalized.projectId(),
+                    new NoticeRecipient("USER", normalized.handlerUserId(), null), "SITE", "WORKORDER_DISPATCH",
+                    "工单待处理", "工单已派给您：" + normalized.title());
+        }
         insertProjectMessage(tenantId, normalized.projectId(), "新工单待受理", "新工单：" + normalized.title());
         notifyWorkOrderMember(tenantId, normalized.projectId(), normalized.memberId(), orderNo(workOrderId),
-                normalized.title(), "SUBMITTED");
+                normalized.title(), normalized.handlerUserId() == null ? "SUBMITTED" : "DISPATCHED");
         return workOrderId;
     }
 
@@ -250,10 +263,13 @@ public class WorkOrderService {
                 throw new IllegalArgumentException("会员未绑定该房屋");
             }
         }
+        if (request.handlerUserId() != null && !repository.userExists(tenantId(), request.handlerUserId())) {
+            throw new IllegalArgumentException("处理人不存在：" + request.handlerUserId());
+        }
         fileObjectService.validateImageFileIds(request.projectId(), "workorder", request.imageFileIds());
         return new WorkOrderCreateRequest(request.projectId(), request.memberId(), request.houseId(),
                 normalize(request.orderType(), null), request.title(), request.description(), request.location(),
-                request.imageFileIds(), priority);
+                request.imageFileIds(), priority, request.handlerUserId());
     }
 
     private void insertProjectMessage(Long tenantId, Long projectId, String title, String content) {

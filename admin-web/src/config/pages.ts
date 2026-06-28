@@ -34,6 +34,7 @@ export interface FieldConfig {
     | 'house'
     | 'parkingArea'
     | 'parkingSpace'
+    | 'user'
     | 'plateNo'
     | 'feeItem'
     | 'feeStandard'
@@ -130,6 +131,33 @@ const messageTemplateCodeOptions = [
   { label: '工单状态更新', value: 'WORKORDER_STATUS' },
   { label: '房屋绑定审核', value: 'HOUSE_BINDING_AUDIT' },
   { label: '工单派发', value: 'WORKORDER_DISPATCH' },
+]
+const workOrderTypeOptions = [
+  { label: '报事报修', value: 'REPAIR' },
+  { label: '投诉', value: 'COMPLAINT' },
+  { label: '建议', value: 'SUGGESTION' },
+  { label: '家政服务', value: 'HOUSEKEEPING' },
+  { label: '装修服务', value: 'RENOVATION' },
+]
+const workOrderPriorityOptions = [
+  { label: '低', value: 'LOW' },
+  { label: '普通', value: 'NORMAL' },
+  { label: '高', value: 'HIGH' },
+  { label: '紧急', value: 'URGENT' },
+]
+const workOrderStatusOptions = [
+  { label: '待提交', value: 'SUBMITTED' },
+  { label: '已受理', value: 'ACCEPTED' },
+  { label: '已派单', value: 'DISPATCHED' },
+  { label: '处理中', value: 'PROCESSING' },
+  { label: '挂起', value: 'HANG_UP' },
+  { label: '待确认', value: 'WAIT_CONFIRM' },
+  { label: '已完成', value: 'COMPLETED' },
+  { label: '已评价', value: 'EVALUATED' },
+  { label: '已取消', value: 'CANCELLED' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '已转派', value: 'TRANSFERRED' },
+  { label: '返工', value: 'REWORK' },
 ]
 const projectTypeOptions = [
   { label: '住宅小区', value: 'RESIDENTIAL' },
@@ -1332,17 +1360,19 @@ const servicePages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'orderNo', label: '工单号', inFilter: true },
-      { prop: 'orderType', label: '类型' },
+      { prop: 'orderType', label: '类型', type: 'select', options: workOrderTypeOptions, inFilter: true },
       { prop: 'title', label: '标题' },
-      { prop: 'priority', label: '优先级' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'priority', label: '优先级', type: 'select', options: workOrderPriorityOptions },
+      { prop: 'handlerUserId', label: '指派给', type: 'user' },
+      { prop: 'status', label: '状态', type: 'select', options: workOrderStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
-      { prop: 'orderType', label: '类型', type: 'select', options: ['REPAIR', 'COMPLAINT', 'SUGGESTION', 'HOUSEKEEPING', 'RENOVATION'] },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'orderType', label: '类型', type: 'select', options: workOrderTypeOptions },
       { prop: 'title', label: '标题', required: true },
       { prop: 'description', label: '描述', type: 'textarea' },
-      { prop: 'priority', label: '优先级', type: 'select', options: ['LOW', 'NORMAL', 'HIGH', 'URGENT'] },
+      { prop: 'priority', label: '优先级', type: 'select', options: workOrderPriorityOptions },
+      { prop: 'handlerUserId', label: '指派给', type: 'user' },
     ],
   },
   {

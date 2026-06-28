@@ -182,7 +182,7 @@ public class WorkOrderController {
     public ApiResponse<Map<String, Long>> appCreateComplaint(@Valid @RequestBody WorkOrderCreateRequest request) {
         WorkOrderCreateRequest complaint = new WorkOrderCreateRequest(request.projectId(), request.memberId(),
                 request.houseId(), "COMPLAINT", request.title(), request.description(), request.location(),
-                request.imageFileIds(), request.priority());
+                request.imageFileIds(), request.priority(), request.handlerUserId());
         return ApiResponse.success(Map.of("workOrderId", service.createWorkOrder(complaint)));
     }
 }

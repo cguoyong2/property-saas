@@ -892,6 +892,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   houseId: [],
   areaId: [],
   spaceId: [],
+  userId: [],
   itemId: [],
   standardId: [],
   objectId: [],
@@ -2334,13 +2335,14 @@ function projectName(value: unknown) {
   return optionText('project', value)
 }
 
-function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea', value: unknown) {
+function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea' | 'user', value: unknown) {
   const keyMap = {
     project: 'projectId',
     building: 'buildingId',
     unit: 'unitId',
     house: 'houseId',
     parkingArea: 'areaId',
+    user: 'userId',
   } as const
   const option = remoteOptions[keyMap[type]].find((item) => optionValue(item) === value)
   return option ? optionLabel(option) : value ?? '-'
@@ -2366,6 +2368,7 @@ function isSelectField(field: FieldConfig) {
     'house',
     'parkingArea',
     'parkingSpace',
+    'user',
     'feeItem',
     'feeStandard',
     'billObject',
@@ -2392,6 +2395,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'parkingSpace') {
     return remoteOptions.spaceId
+  }
+  if (field.type === 'user') {
+    return remoteOptions.userId
   }
   if (field.type === 'feeItem') {
     return remoteOptions.itemId
@@ -2581,6 +2587,10 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'parkingSpace' && row.spaceNo) {
     return [row.areaName, row.spaceNo].filter(Boolean).join(' - ')
   }
+  if (field.type === 'user') {
+    if (field.prop === 'handlerUserId' && row.handlerUserName) return row.handlerUserName
+    return optionText('user', value)
+  }
   if (field.type === 'feeItem' && row.itemName) {
     return row.itemName
   }
@@ -2650,6 +2660,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'house') return remoteOptions.houseId
   if (field.type === 'parkingArea') return remoteOptions.areaId
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
+  if (field.type === 'user') return remoteOptions.userId
   if (field.type === 'feeItem') return remoteOptions.itemId
   if (field.type === 'feeStandard') return remoteOptions.standardId
   if (field.type === 'billObject' || field.type === 'billObjectMulti') return remoteOptions.objectId
@@ -2681,6 +2692,7 @@ function needsRemoteOptions(fields: FieldConfig[]) {
     'house',
     'parkingArea',
     'parkingSpace',
+    'user',
     'feeItem',
     'feeStandard',
     'billObject',
@@ -2700,6 +2712,7 @@ async function loadVisibleRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadUsers()
   await loadFeeItems()
   await loadFeeStandards()
   await loadBillObjects()
@@ -2804,6 +2817,17 @@ async function loadParkingSpaces() {
       status: String(item.status ?? ''),
       monthlyRentStatus: String(item.monthlyRentStatus ?? 'NONE'),
     }))
+}
+
+async function loadUsers() {
+  const { data } = await fetchPage('/system/users', { pageNo: 1, pageSize: 200, status: 'ACTIVE' })
+  remoteOptions.userId = toRecords(data.data).map((item) => ({
+    label: String([
+      item.realName || item.username,
+      item.mobile,
+    ].filter(Boolean).join(' / ') || item.userId),
+    value: Number(item.userId),
+  }))
 }
 
 async function loadFeeItems() {

@@ -13,6 +13,7 @@ public record WorkOrderCreateRequest(
         String description,
         String location,
         String imageFileIds,
-        String priority
+        String priority,
+        Long handlerUserId
 ) {
 }
