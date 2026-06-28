@@ -907,6 +907,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   houseId: [],
   areaId: [],
   spaceId: [],
+  equipmentId: [],
   userId: [],
   itemId: [],
   standardId: [],
@@ -2390,13 +2391,15 @@ function projectName(value: unknown) {
   return optionText('project', value)
 }
 
-function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea' | 'user', value: unknown) {
+function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea' | 'parkingSpace' | 'patrolAsset' | 'user', value: unknown) {
   const keyMap = {
     project: 'projectId',
     building: 'buildingId',
     unit: 'unitId',
     house: 'houseId',
     parkingArea: 'areaId',
+    parkingSpace: 'spaceId',
+    patrolAsset: 'equipmentId',
     user: 'userId',
   } as const
   const option = remoteOptions[keyMap[type]].find((item) => optionValue(item) === value)
@@ -2423,6 +2426,7 @@ function isSelectField(field: FieldConfig) {
     'house',
     'parkingArea',
     'parkingSpace',
+    'patrolAsset',
     'user',
     'feeItem',
     'feeStandard',
@@ -2450,6 +2454,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'parkingSpace') {
     return remoteOptions.spaceId
+  }
+  if (field.type === 'patrolAsset') {
+    return remoteOptions.equipmentId
   }
   if (field.type === 'user') {
     return remoteOptions.userId
@@ -2499,10 +2506,12 @@ function handleFieldChange(field: FieldConfig) {
     form.houseId = undefined
     form.areaId = undefined
     form.spaceId = undefined
+    form.equipmentId = undefined
     form.standardId = undefined
     loadBuildings()
     loadParkingAreas()
     loadParkingSpaces()
+    loadPatrolAssets()
     loadFeeStandards()
     remoteOptions.unitId = []
     remoteOptions.houseId = []
@@ -2642,6 +2651,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'parkingSpace' && row.spaceNo) {
     return [row.areaName, row.spaceNo].filter(Boolean).join(' - ')
   }
+  if (field.type === 'patrolAsset') {
+    return optionText('patrolAsset', value)
+  }
   if (field.type === 'user') {
     if (field.prop === 'handlerUserId' && row.handlerUserName) return row.handlerUserName
     return optionText('user', value)
@@ -2715,6 +2727,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'house') return remoteOptions.houseId
   if (field.type === 'parkingArea') return remoteOptions.areaId
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
+  if (field.type === 'patrolAsset') return remoteOptions.equipmentId
   if (field.type === 'user') return remoteOptions.userId
   if (field.type === 'feeItem') return remoteOptions.itemId
   if (field.type === 'feeStandard') return remoteOptions.standardId
@@ -2747,6 +2760,7 @@ function needsRemoteOptions(fields: FieldConfig[]) {
     'house',
     'parkingArea',
     'parkingSpace',
+    'patrolAsset',
     'user',
     'feeItem',
     'feeStandard',
@@ -2767,6 +2781,7 @@ async function loadVisibleRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadPatrolAssets()
   await loadUsers()
   await loadFeeItems()
   await loadFeeStandards()
@@ -2783,6 +2798,7 @@ async function loadFormRemoteOptions() {
   await loadHouses()
   await loadParkingAreas()
   await loadParkingSpaces()
+  await loadPatrolAssets()
   await loadFeeItems()
   await loadFeeStandards()
   await loadBillObjects()
@@ -2872,6 +2888,17 @@ async function loadParkingSpaces() {
       status: String(item.status ?? ''),
       monthlyRentStatus: String(item.monthlyRentStatus ?? 'NONE'),
     }))
+}
+
+async function loadPatrolAssets() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200 }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  const { data } = await fetchPage('/patrol/assets', params)
+  remoteOptions.equipmentId = toRecords(data.data).map((item) => ({
+    label: String([item.equipmentName, item.equipmentCode].filter(Boolean).join(' - ') || item.equipmentId),
+    value: Number(item.equipmentId),
+  }))
 }
 
 async function loadUsers() {

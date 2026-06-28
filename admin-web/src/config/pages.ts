@@ -35,6 +35,7 @@ export interface FieldConfig {
     | 'house'
     | 'parkingArea'
     | 'parkingSpace'
+    | 'patrolAsset'
     | 'user'
     | 'plateNo'
     | 'feeItem'
@@ -1715,12 +1716,12 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'pointName', label: '点位名称', inFilter: true },
       { prop: 'pointCode', label: '点位编码' },
-      { prop: 'equipmentId', label: '资产ID' },
+      { prop: 'equipmentId', label: '关联资产', type: 'patrolAsset' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
-      { prop: 'equipmentId', label: '资产ID', type: 'number' },
+      { prop: 'equipmentId', label: '关联资产', type: 'patrolAsset' },
       { prop: 'pointName', label: '点位名称', required: true },
       { prop: 'pointCode', label: '点位编码', required: true },
       { prop: 'location', label: '位置' },
