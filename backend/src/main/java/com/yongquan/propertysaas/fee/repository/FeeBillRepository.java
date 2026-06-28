@@ -43,6 +43,9 @@ public class FeeBillRepository {
                        TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
                        CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary,
                        COALESCE(pu.prepayment_applied_amount, 0.00) AS prepayment_applied_amount,
+                       COALESCE(ps.collected_amount, 0.00) AS collected_amount,
+                       COALESCE(ps.generated_prepayment_amount, 0.00) AS generated_prepayment_amount,
+                       COALESCE(ps.generated_prepayment_remaining_amount, 0.00) AS generated_prepayment_remaining_amount,
                        pu.prepayment_usage_summary
                 FROM fee_bill b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
@@ -61,6 +64,36 @@ public class FeeBillRepository {
                     WHERE deleted = 0
                     GROUP BY tenant_id, bill_id
                 ) pu ON pu.tenant_id = b.tenant_id AND pu.bill_id = b.bill_id
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.bill_id,
+                           ROUND(SUM(COALESCE(tx.transaction_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS collected_amount,
+                           ROUND(SUM(COALESCE(pp.prepayment_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS generated_prepayment_amount,
+                           ROUND(SUM(COALESCE(pp.prepayment_remaining_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS generated_prepayment_remaining_amount
+                    FROM pay_order_bill ob
+                    JOIN pay_order o ON o.tenant_id = ob.tenant_id AND o.order_id = ob.order_id AND o.deleted = 0
+                    JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS order_bill_amount
+                        FROM pay_order_bill
+                        GROUP BY tenant_id, order_id
+                    ) ot ON ot.tenant_id = ob.tenant_id AND ot.order_id = ob.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS transaction_amount
+                        FROM pay_transaction
+                        GROUP BY tenant_id, order_id
+                    ) tx ON tx.tenant_id = ob.tenant_id AND tx.order_id = ob.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount,
+                               SUM(remaining_amount) AS prepayment_remaining_amount
+                        FROM member_prepayment
+                        WHERE deleted = 0
+                        GROUP BY tenant_id, order_id
+                    ) pp ON pp.tenant_id = ob.tenant_id AND pp.order_id = ob.order_id
+                    WHERE o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                    GROUP BY ob.tenant_id, ob.bill_id
+                ) ps ON ps.tenant_id = b.tenant_id AND ps.bill_id = b.bill_id
                 WHERE b.tenant_id = ? AND b.deleted = 0
                 """);
         args.add(tenantId);
@@ -120,6 +153,9 @@ public class FeeBillRepository {
                        TRIM(CONCAT_WS('', bd.building_name, u.unit_name, h.house_no)) AS house_no,
                        CONCAT(COALESCE(i.item_name, '费用'), '：', CAST(b.receivable_amount AS CHAR), '元') AS detail_summary,
                        COALESCE(pu.prepayment_applied_amount, 0.00) AS prepayment_applied_amount,
+                       COALESCE(ps.collected_amount, 0.00) AS collected_amount,
+                       COALESCE(ps.generated_prepayment_amount, 0.00) AS generated_prepayment_amount,
+                       COALESCE(ps.generated_prepayment_remaining_amount, 0.00) AS generated_prepayment_remaining_amount,
                        pu.prepayment_usage_summary
                 FROM fee_bill b
                 LEFT JOIN base_project p ON p.tenant_id = b.tenant_id AND p.project_id = b.project_id AND p.deleted = 0
@@ -138,6 +174,36 @@ public class FeeBillRepository {
                     WHERE deleted = 0
                     GROUP BY tenant_id, bill_id
                 ) pu ON pu.tenant_id = b.tenant_id AND pu.bill_id = b.bill_id
+                LEFT JOIN (
+                    SELECT ob.tenant_id, ob.bill_id,
+                           ROUND(SUM(COALESCE(tx.transaction_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS collected_amount,
+                           ROUND(SUM(COALESCE(pp.prepayment_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS generated_prepayment_amount,
+                           ROUND(SUM(COALESCE(pp.prepayment_remaining_amount, 0) * ob.amount / NULLIF(ot.order_bill_amount, 0)), 2)
+                               AS generated_prepayment_remaining_amount
+                    FROM pay_order_bill ob
+                    JOIN pay_order o ON o.tenant_id = ob.tenant_id AND o.order_id = ob.order_id AND o.deleted = 0
+                    JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS order_bill_amount
+                        FROM pay_order_bill
+                        GROUP BY tenant_id, order_id
+                    ) ot ON ot.tenant_id = ob.tenant_id AND ot.order_id = ob.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS transaction_amount
+                        FROM pay_transaction
+                        GROUP BY tenant_id, order_id
+                    ) tx ON tx.tenant_id = ob.tenant_id AND tx.order_id = ob.order_id
+                    LEFT JOIN (
+                        SELECT tenant_id, order_id, SUM(amount) AS prepayment_amount,
+                               SUM(remaining_amount) AS prepayment_remaining_amount
+                        FROM member_prepayment
+                        WHERE deleted = 0
+                        GROUP BY tenant_id, order_id
+                    ) pp ON pp.tenant_id = ob.tenant_id AND pp.order_id = ob.order_id
+                    WHERE o.status IN ('PAID', 'REFUNDING', 'REFUNDED', 'PARTIAL_REFUNDED')
+                    GROUP BY ob.tenant_id, ob.bill_id
+                ) ps ON ps.tenant_id = b.tenant_id AND ps.bill_id = b.bill_id
                 WHERE b.tenant_id = ? AND b.bill_id = ? AND b.deleted = 0
                 """, this::mapBill, tenantId, billId);
     }
@@ -519,7 +585,9 @@ public class FeeBillRepository {
                 rs.getTimestamp("created_at").toLocalDateTime(), rs.getString("project_name"),
                 rs.getString("item_name"), rs.getString("member_name"), rs.getString("member_mobile"),
                 rs.getString("house_no"), rs.getString("detail_summary"),
-                rs.getBigDecimal("prepayment_applied_amount"), rs.getString("prepayment_usage_summary"));
+                rs.getBigDecimal("prepayment_applied_amount"), rs.getBigDecimal("collected_amount"),
+                rs.getBigDecimal("generated_prepayment_amount"),
+                rs.getBigDecimal("generated_prepayment_remaining_amount"), rs.getString("prepayment_usage_summary"));
     }
 
     private BillStandardCandidate mapCandidate(ResultSet rs, int rowNum) throws SQLException {
