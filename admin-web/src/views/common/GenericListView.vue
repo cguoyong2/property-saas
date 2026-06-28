@@ -905,6 +905,7 @@ const remoteOptions = reactive<Record<string, SelectOption[]>>({
   buildingId: [],
   unitId: [],
   houseId: [],
+  memberId: [],
   areaId: [],
   spaceId: [],
   equipmentId: [],
@@ -2391,12 +2392,13 @@ function projectName(value: unknown) {
   return optionText('project', value)
 }
 
-function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'parkingArea' | 'parkingSpace' | 'patrolAsset' | 'user', value: unknown) {
+function optionText(type: 'project' | 'building' | 'unit' | 'house' | 'member' | 'parkingArea' | 'parkingSpace' | 'patrolAsset' | 'user', value: unknown) {
   const keyMap = {
     project: 'projectId',
     building: 'buildingId',
     unit: 'unitId',
     house: 'houseId',
+    member: 'memberId',
     parkingArea: 'areaId',
     parkingSpace: 'spaceId',
     patrolAsset: 'equipmentId',
@@ -2424,6 +2426,7 @@ function isSelectField(field: FieldConfig) {
     'building',
     'unit',
     'house',
+    'member',
     'parkingArea',
     'parkingSpace',
     'patrolAsset',
@@ -2448,6 +2451,9 @@ function optionsForField(field: FieldConfig): SelectOption[] {
   }
   if (field.type === 'house') {
     return remoteOptions.houseId
+  }
+  if (field.type === 'member') {
+    return remoteOptions.memberId
   }
   if (field.type === 'parkingArea') {
     return remoteOptions.areaId
@@ -2504,17 +2510,21 @@ function handleFieldChange(field: FieldConfig) {
     form.buildingId = undefined
     form.unitId = undefined
     form.houseId = undefined
+    form.inviterMemberId = undefined
+    form.memberId = undefined
     form.areaId = undefined
     form.spaceId = undefined
     form.equipmentId = undefined
     form.standardId = undefined
     loadBuildings()
+    loadMembers()
     loadParkingAreas()
     loadParkingSpaces()
     loadPatrolAssets()
     loadFeeStandards()
     remoteOptions.unitId = []
     remoteOptions.houseId = []
+    remoteOptions.memberId = []
   }
   if (field.type === 'feeItem') {
     form.standardId = undefined
@@ -2527,12 +2537,23 @@ function handleFieldChange(field: FieldConfig) {
   if (field.type === 'building') {
     form.unitId = undefined
     form.houseId = undefined
+    form.inviterMemberId = undefined
+    form.memberId = undefined
     loadUnits()
     remoteOptions.houseId = []
+    remoteOptions.memberId = []
   }
   if (field.type === 'unit') {
     form.houseId = undefined
+    form.inviterMemberId = undefined
+    form.memberId = undefined
     loadHouses()
+    loadMembers()
+  }
+  if (field.type === 'house') {
+    form.inviterMemberId = undefined
+    form.memberId = undefined
+    loadMembers()
   }
   if (field.type === 'parkingSpace' && isVehiclePage.value) {
     const selectedSpace = selectedParkingSpaceOption()
@@ -2642,6 +2663,9 @@ function displayCell(row: Record<string, unknown>, field: FieldConfig) {
   if (field.type === 'house' && row.houseNo) {
     return row.houseNo
   }
+  if (field.type === 'member') {
+    return row.inviterMemberName || row.memberName || optionText('member', value)
+  }
   if (field.prop === 'roomNo') {
     return value || [row.buildingName, row.unitName, row.houseNo].filter(Boolean).join('') || ''
   }
@@ -2725,6 +2749,7 @@ function optionsForDisplay(field: FieldConfig) {
   if (field.type === 'building') return remoteOptions.buildingId
   if (field.type === 'unit') return remoteOptions.unitId
   if (field.type === 'house') return remoteOptions.houseId
+  if (field.type === 'member') return remoteOptions.memberId
   if (field.type === 'parkingArea') return remoteOptions.areaId
   if (field.type === 'parkingSpace') return remoteOptions.spaceId
   if (field.type === 'patrolAsset') return remoteOptions.equipmentId
@@ -2758,6 +2783,7 @@ function needsRemoteOptions(fields: FieldConfig[]) {
     'building',
     'unit',
     'house',
+    'member',
     'parkingArea',
     'parkingSpace',
     'patrolAsset',
@@ -2779,6 +2805,7 @@ async function loadVisibleRemoteOptions() {
   await loadBuildings()
   await loadUnits()
   await loadHouses()
+  await loadMembers()
   await loadParkingAreas()
   await loadParkingSpaces()
   await loadPatrolAssets()
@@ -2796,6 +2823,7 @@ async function loadFormRemoteOptions() {
   await loadBuildings()
   await loadUnits()
   await loadHouses()
+  await loadMembers()
   await loadParkingAreas()
   await loadParkingSpaces()
   await loadPatrolAssets()
@@ -2848,9 +2876,27 @@ async function loadHouses() {
   if (Number.isFinite(unitId) && unitId > 0) params.unitId = unitId
   const { data } = await fetchPage('/base/houses', params)
   remoteOptions.houseId = toRecords(data.data).map((item) => ({
-    label: String(item.houseNo ?? item.houseId),
+    label: String([item.buildingName, item.unitName, item.houseNo].filter(Boolean).join('') || item.houseNo || item.houseId),
     value: Number(item.houseId),
   }))
+}
+
+async function loadMembers() {
+  const projectId = Number(form.projectId ?? filters.projectId)
+  const houseId = Number(form.houseId)
+  const params: Record<string, string | number> = { pageNo: 1, pageSize: 200, status: 'ACTIVE' }
+  if (Number.isFinite(projectId) && projectId > 0) params.projectId = projectId
+  const { data } = await fetchPage('/base/members', params)
+  remoteOptions.memberId = toRecords(data.data)
+    .filter((item) => !Number.isFinite(houseId) || houseId <= 0 || Number(item.houseId) === houseId)
+    .map((item) => ({
+      label: String([
+        item.realName,
+        item.mobile,
+        item.roomNo || item.houseNo,
+      ].filter(Boolean).join(' / ') || item.memberId),
+      value: Number(item.memberId),
+    }))
 }
 
 async function loadParkingAreas() {

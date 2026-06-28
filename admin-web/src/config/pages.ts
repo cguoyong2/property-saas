@@ -33,6 +33,7 @@ export interface FieldConfig {
     | 'building'
     | 'unit'
     | 'house'
+    | 'member'
     | 'parkingArea'
     | 'parkingSpace'
     | 'patrolAsset'
@@ -1941,6 +1942,9 @@ const operationPages: PageConfig[] = [
     createPermission: 'device:visitor:create',
     projectScoped: true,
     columns: [
+      { prop: 'projectId', label: '小区名称', type: 'project' },
+      { prop: 'houseId', label: '到访房屋', type: 'house' },
+      { prop: 'inviterMemberId', label: '业主/住户', type: 'member' },
       { prop: 'visitorName', label: '访客', inFilter: true },
       { prop: 'visitorMobile', label: '手机' },
       { prop: 'validStartAt', label: '开始' },
@@ -1949,6 +1953,8 @@ const operationPages: PageConfig[] = [
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
+      { prop: 'houseId', label: '到访房屋', type: 'house', required: true },
+      { prop: 'inviterMemberId', label: '业主/住户', type: 'member', required: true },
       { prop: 'visitorName', label: '访客姓名', required: true },
       { prop: 'visitorMobile', label: '手机号' },
       { prop: 'visitReason', label: '来访事由' },

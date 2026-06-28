@@ -90,16 +90,23 @@ public class DeviceRepository {
                                                 long offset, long pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT visitor_id, project_id, inviter_member_id, visitor_name, visitor_mobile, visit_reason,
-                       valid_start_at, valid_end_at, qr_code, status, created_at
-                FROM visitor_record
-                WHERE tenant_id = ?
+                SELECT v.visitor_id, v.project_id, p.project_name, v.inviter_member_id, m.real_name AS inviter_member_name,
+                       v.house_id, CONCAT(COALESCE(b.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS house_no,
+                       v.visitor_name, v.visitor_mobile, v.visit_reason, v.valid_start_at, v.valid_end_at,
+                       v.qr_code, v.status, v.created_at
+                FROM visitor_record v
+                LEFT JOIN base_project p ON p.tenant_id = v.tenant_id AND p.project_id = v.project_id AND p.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = v.tenant_id AND m.member_id = v.inviter_member_id AND m.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = v.tenant_id AND h.house_id = v.house_id AND h.deleted = 0
+                LEFT JOIN base_building b ON b.tenant_id = h.tenant_id AND b.building_id = h.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE v.tenant_id = ?
                 """);
         args.add(tenantId);
-        appendProjectEquals(sql, args, projectId);
-        appendStatus(sql, args, status);
-        appendProjectScope(sql, args, scope);
-        sql.append(" ORDER BY created_at DESC, visitor_id DESC LIMIT ? OFFSET ?");
+        appendProjectEquals(sql, args, projectId, "v.project_id");
+        appendStatus(sql, args, status, "v.status");
+        appendProjectScope(sql, args, scope, "v.project_id");
+        sql.append(" ORDER BY v.created_at DESC, v.visitor_id DESC LIMIT ? OFFSET ?");
         args.add(pageSize);
         args.add(offset);
         return jdbcTemplate.query(sql.toString(), this::mapVisitor, args.toArray());
@@ -117,19 +124,26 @@ public class DeviceRepository {
 
     public VisitorRecordView getVisitor(Long tenantId, Long visitorId) {
         return jdbcTemplate.queryForObject("""
-                SELECT visitor_id, project_id, inviter_member_id, visitor_name, visitor_mobile, visit_reason,
-                       valid_start_at, valid_end_at, qr_code, status, created_at
-                FROM visitor_record
-                WHERE tenant_id = ? AND visitor_id = ?
+                SELECT v.visitor_id, v.project_id, p.project_name, v.inviter_member_id, m.real_name AS inviter_member_name,
+                       v.house_id, CONCAT(COALESCE(b.building_name, ''), COALESCE(u.unit_name, ''), COALESCE(h.house_no, '')) AS house_no,
+                       v.visitor_name, v.visitor_mobile, v.visit_reason, v.valid_start_at, v.valid_end_at,
+                       v.qr_code, v.status, v.created_at
+                FROM visitor_record v
+                LEFT JOIN base_project p ON p.tenant_id = v.tenant_id AND p.project_id = v.project_id AND p.deleted = 0
+                LEFT JOIN member_user m ON m.tenant_id = v.tenant_id AND m.member_id = v.inviter_member_id AND m.deleted = 0
+                LEFT JOIN base_house h ON h.tenant_id = v.tenant_id AND h.house_id = v.house_id AND h.deleted = 0
+                LEFT JOIN base_building b ON b.tenant_id = h.tenant_id AND b.building_id = h.building_id AND b.deleted = 0
+                LEFT JOIN base_unit u ON u.tenant_id = h.tenant_id AND u.unit_id = h.unit_id AND u.deleted = 0
+                WHERE v.tenant_id = ? AND v.visitor_id = ?
                 """, this::mapVisitor, tenantId, visitorId);
     }
 
     public void insertVisitor(Long tenantId, Long visitorId, VisitorInviteRequest request, String qrCode) {
         jdbcTemplate.update("""
-                        INSERT INTO visitor_record(visitor_id, tenant_id, project_id, inviter_member_id, visitor_name,
+                        INSERT INTO visitor_record(visitor_id, tenant_id, project_id, inviter_member_id, house_id, visitor_name,
                                                    visitor_mobile, visit_reason, valid_start_at, valid_end_at, qr_code, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')
-                        """, visitorId, tenantId, request.projectId(), request.inviterMemberId(), request.visitorName(),
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')
+                        """, visitorId, tenantId, request.projectId(), request.inviterMemberId(), request.houseId(), request.visitorName(),
                 request.visitorMobile(), request.visitReason(), request.validStartAt(), request.validEndAt(), qrCode);
     }
 
@@ -279,6 +293,27 @@ public class DeviceRepository {
         return exists("SELECT COUNT(*) FROM member_user WHERE tenant_id = ? AND member_id = ? AND deleted = 0", tenantId, memberId);
     }
 
+    public boolean houseExists(Long tenantId, Long projectId, Long houseId) {
+        if (houseId == null) {
+            return true;
+        }
+        return exists("""
+                SELECT COUNT(*) FROM base_house
+                WHERE tenant_id = ? AND project_id = ? AND house_id = ? AND deleted = 0
+                """, tenantId, projectId, houseId);
+    }
+
+    public boolean memberHouseBindingExists(Long tenantId, Long projectId, Long memberId, Long houseId) {
+        if (memberId == null || houseId == null) {
+            return true;
+        }
+        return exists("""
+                SELECT COUNT(*) FROM member_house_bind
+                WHERE tenant_id = ? AND project_id = ? AND member_id = ? AND house_id = ?
+                  AND status = 'APPROVED' AND deleted = 0
+                """, tenantId, projectId, memberId, houseId);
+    }
+
     public boolean userExists(Long tenantId, Long userId) {
         if (userId == null) {
             return true;
@@ -358,8 +393,12 @@ public class DeviceRepository {
     }
 
     private void appendStatus(StringBuilder sql, List<Object> args, String status) {
+        appendStatus(sql, args, status, "status");
+    }
+
+    private void appendStatus(StringBuilder sql, List<Object> args, String status, String field) {
         if (status != null && !status.isBlank()) {
-            sql.append(" AND status = ?");
+            sql.append(" AND ").append(field).append(" = ?");
             args.add(status);
         }
     }
@@ -377,7 +416,9 @@ public class DeviceRepository {
     }
 
     private VisitorRecordView mapVisitor(ResultSet rs, int rowNum) throws SQLException {
-        return new VisitorRecordView(rs.getLong("visitor_id"), rs.getLong("project_id"), (Long) rs.getObject("inviter_member_id"),
+        return new VisitorRecordView(rs.getLong("visitor_id"), rs.getLong("project_id"), rs.getString("project_name"),
+                (Long) rs.getObject("inviter_member_id"), rs.getString("inviter_member_name"),
+                (Long) rs.getObject("house_id"), rs.getString("house_no"),
                 rs.getString("visitor_name"), rs.getString("visitor_mobile"), rs.getString("visit_reason"),
                 rs.getTimestamp("valid_start_at").toLocalDateTime(), rs.getTimestamp("valid_end_at").toLocalDateTime(),
                 rs.getString("qr_code"), rs.getString("status"), rs.getTimestamp("created_at").toLocalDateTime());

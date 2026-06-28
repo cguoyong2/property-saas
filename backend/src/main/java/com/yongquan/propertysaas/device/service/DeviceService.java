@@ -245,6 +245,12 @@ public class DeviceService {
         if (request.inviterMemberId() != null && !repository.memberExists(tenantId(), request.inviterMemberId())) {
             throw new IllegalArgumentException("邀请人会员不存在：" + request.inviterMemberId());
         }
+        if (request.houseId() != null && !repository.houseExists(tenantId(), request.projectId(), request.houseId())) {
+            throw new IllegalArgumentException("到访房屋不存在或不属于当前小区：" + request.houseId());
+        }
+        if (!repository.memberHouseBindingExists(tenantId(), request.projectId(), request.inviterMemberId(), request.houseId())) {
+            throw new IllegalArgumentException("业主/住户未绑定所选到访房屋");
+        }
         if (!request.validEndAt().isAfter(request.validStartAt())) {
             throw new IllegalArgumentException("访客有效结束时间必须晚于开始时间");
         }

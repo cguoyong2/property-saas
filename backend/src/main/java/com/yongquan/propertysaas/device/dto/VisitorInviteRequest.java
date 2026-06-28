@@ -8,6 +8,7 @@ import java.util.List;
 public record VisitorInviteRequest(
         @NotNull Long projectId,
         Long inviterMemberId,
+        Long houseId,
         @NotBlank String visitorName,
         String visitorMobile,
         String visitReason,
