@@ -1769,12 +1769,14 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'taskNo', label: '任务号', inFilter: true },
       { prop: 'taskName', label: '任务名称' },
+      { prop: 'executorUserId', label: '执行人', type: 'user', inFilter: true },
       { prop: 'plannedStartAt', label: '计划开始' },
       { prop: 'status', label: '状态', type: 'select', options: patrolTaskStatusOptions },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'taskName', label: '任务名称', required: true },
+      { prop: 'executorUserId', label: '执行人', type: 'user' },
       { prop: 'plannedStartAt', label: '计划开始', type: 'datetime', required: true },
       { prop: 'plannedEndAt', label: '计划结束', type: 'datetime', required: true },
     ],
