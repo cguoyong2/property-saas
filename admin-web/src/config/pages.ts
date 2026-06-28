@@ -306,6 +306,90 @@ const reconcileExceptionTypeOptions = [
   { label: '预存款余额异常', value: '预存款余额异常' },
   { label: '账单金额状态异常', value: '账单金额状态异常' },
 ]
+const patrolAssetStatusOptions = [
+  { label: '正常', value: 'NORMAL' },
+  { label: '维修中', value: 'REPAIRING' },
+  { label: '已报废', value: 'SCRAPPED' },
+  { label: '停用', value: 'DISABLED' },
+]
+const patrolCycleTypeOptions = [
+  { label: '每天', value: 'DAY' },
+  { label: '每周', value: 'WEEK' },
+  { label: '每月', value: 'MONTH' },
+  { label: '自定义', value: 'CUSTOM' },
+]
+const patrolTaskStatusOptions = [
+  { label: '待开始', value: 'PENDING' },
+  { label: '进行中', value: 'IN_PROGRESS' },
+  { label: '已完成', value: 'COMPLETED' },
+  { label: '已漏检', value: 'MISSED' },
+  { label: '异常', value: 'EXCEPTION' },
+  { label: '整改中', value: 'RECTIFYING' },
+  { label: '已整改', value: 'RECTIFIED' },
+]
+const leaseResourceTypeOptions = [
+  { label: '房屋', value: 'HOUSE' },
+  { label: '商铺', value: 'SHOP' },
+  { label: '场地', value: 'SPACE' },
+  { label: '广告位', value: 'AD' },
+  { label: '仓库', value: 'WAREHOUSE' },
+]
+const leaseResourceStatusOptions = [
+  { label: '空置', value: 'VACANT' },
+  { label: '已预订', value: 'RESERVED' },
+  { label: '已出租', value: 'LEASED' },
+  { label: '停用', value: 'DISABLED' },
+]
+const leaseCustomerStatusOptions = [
+  { label: '潜在客户', value: 'POTENTIAL' },
+  { label: '跟进中', value: 'FOLLOWING' },
+  { label: '有意向', value: 'INTENTIONAL' },
+  { label: '已签约', value: 'SIGNED' },
+  { label: '已流失', value: 'LOST' },
+]
+const leaseContractStatusOptions = [
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待生效', value: 'WAIT_EFFECTIVE' },
+  { label: '生效中', value: 'ACTIVE' },
+  { label: '即将到期', value: 'WILL_EXPIRE' },
+  { label: '已到期', value: 'EXPIRED' },
+  { label: '已终止', value: 'TERMINATED' },
+  { label: '已作废', value: 'VOID' },
+]
+const deviceTypeOptions = [
+  { label: '门禁设备', value: 'ACCESS' },
+  { label: '停车设备', value: 'PARKING' },
+  { label: '摄像头', value: 'CAMERA' },
+  { label: '电梯设备', value: 'ELEVATOR' },
+]
+const deviceStatusOptions = [
+  { label: '启用', value: 'ACTIVE' },
+  { label: '停用', value: 'DISABLED' },
+  { label: '离线', value: 'OFFLINE' },
+]
+const visitorStatusOptions = [
+  { label: '待审核', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已使用', value: 'USED' },
+  { label: '已拒绝', value: 'REJECTED' },
+  { label: '已过期', value: 'EXPIRED' },
+  { label: '已取消', value: 'CANCELLED' },
+]
+const accessPermissionStatusOptions = [
+  { label: '启用', value: 'ACTIVE' },
+  { label: '停用', value: 'DISABLED' },
+  { label: '已过期', value: 'EXPIRED' },
+  { label: '已取消', value: 'CANCELLED' },
+]
+const deviceSyncStatusOptions = [
+  { label: '待同步', value: 'PENDING' },
+  { label: '已同步', value: 'SYNCED' },
+  { label: '同步失败', value: 'FAILED' },
+]
+const accessTypeOptions = [
+  { label: '进场', value: 'IN' },
+  { label: '出场', value: 'OUT' },
+]
 
 export const pages: PageConfig[] = [
   {
@@ -1605,15 +1689,15 @@ const operationPages: PageConfig[] = [
       { prop: 'equipmentName', label: '资产名称', inFilter: true },
       { prop: 'equipmentCode', label: '资产编码' },
       { prop: 'equipmentType', label: '类型' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: patrolAssetStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'equipmentName', label: '资产名称', required: true },
       { prop: 'equipmentCode', label: '资产编码', required: true },
       { prop: 'equipmentType', label: '类型' },
       { prop: 'location', label: '位置' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: patrolAssetStatusOptions },
     ],
   },
   {
@@ -1632,15 +1716,15 @@ const operationPages: PageConfig[] = [
       { prop: 'pointName', label: '点位名称', inFilter: true },
       { prop: 'pointCode', label: '点位编码' },
       { prop: 'equipmentId', label: '资产ID' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'equipmentId', label: '资产ID', type: 'number' },
       { prop: 'pointName', label: '点位名称', required: true },
       { prop: 'pointCode', label: '点位编码', required: true },
       { prop: 'location', label: '位置' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -1657,16 +1741,16 @@ const operationPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'planName', label: '计划名称', inFilter: true },
-      { prop: 'cycleType', label: '周期' },
+      { prop: 'cycleType', label: '周期', type: 'select', options: patrolCycleTypeOptions },
       { prop: 'executorUserId', label: '执行人ID' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'planName', label: '计划名称', required: true },
-      { prop: 'cycleType', label: '周期', type: 'select', options: ['DAY', 'WEEK', 'MONTH'] },
+      { prop: 'cycleType', label: '周期', type: 'select', options: patrolCycleTypeOptions },
       { prop: 'executorUserId', label: '执行人ID', type: 'number' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -1685,10 +1769,10 @@ const operationPages: PageConfig[] = [
       { prop: 'taskNo', label: '任务号', inFilter: true },
       { prop: 'taskName', label: '任务名称' },
       { prop: 'plannedStartAt', label: '计划开始' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: patrolTaskStatusOptions },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'taskName', label: '任务名称', required: true },
       { prop: 'plannedStartAt', label: '计划开始', type: 'datetime', required: true },
       { prop: 'plannedEndAt', label: '计划结束', type: 'datetime', required: true },
@@ -1708,18 +1792,18 @@ const operationPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'resourceName', label: '资源名称', inFilter: true },
-      { prop: 'resourceType', label: '类型' },
+      { prop: 'resourceType', label: '类型', type: 'select', options: leaseResourceTypeOptions },
       { prop: 'area', label: '面积' },
       { prop: 'rentAmount', label: '租金' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: leaseResourceStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'resourceName', label: '资源名称', required: true },
-      { prop: 'resourceType', label: '类型', type: 'select', options: ['SHOP', 'OFFICE', 'PARKING', 'AD_SPACE'] },
+      { prop: 'resourceType', label: '类型', type: 'select', options: leaseResourceTypeOptions },
       { prop: 'area', label: '面积', type: 'number' },
       { prop: 'rentAmount', label: '租金', type: 'number' },
-      { prop: 'status', label: '状态', type: 'select', options: ['AVAILABLE', 'RENTED', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: leaseResourceStatusOptions },
     ],
   },
   {
@@ -1738,15 +1822,15 @@ const operationPages: PageConfig[] = [
       { prop: 'customerName', label: '客户姓名', inFilter: true },
       { prop: 'mobile', label: '手机号' },
       { prop: 'intentionType', label: '意向类型' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: leaseCustomerStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'customerName', label: '客户姓名', required: true },
       { prop: 'mobile', label: '手机号' },
       { prop: 'intentionType', label: '意向类型' },
       { prop: 'remark', label: '备注', type: 'textarea' },
-      { prop: 'status', label: '状态', type: 'select', options: ['FOLLOWING', 'SIGNED', 'LOST'] },
+      { prop: 'status', label: '状态', type: 'select', options: leaseCustomerStatusOptions },
     ],
   },
   {
@@ -1766,10 +1850,10 @@ const operationPages: PageConfig[] = [
       { prop: 'lesseeName', label: '承租人' },
       { prop: 'rentAmount', label: '租金' },
       { prop: 'endDate', label: '到期日' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: leaseContractStatusOptions },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'resourceId', label: '资源ID', type: 'number', required: true },
       { prop: 'lesseeName', label: '承租人', required: true },
       { prop: 'startDate', label: '开始日期', type: 'date', required: true },
@@ -1794,17 +1878,17 @@ const operationPages: PageConfig[] = [
     projectScoped: true,
     columns: [
       { prop: 'deviceName', label: '设备名称', inFilter: true },
-      { prop: 'deviceType', label: '类型' },
+      { prop: 'deviceType', label: '类型', type: 'select', options: deviceTypeOptions },
       { prop: 'vendorCode', label: '厂商' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: deviceStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'deviceName', label: '设备名称', required: true },
       { prop: 'deviceCode', label: '设备编码', required: true },
-      { prop: 'deviceType', label: '设备类型', type: 'select', options: ['ACCESS', 'PARKING', 'CAMERA', 'ELEVATOR'] },
+      { prop: 'deviceType', label: '设备类型', type: 'select', options: deviceTypeOptions },
       { prop: 'vendorCode', label: '厂商编码' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: deviceStatusOptions },
     ],
   },
   {
@@ -1824,10 +1908,10 @@ const operationPages: PageConfig[] = [
       { prop: 'visitorMobile', label: '手机' },
       { prop: 'validStartAt', label: '开始' },
       { prop: 'validEndAt', label: '结束' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: visitorStatusOptions },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'visitorName', label: '访客姓名', required: true },
       { prop: 'visitorMobile', label: '手机号' },
       { prop: 'visitReason', label: '来访事由' },
@@ -1850,11 +1934,11 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'deviceId', label: '设备ID' },
       { prop: 'memberId', label: '成员ID' },
-      { prop: 'status', label: '状态', inFilter: true },
-      { prop: 'syncStatus', label: '同步状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: accessPermissionStatusOptions, inFilter: true },
+      { prop: 'syncStatus', label: '同步状态', type: 'select', options: deviceSyncStatusOptions, inFilter: true },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'deviceId', label: '设备ID', type: 'number', required: true },
       { prop: 'memberId', label: '成员ID', type: 'number', required: true },
       { prop: 'validStartAt', label: '有效开始', type: 'datetime' },
@@ -1876,14 +1960,14 @@ const operationPages: PageConfig[] = [
     columns: [
       { prop: 'deviceId', label: '设备ID' },
       { prop: 'personName', label: '人员姓名', inFilter: true },
-      { prop: 'accessType', label: '通行类型' },
+      { prop: 'accessType', label: '通行类型', type: 'select', options: accessTypeOptions },
       { prop: 'accessTime', label: '通行时间' },
     ],
     fields: [
-      { prop: 'projectId', label: '项目ID', type: 'number', required: true },
+      { prop: 'projectId', label: '小区名称', type: 'project', required: true },
       { prop: 'deviceId', label: '设备ID', type: 'number', required: true },
       { prop: 'personName', label: '人员姓名', required: true },
-      { prop: 'accessType', label: '通行类型', type: 'select', options: ['IN', 'OUT'] },
+      { prop: 'accessType', label: '通行类型', type: 'select', options: accessTypeOptions },
       { prop: 'accessTime', label: '通行时间', type: 'datetime', required: true },
     ],
   },
@@ -1900,7 +1984,7 @@ const operationPages: PageConfig[] = [
       { prop: 'vendorCode', label: '厂商' },
       { prop: 'plateNo', label: '车牌', inFilter: true },
       { prop: 'syncType', label: '同步类型' },
-      { prop: 'syncStatus', label: '状态', inFilter: true },
+      { prop: 'syncStatus', label: '状态', type: 'select', options: deviceSyncStatusOptions, inFilter: true },
       { prop: 'retryCount', label: '重试次数' },
     ],
   },
