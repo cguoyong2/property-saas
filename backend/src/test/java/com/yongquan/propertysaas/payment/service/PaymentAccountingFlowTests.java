@@ -12,6 +12,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.yongquan.propertysaas.fee.repository.FeeBillRepository;
+import com.yongquan.propertysaas.fee.service.FeeBillService;
 import com.yongquan.propertysaas.payment.domain.OrderBillSettlement;
 import com.yongquan.propertysaas.payment.domain.PayOrderView;
 import com.yongquan.propertysaas.payment.domain.PayRefundView;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import org.mockito.InOrder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -162,6 +165,27 @@ class PaymentAccountingFlowTests {
                 new RefundAuditRequest("APPROVED", "线下退款确认")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("退款金额超过订单当前可退账单和预存款余额");
+    }
+
+    @Test
+    void billListNormalizesAmountStatusBeforeReadingRows() {
+        FeeBillRepository repository = mock(FeeBillRepository.class);
+        FeeBillService service = new FeeBillService(repository, mock(OperationLogService.class),
+                mock(AppMessageService.class));
+        when(repository.projectExists(TENANT_ID, PROJECT_ID)).thenReturn(true);
+        when(repository.findAllowedProjectIds(TENANT_ID, USER_ID)).thenReturn(null);
+        when(repository.findAutoGenerateCandidates(eq(TENANT_ID), eq(null), eq(PROJECT_ID), any(), eq(1000)))
+                .thenReturn(List.of());
+        when(repository.findBills(TENANT_ID, null, PROJECT_ID, null, null, 0, 20)).thenReturn(List.of());
+        when(repository.countBills(TENANT_ID, null, PROJECT_ID, null, null)).thenReturn(0L);
+
+        service.pageBills(PROJECT_ID, null, null, 1, 20);
+
+        InOrder inOrder = org.mockito.Mockito.inOrder(repository);
+        inOrder.verify(repository).findAutoGenerateCandidates(eq(TENANT_ID), eq(null), eq(PROJECT_ID), any(), eq(1000));
+        inOrder.verify(repository).normalizeActiveBillStatuses(TENANT_ID, null, PROJECT_ID);
+        inOrder.verify(repository).findBills(TENANT_ID, null, PROJECT_ID, null, null, 0, 20);
+        inOrder.verify(repository).countBills(TENANT_ID, null, PROJECT_ID, null, null);
     }
 
     private PayableBill payableBill(Long billId, String billNo, BigDecimal remainingAmount) {

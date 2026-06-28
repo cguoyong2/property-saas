@@ -59,6 +59,7 @@ public class FeeBillService {
         Long tenantId = tenantId();
         List<Long> scope = projectScope(tenantId);
         autoGenerateVisibleBills(tenantId, scope, projectId, billPeriod);
+        repository.normalizeActiveBillStatuses(tenantId, scope, projectId);
         return new PageResult<>(
                 repository.findBills(tenantId, scope, projectId, status, billPeriod, offset(pageNo, pageSize), pageSize),
                 repository.countBills(tenantId, scope, projectId, status, billPeriod),

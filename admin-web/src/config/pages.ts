@@ -201,7 +201,7 @@ const billObjectTypeOptions = [
 const billStatusOptions = [
   { label: '未缴', value: 'UNPAID' },
   { label: '支付中', value: 'PAYING' },
-  { label: '部分已缴', value: 'PARTIAL_PAID' },
+  { label: '未缴清', value: 'PARTIAL_PAID' },
   { label: '已缴清', value: 'PAID' },
   { label: '逾期', value: 'OVERDUE' },
   { label: '已作废', value: 'VOID' },

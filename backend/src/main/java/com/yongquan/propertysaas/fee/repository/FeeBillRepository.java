@@ -72,6 +72,34 @@ public class FeeBillRepository {
         return jdbcTemplate.query(sql.toString(), this::mapBill, args.toArray());
     }
 
+    public int normalizeActiveBillStatuses(Long tenantId, List<Long> allowedProjectIds, Long projectId) {
+        if (allowedProjectIds != null && allowedProjectIds.isEmpty()) {
+            return 0;
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                UPDATE fee_bill b
+                SET status = CASE
+                    WHEN b.remaining_amount <= 0 THEN 'PAID'
+                    WHEN b.paid_amount > 0 THEN 'PARTIAL_PAID'
+                    WHEN b.due_date < CURRENT_DATE THEN 'OVERDUE'
+                    ELSE 'UNPAID'
+                END
+                WHERE b.tenant_id = ? AND b.deleted = 0
+                  AND b.status IN ('UNPAID', 'OVERDUE', 'PARTIAL_PAID', 'PAID')
+                  AND b.status <> CASE
+                    WHEN b.remaining_amount <= 0 THEN 'PAID'
+                    WHEN b.paid_amount > 0 THEN 'PARTIAL_PAID'
+                    WHEN b.due_date < CURRENT_DATE THEN 'OVERDUE'
+                    ELSE 'UNPAID'
+                  END
+                """);
+        args.add(tenantId);
+        appendBillFilters(sql, args, projectId, null, null);
+        appendProjectScope(sql, args, allowedProjectIds);
+        return jdbcTemplate.update(sql.toString(), args.toArray());
+    }
+
     public long countBills(Long tenantId, List<Long> allowedProjectIds, Long projectId, String status, String billPeriod) {
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM fee_bill b WHERE b.tenant_id = ? AND b.deleted = 0");
