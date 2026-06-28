@@ -313,7 +313,7 @@ export const pages: PageConfig[] = [
       { prop: 'tenantCode', label: '编码' },
       { prop: 'contactName', label: '联系人' },
       { prop: 'contactMobile', label: '手机号' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
       { prop: 'serviceEndDate', label: '服务到期' },
     ],
     fields: [
@@ -352,7 +352,7 @@ export const pages: PageConfig[] = [
       { prop: 'billingCycle', label: '计费周期', type: 'select', options: ['MONTH', 'YEAR'], required: true },
       { prop: 'enabledModules', label: '模块JSON', type: 'textarea' },
       { prop: 'quotas', label: '额度JSON', type: 'textarea' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -590,7 +590,7 @@ const baseArchiveExtraPages: PageConfig[] = [
       { prop: 'projectId', label: '小区名称', type: 'project' },
       { prop: 'buildingName', label: '楼栋名称', inFilter: true },
       { prop: 'floorCount', label: '层数' },
-      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: workOrderStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'projectId', label: '小区名称', type: 'project', required: true },
@@ -1390,7 +1390,7 @@ const servicePages: PageConfig[] = [
       { prop: 'orderType', label: '类型', inFilter: true },
       { prop: 'title', label: '标题' },
       { prop: 'memberId', label: '会员ID' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: workOrderStatusOptions, inFilter: true },
       { prop: 'createdAt', label: '提交时间' },
     ],
   },
@@ -1493,13 +1493,13 @@ const systemPages: PageConfig[] = [
       { prop: 'deptName', label: '部门名称', inFilter: true },
       { prop: 'parentId', label: '上级ID' },
       { prop: 'sortOrder', label: '排序' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'deptName', label: '部门名称', required: true },
       { prop: 'parentId', label: '上级ID', type: 'number' },
       { prop: 'sortOrder', label: '排序', type: 'number' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -1520,7 +1520,7 @@ const systemPages: PageConfig[] = [
       { prop: 'realName', label: '姓名' },
       { prop: 'mobile', label: '手机号' },
       { prop: 'userType', label: '类型' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'username', label: '用户名', required: true },
@@ -1528,7 +1528,7 @@ const systemPages: PageConfig[] = [
       { prop: 'mobile', label: '手机号' },
       { prop: 'deptId', label: '部门ID', type: 'number' },
       { prop: 'roleId', label: '角色ID', type: 'number' },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -1548,13 +1548,13 @@ const systemPages: PageConfig[] = [
       { prop: 'roleName', label: '角色名称', inFilter: true },
       { prop: 'roleCode', label: '角色编码' },
       { prop: 'dataScope', label: '数据范围' },
-      { prop: 'status', label: '状态', inFilter: true },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'roleName', label: '角色名称', required: true },
       { prop: 'roleCode', label: '角色编码', required: true },
       { prop: 'dataScope', label: '数据范围', type: 'select', options: ['ALL', 'PROJECT', 'SELF'] },
-      { prop: 'status', label: '状态', type: 'select', options: ['ACTIVE', 'DISABLED'] },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
   {
@@ -1570,7 +1570,7 @@ const systemPages: PageConfig[] = [
       { prop: 'permissionCode', label: '权限码' },
       { prop: 'moduleCode', label: '模块' },
       { prop: 'apiPath', label: '接口路径' },
-      { prop: 'status', label: '状态' },
+      { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },
 ]
