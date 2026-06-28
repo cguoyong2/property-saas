@@ -1677,7 +1677,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'patrol-assets',
     title: '巡检资产',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/patrol/assets',
     icon: Tools,
     listPath: '/patrol/assets',
@@ -1704,7 +1704,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'patrol-points',
     title: '巡检点位',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/patrol/points',
     icon: Key,
     listPath: '/patrol/points',
@@ -1731,7 +1731,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'patrol-plans',
     title: '巡检计划',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/patrol/plans',
     icon: Tickets,
     listPath: '/patrol/plans',
@@ -1757,7 +1757,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'patrol-tasks',
     title: '巡检任务',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/patrol/tasks',
     icon: Key,
     listPath: '/patrol/tasks',
@@ -1784,7 +1784,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'lease-resources',
     title: '可租资源',
-    group: '巡检租赁设备',
+    group: '租赁资产',
     route: '/lease/resources',
     icon: OfficeBuilding,
     listPath: '/lease/resources',
@@ -1812,7 +1812,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'lease-customers',
     title: '意向客户',
-    group: '巡检租赁设备',
+    group: '租赁资产',
     route: '/lease/customers',
     icon: User,
     listPath: '/lease/customers',
@@ -1839,7 +1839,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'lease-contracts',
     title: '租赁合同',
-    group: '巡检租赁设备',
+    group: '租赁资产',
     route: '/lease/contracts',
     icon: Files,
     listPath: '/lease/contracts',
@@ -1868,7 +1868,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'device-configs',
     title: '设备配置',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/device/configs',
     icon: Setting,
     listPath: '/device/configs',
@@ -1897,7 +1897,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'device-visitors',
     title: '访客管理',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/device/visitors',
     icon: User,
     listPath: '/device/visitors',
@@ -1925,7 +1925,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'device-access',
     title: '门禁权限',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/device/access',
     icon: Key,
     listPath: '/device/access',
@@ -1951,7 +1951,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'device-access-records',
     title: '门禁记录',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/device/access/records',
     icon: Files,
     listPath: '/device/access/records',
@@ -1977,7 +1977,7 @@ const operationPages: PageConfig[] = [
   {
     key: 'device-parking',
     title: '停车对接',
-    group: '巡检租赁设备',
+    group: '巡检点（设备）',
     route: '/device/parking',
     icon: Van,
     listPath: '/device/parking',
