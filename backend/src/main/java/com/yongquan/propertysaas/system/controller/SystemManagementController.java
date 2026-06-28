@@ -10,6 +10,7 @@ import com.yongquan.propertysaas.system.domain.UserView;
 import com.yongquan.propertysaas.system.dto.DeptRequest;
 import com.yongquan.propertysaas.system.dto.RoleMenuRequest;
 import com.yongquan.propertysaas.system.dto.RoleRequest;
+import com.yongquan.propertysaas.system.dto.UserPasswordRequest;
 import com.yongquan.propertysaas.system.dto.UserProjectRequest;
 import com.yongquan.propertysaas.system.dto.UserRequest;
 import com.yongquan.propertysaas.system.dto.UserStatusRequest;
@@ -74,6 +75,14 @@ public class SystemManagementController {
     @RequiresPermission("system:user:update")
     public ApiResponse<Void> updateUser(@PathVariable Long userId, @Valid @RequestBody UserRequest request) {
         service.updateUser(userId, request);
+        return ApiResponse.success();
+    }
+
+    @PutMapping("/users/{userId}/password")
+    @RequiresPermission("system:user:update")
+    public ApiResponse<Void> resetUserPassword(@PathVariable Long userId,
+                                               @Valid @RequestBody UserPasswordRequest request) {
+        service.resetUserPassword(userId, request);
         return ApiResponse.success();
     }
 

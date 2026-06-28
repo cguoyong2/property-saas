@@ -398,6 +398,13 @@
             value-format="YYYY-MM-DDTHH:mm:ss"
             class="form-control"
           />
+          <el-input
+            v-else-if="field.type === 'password'"
+            v-model="form[field.prop]"
+            type="password"
+            show-password
+            autocomplete="new-password"
+          />
           <el-input v-else-if="field.type === 'textarea'" v-model="form[field.prop]" type="textarea" :rows="4" />
           <el-input
             v-else
@@ -705,6 +712,14 @@
               </el-tag>
             </div>
           </template>
+          <el-input
+            v-else-if="field.type === 'password'"
+            v-model="actionForm[field.prop]"
+            type="password"
+            show-password
+            autocomplete="new-password"
+            class="form-control"
+          />
           <el-input v-else-if="field.type === 'textarea'" v-model="actionForm[field.prop]" type="textarea" :rows="4" />
           <el-input v-else v-model="actionForm[field.prop]" />
           <p v-if="field.help" class="field-help">{{ field.help }}</p>
@@ -929,6 +944,26 @@ function billCollectionRemainingAmount(row?: Record<string, unknown>) {
 }
 
 const businessActions: Record<string, BusinessAction[]> = {
+  'system-users': [
+    {
+      key: 'system-user-reset-password',
+      label: '重置密码',
+      scope: 'row',
+      method: 'PUT',
+      path: (row) => `/system/users/${row?.userId}/password`,
+      type: 'warning',
+      permission: 'system:user:update',
+      fields: [
+        {
+          prop: 'password',
+          label: '新密码',
+          type: 'password',
+          required: true,
+          help: '密码长度不能小于8位。',
+        },
+      ],
+    },
+  ],
   'payment-orders': [
     {
       key: 'payment-order-receipt',
@@ -1390,6 +1425,9 @@ const visibleFormFields = computed(() => {
   if (isRefundPage.value) {
     return formFields.value.filter((field) => !['projectId', 'orderId'].includes(field.prop))
   }
+  if (config.value.key === 'system-users' && editingId.value) {
+    return formFields.value.filter((field) => field.prop !== 'password')
+  }
   return formFields.value
 })
 const plateProvince = computed({
@@ -1580,6 +1618,9 @@ function openEdit(row: Record<string, unknown>) {
   formFields.value.forEach((field) => {
     form[field.prop] = row[field.prop] as string | number | undefined | null
   })
+  if (config.value.key === 'system-users' && Array.isArray(row.roleIds) && row.roleIds.length) {
+    form.roleId = Number(row.roleIds[0])
+  }
   loadFormRemoteOptions()
   dialogVisible.value = true
 }
@@ -1868,6 +1909,13 @@ async function save() {
       return
     }
   }
+  if (config.value.key === 'system-users' && !editingId.value) {
+    const password = String(form.password ?? '')
+    if (password.length < 8) {
+      ElMessage.warning('初始密码长度不能小于8位')
+      return
+    }
+  }
   if (isRefundPage.value) {
     if (!form.projectId) {
       ElMessage.warning('请先选择小区名称')
@@ -1895,6 +1943,13 @@ async function save() {
   saving.value = true
   try {
     const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== undefined && value !== ''))
+    if (config.value.key === 'system-users') {
+      const roleId = payload.roleId
+      if (roleId !== undefined && roleId !== null && roleId !== '') {
+        payload.roleIds = [Number(roleId)]
+      }
+      delete payload.roleId
+    }
     if (editingId.value && config.value.updatePath && config.value.idProp) {
       await updateRecord(config.value.updatePath, editingId.value, config.value.idProp, payload)
     } else {
@@ -3057,6 +3112,13 @@ async function submitAction() {
     const amount = Number(actionForm.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       ElMessage.warning('收款金额必须大于0')
+      return
+    }
+  }
+  if (currentAction.value.key === 'system-user-reset-password') {
+    const password = String(actionForm.password ?? '')
+    if (password.length < 8) {
+      ElMessage.warning('新密码长度不能小于8位')
       return
     }
   }

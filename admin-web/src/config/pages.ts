@@ -23,6 +23,7 @@ export interface FieldConfig {
     | 'number'
     | 'date'
     | 'datetime'
+    | 'password'
     | 'textarea'
     | 'select'
     | 'province'
@@ -73,6 +74,11 @@ export interface PageConfig {
 }
 
 const enabledStatusOptions = [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]
+const systemUserTypeOptions = [
+  { label: '物业用户', value: 'TENANT' },
+  { label: '平台用户', value: 'PLATFORM' },
+  { label: '业主/住户', value: 'MEMBER' },
+]
 const memberStatusOptions = enabledStatusOptions
 const memberBindRoleOptions = [
   { label: '业主', value: 'OWNER' },
@@ -1519,15 +1525,16 @@ const systemPages: PageConfig[] = [
       { prop: 'username', label: '用户名', inFilter: true },
       { prop: 'realName', label: '姓名' },
       { prop: 'mobile', label: '手机号' },
-      { prop: 'userType', label: '类型' },
+      { prop: 'userType', label: '类型', type: 'select', options: systemUserTypeOptions },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions, inFilter: true },
     ],
     fields: [
       { prop: 'username', label: '用户名', required: true },
+      { prop: 'password', label: '初始密码', type: 'password', required: true },
       { prop: 'realName', label: '姓名', required: true },
       { prop: 'mobile', label: '手机号' },
-      { prop: 'deptId', label: '部门ID', type: 'number' },
-      { prop: 'roleId', label: '角色ID', type: 'number' },
+      { prop: 'deptId', label: '部门编号', type: 'number' },
+      { prop: 'roleId', label: '角色编号', type: 'number' },
       { prop: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
     ],
   },

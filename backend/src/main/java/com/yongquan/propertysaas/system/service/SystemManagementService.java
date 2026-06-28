@@ -8,6 +8,7 @@ import com.yongquan.propertysaas.system.domain.UserView;
 import com.yongquan.propertysaas.system.dto.DeptRequest;
 import com.yongquan.propertysaas.system.dto.RoleMenuRequest;
 import com.yongquan.propertysaas.system.dto.RoleRequest;
+import com.yongquan.propertysaas.system.dto.UserPasswordRequest;
 import com.yongquan.propertysaas.system.dto.UserProjectRequest;
 import com.yongquan.propertysaas.system.dto.UserRequest;
 import com.yongquan.propertysaas.system.dto.UserStatusRequest;
@@ -107,6 +108,18 @@ public class SystemManagementService {
             }
             repository.resetPassword(tenantId, userId, passwordEncoder.encode(request.password()));
         }
+    }
+
+    @Transactional
+    public void resetUserPassword(Long userId, UserPasswordRequest request) {
+        Long tenantId = tenantId();
+        ensureUser(tenantId, userId);
+        if (request.password() == null || request.password().length() < 8) {
+            throw new IllegalArgumentException("新密码长度不能小于8位");
+        }
+        repository.resetPassword(tenantId, userId, passwordEncoder.encode(request.password()));
+        operationLogService.record(new OperationLogWrite(tenantId, null, "system", "USER_PASSWORD_RESET",
+                "sys_user", userId, null, Map.of("reset", true), null));
     }
 
     @Transactional
